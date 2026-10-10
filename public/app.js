@@ -893,17 +893,26 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
 
     async function addPlayer(e) {
         e.preventDefault();
+        const name = newName.value.trim();
+        if (!name) return;
+        let p;
         try {
-            const p = await gapi(gid, 'POST', '/players', { name: newName.value });
+            p = await gapi(gid, 'POST', '/players', { name });
+        } catch (err) {
+            if (err.status !== 409) return errorToast(err);
+            // Someone already added them: pick that player instead.
+            const fresh = await gapi(gid, 'GET', '').catch(() => null);
+            p = fresh?.players.find((x) => x.name.toLowerCase() === name.toLowerCase());
+            if (!p) return toast(t('nameTaken'));
+        }
+        if (!ctx.playersById.has(p.id)) {
             ctx.players.push(p);
             ctx.playersById.set(p.id, p);
-            players = [...players, p];
-            const a = teamIds(0).length;
-            const b = teamIds(1).length;
-            assign.set(p.id, a <= b ? 0 : 1);
-            newName.value = '';
-            draw();
-        } catch (err) { toast(err.status === 409 ? t('nameTaken') : err.message); }
+        }
+        if (!players.some((x) => x.id === p.id)) players = [...players, p];
+        if (!assign.has(p.id)) assign.set(p.id, teamIds(0).length <= teamIds(1).length ? 0 : 1);
+        newName.value = '';
+        draw();
     }
 
     function sameAsLast() {

@@ -74,6 +74,27 @@ assert.equal(tr.rounds.length, 1);
 const hist = await call('GET', `/api/g/${gid}/games/${game}/rounds?player=${cy.id}`, member);
 assert.equal(hist.rounds.length, 1);
 
+// Fast-path edits (latest round: flip winner, swap teams, delete, restore)
+// must leave exactly what a full replay gives.
+const r4 = await call('POST', `/api/g/${gid}/games/${game}/rounds`, member, { teams: [[ada, bob.id], [cy.id]], winner: 0 });
+await call('PATCH', `/api/g/${gid}/rounds/${r4.id}`, member, { winner: 1 });
+await call('PATCH', `/api/g/${gid}/rounds/${r4.id}`, member, { teams: [[ada], [cy.id, bob.id]] });
+await call('DELETE', `/api/g/${gid}/rounds/${r4.id}`, member);
+await call('POST', `/api/g/${gid}/rounds/${r4.id}/restore`, member);
+const snapshot = async () => {
+    const v = await call('GET', `/api/g/${gid}/games/${game}?since=0`, member);
+    return {
+        ratings: Object.fromEntries(v.ratings.map((r) => [r.playerId, [r.mu, r.sigma, r.rounds, r.wins]])),
+        rounds: Object.fromEntries(v.rounds.map((r) => [r.id, r.players.map((p) => [p.id, p.before?.mu, p.after?.mu])])),
+    };
+};
+const fast = await snapshot();
+await call('PATCH', `/api/g/${gid}/games/${game}`, admin, { recalculate: true });
+const full = await snapshot();
+const near = (a, b) => JSON.stringify(a, (k, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v))
+    === JSON.stringify(b, (k, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v));
+assert.ok(near(fast, full), `fast path differs from replay:\n${JSON.stringify(fast)}\n${JSON.stringify(full)}`);
+
 // Rotating the code invalidates the old one.
 const rot = await call('POST', `/api/g/${gid}/invite`, admin);
 assert.notEqual(rot.inviteCode, code);

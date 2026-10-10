@@ -548,33 +548,95 @@ async function createRound(env, me, gameId, request) {
     return json((await roundsOut(env, me, [round]))[0], 201);
 }
 
+// Changing a round that is still the newest round of everyone in it (wrong
+// winner, undo, restore) doesn't need a full replay: undo its effect from the
+// stored "before" values and apply the new version. Full replays of long
+// histories can exceed the free plan's 10 ms CPU limit, so this is the path
+// everyday corrections take. Returns statements, or null when some player has
+// a later round (the caller then replays the game).
+async function latestRoundStatements(env, round, oldRows, next) {
+    const ids = [...new Set([...oldRows.map((p) => p.player_id), ...(next ? next.teams.flat() : [])])];
+    const later = await env.DB.prepare(
+        `SELECT 1 FROM round_players rp JOIN rounds r ON r.id = rp.round_id
+         WHERE rp.player_id IN (SELECT value FROM json_each(?1)) AND r.game_id = ?2 AND r.deleted_at IS NULL
+           AND r.id != ?3 AND (r.played_at > ?4 OR (r.played_at = ?4 AND r.id > ?3))
+         LIMIT 1`,
+    ).bind(JSON.stringify(ids), round.game_id, round.id, round.played_at).first();
+    if (later) return null;
+    const { results } = await env.DB.prepare(
+        'SELECT * FROM ratings WHERE game_id = ? AND player_id IN (SELECT value FROM json_each(?))',
+    ).bind(round.game_id, JSON.stringify(ids)).all();
+    const ratings = new Map(results.map((r) => [r.player_id, { mu: r.mu, sigma: r.sigma, rounds: r.rounds, wins: r.wins }]));
+    for (const p of oldRows) {
+        const cur = ratings.get(p.player_id);
+        if (!cur || p.mu_before === null) return null;
+        const rounds = cur.rounds - 1;
+        if (rounds <= 0) ratings.delete(p.player_id);
+        else ratings.set(p.player_id, { mu: p.mu_before, sigma: p.sigma_before, rounds, wins: cur.wins - (p.team === round.winner ? 1 : 0) });
+    }
+    const statements = [];
+    if (next) {
+        const change = applyRound(ratings, { id: round.id, teams: next.teams, winner: next.winner });
+        const rows = next.teams.flatMap((team, t) => team.map((id) => {
+            const c = change.get(id);
+            return [round.id, id, t, c.before.mu, c.before.sigma, c.after.mu, c.after.sigma];
+        }));
+        statements.push(env.DB.prepare('DELETE FROM round_players WHERE round_id = ?').bind(round.id));
+        statements.push(env.DB.prepare(roundPlayersSql).bind(JSON.stringify(rows)));
+    }
+    const gone = ids.filter((id) => !ratings.has(id));
+    const rows = [...ratings].map(([id, r]) => [id, r.mu, r.sigma, r.rounds, r.wins, round.played_at]);
+    if (gone.length) {
+        statements.push(env.DB.prepare('DELETE FROM ratings WHERE game_id = ? AND player_id IN (SELECT value FROM json_each(?))')
+            .bind(round.game_id, JSON.stringify(gone)));
+    }
+    if (rows.length) statements.push(env.DB.prepare(ratingRowsSql).bind(round.game_id, JSON.stringify(rows)));
+    return statements;
+}
+
+async function roundPlayerRows(env, roundId) {
+    const { results } = await env.DB.prepare('SELECT * FROM round_players WHERE round_id = ?').bind(roundId).all();
+    return results;
+}
+
 async function updateRound(env, me, roundId, request) {
     const round = await loadRound(env, me, roundId);
     if (!canEditRound(me, round)) throw forbidden();
     const input = await body(request);
-    const statements = [];
     const sets = [];
     const args = [];
-    if (input.winner !== undefined) {
-        if (input.winner !== 0 && input.winner !== 1) throw bad('invalid winner');
-        sets.push('winner = ?');
-        args.push(input.winner);
-    }
+    if (input.winner !== undefined && input.winner !== 0 && input.winner !== 1) throw bad('invalid winner');
     if (input.scoreA !== undefined) { sets.push('score_a = ?'); args.push(optionalScore(input.scoreA)); }
     if (input.scoreB !== undefined) { sets.push('score_b = ?'); args.push(optionalScore(input.scoreB)); }
     if (input.tournamentId !== undefined) {
         sets.push('tournament_id = ?');
         args.push(await checkTournament(env, round.game_id, input.tournamentId));
     }
+    const oldRows = await roundPlayerRows(env, roundId);
+    const winner = input.winner ?? round.winner;
+    const teams = input.teams !== undefined
+        ? await checkTeams(env, me, input.teams)
+        : [0, 1].map((t) => oldRows.filter((p) => p.team === t).map((p) => p.player_id));
+    const sameTeams = JSON.stringify(teams.map((t) => [...t].sort()))
+        === JSON.stringify([0, 1].map((t) => oldRows.filter((p) => p.team === t).map((p) => p.player_id).sort()));
+    const ratingChange = winner !== round.winner || !sameTeams;
+    if (winner !== round.winner) { sets.push('winner = ?'); args.push(winner); }
+
+    const statements = [];
     if (sets.length) statements.push(env.DB.prepare(`UPDATE rounds SET ${sets.join(', ')} WHERE id = ?`).bind(...args, roundId));
-    if (input.teams !== undefined) {
-        const teams = await checkTeams(env, me, input.teams);
+    let replayNeeded = false;
+    if (ratingChange && !round.deleted_at) {
+        const fast = await latestRoundStatements(env, round, oldRows, { teams, winner });
+        if (fast) statements.push(...fast);
+        else replayNeeded = true;
+    }
+    if (ratingChange && (round.deleted_at || replayNeeded) && !sameTeams) {
         statements.push(env.DB.prepare('DELETE FROM round_players WHERE round_id = ?').bind(roundId));
         const rows = teams.flatMap((team, t) => team.map((id) => [roundId, id, t, null, null, null, null]));
         statements.push(env.DB.prepare(roundPlayersSql).bind(JSON.stringify(rows)));
     }
     if (statements.length) await env.DB.batch(statements);
-    if (input.winner !== undefined || input.teams !== undefined) await replayGame(env, round.game_id);
+    if (replayNeeded) await replayGame(env, round.game_id);
     const updated = await env.DB.prepare('SELECT * FROM rounds WHERE id = ?').bind(roundId).first();
     return json((await roundsOut(env, me, [updated]))[0]);
 }
@@ -582,8 +644,19 @@ async function updateRound(env, me, roundId, request) {
 async function setRoundDeleted(env, me, roundId, deleted) {
     const round = await loadRound(env, me, roundId);
     if (!canEditRound(me, round)) throw forbidden();
-    await env.DB.prepare('UPDATE rounds SET deleted_at = ? WHERE id = ?').bind(deleted ? Date.now() : null, roundId).run();
-    await replayGame(env, round.game_id);
+    if (!!round.deleted_at === deleted) return json({ ok: true });
+    const rows = await roundPlayerRows(env, roundId);
+    const fast = deleted
+        ? await latestRoundStatements(env, round, rows, null)
+        : await latestRoundStatements(env, round, [], {
+            teams: [0, 1].map((t) => rows.filter((p) => p.team === t).map((p) => p.player_id)),
+            winner: round.winner,
+        });
+    await env.DB.batch([
+        env.DB.prepare('UPDATE rounds SET deleted_at = ? WHERE id = ?').bind(deleted ? Date.now() : null, roundId),
+        ...(fast || []),
+    ]);
+    if (!fast) await replayGame(env, round.game_id);
     return json({ ok: true });
 }
 

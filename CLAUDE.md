@@ -32,8 +32,13 @@ setup (D1 database, Workers Builds import).
   `ratings` the current value per game. The leaderboard only reads `ratings`,
   so page views stay cheap however long the history gets.
 - New rounds are applied incrementally. Editing teams/winner, deleting or
-  restoring a round replays the whole game (`replayGame`) and rewrites only
-  rows that changed. Admins have a "Recalculate" button per game as a repair
+  restoring a round that is still the newest round of everyone in it (wrong
+  winner, Undo) is also incremental (`latestRoundStatements`: revert from the
+  stored before-values, re-apply). Anything older replays the whole game
+  (`replayGame`), rewriting only rows that changed. Replay of 5,000 rounds is
+  ~17–29 ms CPU, over the free plan's 10 ms/request — fine for occasional
+  edits of old rounds, but keep the common paths off it.
+  `scripts/smoke.js` checks fast path == full replay. Admins have a "Recalculate" button per game as a repair
   for the rare concurrent-insert race.
 - Display rating = `1000 + 40·(mu − 3·sigma)`; under 5 rounds is
   "provisional" (shown, not ranked).
