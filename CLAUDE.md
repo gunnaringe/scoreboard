@@ -1,6 +1,6 @@
 # scoreboard
 
-Office game scoreboard at score.apphub.casa: groups → games (e.g. Rocket
+Office game scoreboard at scoreboard.apphub.casa: groups → games (e.g. Rocket
 League) → rounds, optional tournaments, Weng-Lin team ratings. No accounts:
 devices join a group with an invite code (usually a printed QR poster).
 

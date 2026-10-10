@@ -27,6 +27,6 @@
   "workers_dev": false,
   "preview_urls": false,
   "routes": [
-    { "pattern": "score.apphub.casa", "custom_domain": true }
+    { "pattern": "scoreboard.apphub.casa", "custom_domain": true }
   ]
 }
