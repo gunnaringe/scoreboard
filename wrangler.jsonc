@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must match the Worker created by the Workers Builds import. Never rename.
+  "name": "score",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "public",
+    // Unknown paths (/j/CODE, /g/...) get index.html; the app routes client-side.
+    "not_found_handling": "single-page-application",
+    // Only the API runs the Worker; everything else is free static assets.
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "scoreboard",
+      // Placeholder: replace with the ID from `wrangler d1 create scoreboard`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Throttles invite-code guesses and group creation per IP.
+  "ratelimits": [
+    { "name": "JOIN_LIMIT", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } }
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "score.apphub.casa", "custom_domain": true }
+  ]
+}

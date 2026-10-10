@@ -1,0 +1,13 @@
+{
+  "name": "scoreboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test test/",
+    "migrate:local": "wrangler d1 migrations apply scoreboard --local"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  }
+}
