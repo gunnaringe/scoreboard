@@ -1,65 +1,87 @@
 # scoreboard
 
 Office game scoreboard at scoreboard.apphub.casa: groups → games (e.g. Rocket
-League) → rounds, optional tournaments, Weng-Lin team ratings. No accounts:
-devices join a group with an invite code (usually a printed QR poster).
+League) → rounds, optional tournaments, Weng-Lin team ratings. No accounts.
 
 **Not deployed yet** (2026-10-10). See "Deploy" in README.md for the one-time
-setup (D1 database, Workers Builds import).
+setup (D1 database, Workers Builds import). Since nothing is deployed,
+`migrations/0001_init.sql` was still being edited in place; once it has been
+applied remotely, add new numbered migrations instead.
+
+## Access: three links per group
+
+- **Office link** `/j/<CODE>` (8-char code, QR poster): anyone with it joins
+  and gets a device token. Members can do everything with rounds, players,
+  games and tournaments — office trust, by the user's choice. They can see and
+  share the office and dashboard links but not change them.
+- **Dashboard link** `/d/<token>`: read-only leaderboard + recent rounds for
+  wall screens, no device needed (`/api/d/...`). Polls every 30 s, wake lock.
+  Stored as is (members are shown it).
+- **Owner link** `/o/<token>`: opening it makes this browser's device an owner
+  (`devices.is_owner`). Owners make new office/dashboard/owner links, rename
+  or delete the group, remove devices. Only its SHA-256 is stored; it's shown
+  once (at creation or when made anew) with copy / mailto / share. The owner
+  link is also the recovery path, so a group can't get locked out.
+
+Device tokens: one per browser per group, SHA-256 stored, `Authorization:
+Bearer`. iOS Safari drops localStorage after 7 days unvisited unless the app
+is on the home screen — the game page nudges iPhone users.
 
 ## Layout
 
 - `src/worker.js` — the JSON API under `/api/*`. Only these paths run the
   Worker (`run_worker_first`); everything else is free static assets.
 - `public/` — the app, no build step. `app.js` is a small SPA routing on
-  `location.pathname` (`not_found_handling: single-page-application` serves
-  `index.html` for `/j/CODE`, `/g/...`). Render user text via `h()` /
-  `textContent`, never markup.
-- `public/rating.js` — Weng-Lin (Bradley-Terry full pair). Shared by the
-  Worker and the browser (win odds, team balancing). Must stay deterministic:
-  incremental updates and full replay have to agree (tested).
+  `location.pathname` (`not_found_handling: single-page-application`). Render
+  user text via `h()` / `textContent`, never markup. `_headers` sets CSP
+  (same-origin only) and `Referrer-Policy: no-referrer`.
+- `public/rating.js` — the rating model, shared by Worker and browser (win
+  odds, team balancing). Must stay deterministic: incremental updates and full
+  replay have to agree (tested).
 - `public/qrcodegen.js` — generated from `vendor/qrcodegen.ts` (Nayuki, MIT)
   by `scripts/build-qr.sh`. Don't edit by hand.
-- `public/theme.js`, `fonts/`, theme CSS blocks — copied from `world-clock`
-  (auto/light/dark/hacker). Keep the look in sync with clock.apphub.casa.
-- `public/i18n.js` — `en` and `no`, same keys (checked by `test/i18n.test.js`,
-  which also checks every `t('key')` in `app.js` exists).
-- `migrations/` — D1 schema. Add new numbered files; never edit applied ones.
+- `public/theme.js`, `fonts/`, theme CSS blocks — from `world-clock`
+  (auto/light/dark/hacker). Dark theme uses dark text on accent/team fills
+  (`--on-accent`, `--on-team`) for contrast.
+- `public/i18n.js` — `en` and `no`, same keys (`test/i18n.test.js` also checks
+  every `t('key')` in `app.js` exists). Default team names are NULL in the DB
+  and localised (Blue/Orange, Blå/Oransje).
 
-## Data and ratings
+## Rating model (tuned with simulations by a review, 2026-10-10)
 
-- `round_players` stores each player's mu/sigma before and after every round,
-  `ratings` the current value per game. The leaderboard only reads `ratings`,
-  so page views stay cheap however long the history gets.
-- New rounds are applied incrementally. Editing teams/winner, deleting or
-  restoring a round that is still the newest round of everyone in it (wrong
-  winner, Undo) is also incremental (`latestRoundStatements`: revert from the
-  stored before-values, re-apply). Anything older replays the whole game
-  (`replayGame`), rewriting only rows that changed. Replay of 5,000 rounds is
-  ~17–29 ms CPU, over the free plan's 10 ms/request — fine for occasional
-  edits of old rounds, but keep the common paths off it.
-  `scripts/smoke.js` checks fast path == full replay. Admins have a
-  "Recalculate" button per game as a repair for the rare concurrent-insert
-  race.
-- Display rating = `1000 + 40·(mu − 3·sigma)`; under 5 rounds is
-  "provisional" (shown, not ranked).
-- Tournament rounds count towards the game's overall rating; the tournament
-  page just filters rounds and sums deltas.
+- Weng-Lin Bradley-Terry full pairing, starting sigma 6, beta 25/6, tau 25/300.
+- Team strength = Σ(mu − 25), so team size is worth nothing by itself; each
+  uneven format ("2v1", "3v2") has a learned **handicap** pseudo-player on the
+  bigger team (`handicaps` table; before/after stored on `rounds`). Summing raw
+  mu made 2v1 98 % for the pair and let the solo player farm rating.
+- Display = `1000 + 25·(mu − sigma − 19)` (newcomer = 1000). The +/− shown per
+  round and "today" are mu changes (`displayDelta`), so a losing day never
+  shows a gain. mu − 3σ was rejected: it rewarded volume over skill.
+- Under 10 rounds a player is "new": listed separately, not ranked.
+- Tournament rounds count towards the game's rating.
 
-## D1 free-plan limits that shape the code
+## Rating writes (`rerate` in worker.js)
 
-50 queries per request and 100 bound parameters per query: bulk writes go
-through one JSON parameter + `json_each()` (see `ratingRowsSql`,
-`roundPlayersSql`). `INSERT … SELECT … ON CONFLICT` needs `WHERE true` before
-`ON CONFLICT` (SQLite parser quirk).
+Every rating change — new round, edit of teams/winner, delete, restore — goes
+through `rerate`: it recalculates from the changed round onward (not from the
+start), using stored before-values as the starting state, and commits the
+round change plus all rating rows in **one batch**. The batch starts with a
+version guard on `games.version` that fails (via `json('stale')`) if another
+write got in first; `retrying()` then redoes the request. Changes more than
+`MAX_RERATE` (800) rounds back are refused: replaying more risks the 10 ms
+CPU limit. `scripts/smoke.js` does random edits/deletes/restores, concurrent
+saves and uneven formats, then checks every stored value against a full replay.
 
-## Permissions
+## Free-plan limits that shape the code
 
-- Device token (SHA-256 stored) per browser per group.
-- Admin = `devices.is_admin` OR `groups.everyone_admin`. The creator is admin.
-- `groups.edit_policy`: `anyone` (default) or `admin` — then only admins and
-  the device that logged a round may edit/delete it. Logging new rounds is
-  always open. All enforced server-side.
+- D1: 50 queries/request, 100 bound params/query → bulk writes via one JSON
+  parameter + `json_each()`. `INSERT … SELECT … ON CONFLICT` needs `WHERE true`
+  before `ON CONFLICT` (SQLite parser quirk).
+- Daily D1 quotas (5M rows read, 100k written) are shared by the whole account
+  and enforced (requests fail until 00:00 UTC). Hence: `WRITE_LIMIT` 60/min per
+  device on every change, `JOIN_LIMIT` 20/min per IP on join/create/owner,
+  page size ≤ 200 with a `(played_at, id)` cursor, and per-group caps (`CAPS`).
+- Workers: 10 ms CPU per request (see MAX_RERATE).
 
 ## Develop
 
@@ -70,4 +92,5 @@ through one JSON parameter + `json_each()` (see `ratingRowsSql`,
     node scripts/smoke.js       # end-to-end API check against npm run dev
 
 The service worker isn't registered on localhost. Bump `CACHE` in `sw.js` when
-changing its precache list.
+changing its precache list. Killing `wrangler dev` with `pkill -f` from a shell
+whose command line contains the pattern kills that shell too — use a script.
