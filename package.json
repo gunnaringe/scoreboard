@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test test/",
-    "migrate:local": "wrangler d1 migrations apply scoreboard --local"
+    "migrate:local": "wrangler d1 migrations apply scoreboard --local",
+    "deploy": "wrangler d1 migrations apply scoreboard --remote && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.149.0"

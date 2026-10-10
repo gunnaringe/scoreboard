@@ -19,16 +19,20 @@ tennis, anything with two teams. Fair team ratings, no accounts.
 - Player pages: rating graph, best teammate, nemesis, head-to-head.
 - Themes: auto, light, dark and hacker. English and Norwegian.
 
-## Deploy (one-time, not done yet)
+## Deploy
 
-1. `npx wrangler d1 create scoreboard` and put the `database_id` in
-   `wrangler.jsonc` (replace the zeros placeholder).
-2. `npx wrangler d1 migrations apply scoreboard --remote`
-3. Push to GitHub and import the repo in Cloudflare → Workers & Pages →
-   Create → Import a repository (Workers Builds). The Worker name must be
-   `scoreboard`; the custom domain `scoreboard.apphub.casa` comes from `wrangler.jsonc`.
-4. After that, every push to `main` deploys. New migrations must be applied
-   with step 2 before (or right after) the deploy that needs them.
+The D1 database `scoreboard` exists (its ID is in `wrangler.jsonc`). One-time
+setup left:
+
+1. Cloudflare dashboard → Workers & Pages → Create → Import a repository →
+   `gunnaringe/scoreboard`. The Worker name must be `scoreboard`; the custom
+   domain `scoreboard.apphub.casa` comes from `wrangler.jsonc`.
+2. Set the **deploy command** to `npm run deploy`. It applies pending D1
+   migrations (`migrations/`) and then deploys, so schema changes ship with
+   the code. If the first build fails with a D1 permission error, give the
+   build's API token **D1: Edit**.
+
+After that, every push to `main` migrates and deploys.
 
 Cost: free plan. Static files are free and unlimited; API calls count against
 the 100,000 requests/day Workers free limit, and D1's free 5M rows read /

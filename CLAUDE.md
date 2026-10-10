@@ -3,10 +3,12 @@
 Office game scoreboard at scoreboard.apphub.casa: groups → games (e.g. Rocket
 League) → rounds, optional tournaments, Weng-Lin team ratings. No accounts.
 
-**Not deployed yet** (2026-10-10). See "Deploy" in README.md for the one-time
-setup (D1 database, Workers Builds import). Since nothing is deployed,
-`migrations/0001_init.sql` was still being edited in place; once it has been
-applied remotely, add new numbered migrations instead.
+**Not deployed yet** (2026-10-10): the D1 database exists (ID in
+`wrangler.jsonc`), the Workers Builds import is still to do — see "Deploy" in
+README.md. The deploy command is `npm run deploy`, which runs `wrangler d1
+migrations apply --remote` before `wrangler deploy`, so migrations ship with
+the code. `migrations/0001_init.sql` is applied by the first build: from then
+on never edit it, add new numbered migrations.
 
 ## Access: three links per group
 
