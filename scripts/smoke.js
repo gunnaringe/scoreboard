@@ -24,19 +24,19 @@ const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
 // ---- groups, joining, everyone-admin default --------------------------------
 const created = await call('POST', '/api/groups', null, { name: 'Office', playerName: 'Ada', gameName: 'Rocket League' });
 assert.equal(created.status, 201);
-assert.ok(created.recoveryToken && created.gameId);
+assert.ok(created.ownerToken && created.gameId);
 const admin = created.token;
 const gid = created.groupId;
 const game = created.gameId;
 const G = `/api/g/${gid}`;
 let g = await call('GET', G, admin);
 const code = g.group.inviteCode;
-assert.equal(g.group.everyoneAdmin, true);
+assert.equal(g.me.owner, true, 'the creator is an owner');
 
 const member = (await call('POST', '/api/join', null, { code: code.toLowerCase().replace('-', ' ') })).token;
 const devices = [admin, member];
 for (let i = 0; i < 3; i++) devices.push((await call('POST', '/api/join', null, { code })).token);
-assert.equal((await call('GET', G, member)).me.admin, true, 'everyone is admin by default');
+assert.equal((await call('GET', G, member)).me.owner, false);
 assert.equal((await call('GET', G, 'nope')).status, 401);
 assert.equal((await call('POST', '/api/join', null, { code: 'AAAA-AAAA' })).status, 404);
 
@@ -131,32 +131,43 @@ assert.equal((await call('GET', `${G}/games/${game}/rounds?limit=100000`, member
 const stats = await call('GET', `${G}/games/${game}/players/${ids[0]}`, member);
 assert.equal(stats.history.length, view.ratings.find((r) => r.playerId === ids[0]).rounds);
 
-// ---- admins and recovery -----------------------------------------------------
-await call('PATCH', G, admin, { everyoneAdmin: false });
-assert.equal((await call('GET', G, member)).me.admin, false);
-assert.equal((await call('PATCH', G, member, { name: 'x' })).status, 403);
-const myDevice = (await call('GET', G, admin)).me.deviceId;
-assert.equal((await call('PATCH', `${G}/devices/${myDevice}`, admin, { admin: false })).status, 409, 'last admin cannot step down');
-assert.equal((await call('DELETE', `${G}/devices/${myDevice}`, admin)).status, 409, 'last admin cannot leave');
-// Recovery link: an existing member's device becomes admin...
-const rec = await call('POST', '/api/recover', null, { token: created.recoveryToken, tokens: [member] });
-assert.equal(rec.groupId, gid);
-assert.equal(rec.token, null);
-assert.equal((await call('GET', G, member)).me.admin, true);
-// ...and a browser that isn't in the group gets a new admin device.
-const fresh = await call('POST', '/api/recover', null, { token: created.recoveryToken, tokens: [] });
+// ---- owner, office and dashboard links ---------------------------------------
+// Members can do everything with rounds, players and games, but not links,
+// group settings or devices.
+assert.equal((await call('PATCH', `${G}/games/${game}`, member, { teamA: 'Red' })).status, 200);
+for (const [method, path] of [['PATCH', G], ['DELETE', G], ['POST', `${G}/links/office`], ['POST', `${G}/links/dashboard`],
+    ['POST', `${G}/links/owner`], ['GET', `${G}/devices`]]) {
+    assert.equal((await call(method, path, member, method === 'PATCH' ? { name: 'x' } : undefined)).status, 403, `${method} ${path}`);
+}
+// The dashboard link is read-only and needs no device.
+const dash = g.group.dashboardToken;
+const board = await call('GET', `/api/d/${dash}`);
+assert.equal(board.group.name, 'Office');
+assert.equal((await call('GET', `/api/d/${dash}/games/${game}?since=0`)).ratings.length, view.ratings.length);
+assert.equal((await call('POST', `/api/d/${dash}/games/${game}/rounds`, null, {})).status, 404, 'dashboard cannot write');
+// Owner link: an existing member's device becomes owner...
+const own = await call('POST', '/api/owner', null, { token: created.ownerToken, tokens: [member] });
+assert.equal(own.groupId, gid);
+assert.equal(own.token, null);
+assert.equal((await call('GET', G, member)).me.owner, true);
+// ...and a browser that isn't in the group gets a new owner device.
+const fresh = await call('POST', '/api/owner', null, { token: created.ownerToken, tokens: [] });
 assert.ok(fresh.token);
-assert.equal((await call('GET', G, fresh.token)).me.admin, true);
-const newLink = await call('POST', `${G}/recovery`, admin);
-assert.equal((await call('POST', '/api/recover', null, { token: created.recoveryToken })).status, 404, 'old link stops working');
-assert.equal((await call('POST', '/api/recover', null, { token: newLink.recoveryToken, tokens: [admin] })).status, 200);
-// With another admin, the first may step down.
-assert.equal((await call('PATCH', `${G}/devices/${myDevice}`, admin, { admin: false })).status, 200);
-
-// ---- invite code and deletion ------------------------------------------------
-const rot = await call('POST', `${G}/invite`, member);
+assert.equal((await call('GET', G, fresh.token)).me.owner, true);
+// New links replace the old ones.
+const newOwner = await call('POST', `${G}/links/owner`, member);
+assert.equal((await call('POST', '/api/owner', null, { token: created.ownerToken })).status, 404, 'old owner link stops working');
+assert.equal((await call('POST', '/api/owner', null, { token: newOwner.ownerToken, tokens: [admin] })).status, 200);
+const newDash = await call('POST', `${G}/links/dashboard`, member);
+assert.equal((await call('GET', `/api/d/${dash}`)).status, 404, 'old dashboard link stops working');
+assert.equal((await call('GET', `/api/d/${newDash.dashboardToken}`)).group.name, 'Office');
+const rot = await call('POST', `${G}/links/office`, member);
 assert.notEqual(rot.inviteCode, code);
-assert.equal((await call('POST', '/api/join', null, { code })).status, 404);
+assert.equal((await call('POST', '/api/join', null, { code })).status, 404, 'old office link stops working');
+const devs = await call('GET', `${G}/devices`, member);
+assert.ok(devs.devices.length >= 6);
+// Anyone can leave; owners can remove others.
+assert.equal((await call('DELETE', `${G}/devices/${devs.devices.at(-1).id}`, member)).status, 200);
 assert.equal((await call('DELETE', G, member)).status, 200);
 assert.equal((await call('GET', G, admin)).status, 401);
 console.log('smoke ok');

@@ -4,7 +4,11 @@
 // Auth: no accounts. Joining a group with its invite code gives the browser a
 // device token (sent as "Authorization: Bearer <token>"); only its SHA-256 is
 // stored. A token belongs to exactly one group. Office trust: every member may
-// log, edit and delete any round; admins (by default everyone) manage the group.
+// log, edit and delete any round and manage players and games.
+//
+// Three links per group: the office link (/j/<code>) to join, the read-only
+// dashboard link (/d/<token>), and the owner link (/o/<token>) whose devices
+// may replace links, rename or delete the group and remove devices.
 //
 // D1 free plan: 50 queries per request and 100 bound parameters per query, so
 // bulk writes go through a single JSON parameter and json_each(). Daily row
@@ -135,34 +139,18 @@ async function authenticate(env, ctx, request, groupId) {
     const header = request.headers.get('authorization') || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
     if (!token) throw new HttpError(401, 'not joined');
-    const row = await env.DB.prepare(
-        `SELECT d.id, d.group_id, d.player_id, d.is_admin, d.last_seen, g.everyone_admin
-         FROM devices d JOIN groups g ON g.id = d.group_id WHERE d.token_hash = ?`,
-    ).bind(await sha256(token)).first();
+    const row = await env.DB.prepare('SELECT id, group_id, player_id, is_owner, last_seen FROM devices WHERE token_hash = ?')
+        .bind(await sha256(token)).first();
     if (!row || row.group_id !== groupId) throw new HttpError(401, 'not joined');
     const now = Date.now();
     if (!row.last_seen || now - row.last_seen > 86400000) {
         ctx.waitUntil(env.DB.prepare('UPDATE devices SET last_seen = ? WHERE id = ?').bind(now, row.id).run());
     }
-    return {
-        id: row.id,
-        groupId,
-        playerId: row.player_id,
-        admin: !!(row.is_admin || row.everyone_admin),
-        everyoneAdmin: !!row.everyone_admin,
-    };
+    return { id: row.id, groupId, playerId: row.player_id, owner: !!row.is_owner };
 }
 
-function requireAdmin(me) {
-    if (!me.admin) throw forbidden();
-}
-
-// A group must always keep an admin: "everyone is admin", or one admin device
-// besides `exceptDevice`.
-async function requireAdminLeft(env, me, exceptDevice) {
-    if (me.everyoneAdmin) return;
-    const n = await count(env, 'SELECT COUNT(*) FROM devices WHERE group_id = ? AND is_admin = 1 AND id != ?', me.groupId, exceptDevice);
-    if (n === 0) throw new HttpError(409, 'last admin');
+function requireOwner(me) {
+    if (!me.owner) throw forbidden();
 }
 
 // ---- loading ----------------------------------------------------------------
@@ -437,7 +425,9 @@ async function retrying(fn) {
     }
 }
 
-// ---- handlers: groups, joining, devices -------------------------------------
+// ---- handlers: groups, links, devices ---------------------------------------
+
+const newDashboardToken = () => randomString('abcdefghijklmnopqrstuvwxyz0123456789', 16);
 
 async function createGroup(env, request) {
     await limit(env.JOIN_LIMIT, ipKey(request));
@@ -446,10 +436,10 @@ async function createGroup(env, request) {
     const now = Date.now();
     const groupId = newId();
     const token = newToken();
-    const recovery = newToken();
+    const ownerToken = newToken();
     const statements = [
-        env.DB.prepare('INSERT INTO groups (id, name, invite_code, recovery_hash, created_at) VALUES (?, ?, ?, ?, ?)')
-            .bind(groupId, name, newCode(), await sha256(recovery), now),
+        env.DB.prepare('INSERT INTO groups (id, name, invite_code, dashboard_token, owner_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(groupId, name, newCode(), newDashboardToken(), await sha256(ownerToken), now),
     ];
     let playerId = null;
     if (input.playerName) {
@@ -459,7 +449,7 @@ async function createGroup(env, request) {
             .bind(playerId, groupId, playerName, nameKey(playerName), now));
     }
     statements.push(env.DB.prepare(
-        'INSERT INTO devices (id, token_hash, group_id, player_id, is_admin, label, created_at, last_seen) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+        'INSERT INTO devices (id, token_hash, group_id, player_id, is_owner, label, created_at, last_seen) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
     ).bind(newId(), await sha256(token), groupId, playerId, deviceLabel(request.headers.get('user-agent') || ''), now, now));
     let gameId = null;
     if (input.gameName) {
@@ -468,19 +458,20 @@ async function createGroup(env, request) {
             .bind(gameId, groupId, cleanName(input.gameName, 'game name'), now));
     }
     await env.DB.batch(statements);
-    return json({ token, groupId, name, gameId, recoveryToken: recovery }, 201);
+    return json({ token, groupId, name, gameId, ownerToken }, 201);
 }
 
-async function addDevice(env, request, groupId, admin) {
+async function addDevice(env, request, groupId, owner) {
     await cap(env, CAPS.devices, 'SELECT COUNT(*) FROM devices WHERE group_id = ?', groupId);
     const token = newToken();
     const now = Date.now();
     await env.DB.prepare(
-        'INSERT INTO devices (id, token_hash, group_id, is_admin, label, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).bind(newId(), await sha256(token), groupId, admin ? 1 : 0, deviceLabel(request.headers.get('user-agent') || ''), now, now).run();
+        'INSERT INTO devices (id, token_hash, group_id, is_owner, label, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).bind(newId(), await sha256(token), groupId, owner ? 1 : 0, deviceLabel(request.headers.get('user-agent') || ''), now, now).run();
     return token;
 }
 
+// Office link: anyone with the code joins as a member.
 async function joinGroup(env, request) {
     await limit(env.JOIN_LIMIT, ipKey(request));
     const input = await body(request);
@@ -492,12 +483,12 @@ async function joinGroup(env, request) {
     return json({ token, groupId: group.id, name: group.name }, 201);
 }
 
-// Opening the admin recovery link makes this browser an admin: its existing
-// device in the group if it has one (it sends the tokens it knows), else a new one.
-async function recoverAdmin(env, request) {
+// Owner link: makes this browser an owner — its existing device in the group
+// if it has one (it sends the tokens it knows), else a new device.
+async function claimOwner(env, request) {
     await limit(env.JOIN_LIMIT, ipKey(request));
     const input = await body(request);
-    const group = await env.DB.prepare('SELECT id, name FROM groups WHERE recovery_hash = ?')
+    const group = await env.DB.prepare('SELECT id, name FROM groups WHERE owner_hash = ?')
         .bind(await sha256(String(input.token || ''))).first();
     if (!group) throw new HttpError(404, 'unknown link');
     const hashes = await Promise.all((Array.isArray(input.tokens) ? input.tokens.slice(0, 50) : []).map((t) => sha256(String(t))));
@@ -505,26 +496,40 @@ async function recoverAdmin(env, request) {
         'SELECT id FROM devices WHERE group_id = ? AND token_hash IN (SELECT value FROM json_each(?))',
     ).bind(group.id, JSON.stringify(hashes)).first() : null;
     if (existing) {
-        await env.DB.prepare('UPDATE devices SET is_admin = 1 WHERE id = ?').bind(existing.id).run();
+        await env.DB.prepare('UPDATE devices SET is_owner = 1 WHERE id = ?').bind(existing.id).run();
         return json({ groupId: group.id, name: group.name, token: null });
     }
     const token = await addDevice(env, request, group.id, true);
     return json({ groupId: group.id, name: group.name, token }, 201);
 }
 
-async function newRecoveryLink(env, me) {
-    requireAdmin(me);
-    const token = newToken();
-    await env.DB.prepare('UPDATE groups SET recovery_hash = ? WHERE id = ?').bind(await sha256(token), me.groupId).run();
-    return json({ recoveryToken: token });
+// Owners can replace any of the three links; the old one stops working.
+async function rotateLink(env, me, kind) {
+    requireOwner(me);
+    if (kind === 'office') {
+        const code = newCode();
+        await env.DB.prepare('UPDATE groups SET invite_code = ? WHERE id = ?').bind(code, me.groupId).run();
+        return json({ inviteCode: formatCode(code) });
+    }
+    if (kind === 'dashboard') {
+        const token = newDashboardToken();
+        await env.DB.prepare('UPDATE groups SET dashboard_token = ? WHERE id = ?').bind(token, me.groupId).run();
+        return json({ dashboardToken: token });
+    }
+    if (kind === 'owner') {
+        const token = newToken();
+        await env.DB.prepare('UPDATE groups SET owner_hash = ? WHERE id = ?').bind(await sha256(token), me.groupId).run();
+        return json({ ownerToken: token });
+    }
+    throw notFound();
 }
 
 async function getGroup(env, me) {
-    const [group, players, games, admins] = await env.DB.batch([
+    const [group, players, games, owners] = await env.DB.batch([
         env.DB.prepare('SELECT * FROM groups WHERE id = ?').bind(me.groupId),
         env.DB.prepare('SELECT * FROM players WHERE group_id = ? ORDER BY name COLLATE NOCASE').bind(me.groupId),
         env.DB.prepare('SELECT * FROM games WHERE group_id = ? ORDER BY created_at').bind(me.groupId),
-        env.DB.prepare('SELECT player_id, label FROM devices WHERE group_id = ? AND is_admin = 1').bind(me.groupId),
+        env.DB.prepare('SELECT player_id, label FROM devices WHERE group_id = ? AND is_owner = 1').bind(me.groupId),
     ]);
     const g = group.results[0];
     return json({
@@ -532,74 +537,48 @@ async function getGroup(env, me) {
             id: g.id,
             name: g.name,
             inviteCode: formatCode(g.invite_code),
-            everyoneAdmin: !!g.everyone_admin,
+            dashboardToken: g.dashboard_token,
             createdAt: g.created_at,
         },
-        me: { deviceId: me.id, playerId: me.playerId, admin: me.admin },
-        admins: admins.results.map((d) => ({ playerId: d.player_id, label: d.label })),
+        me: { deviceId: me.id, playerId: me.playerId, owner: me.owner },
+        owners: owners.results.map((d) => ({ playerId: d.player_id, label: d.label })),
         players: players.results.map((p) => ({ id: p.id, name: p.name, archived: !!p.archived })),
         games: games.results.map(gameOut),
     });
 }
 
 async function updateGroup(env, me, request) {
-    requireAdmin(me);
+    requireOwner(me);
     const input = await body(request);
-    const statements = [];
     if (input.name !== undefined) {
-        statements.push(env.DB.prepare('UPDATE groups SET name = ? WHERE id = ?').bind(cleanName(input.name, 'group name'), me.groupId));
+        await env.DB.prepare('UPDATE groups SET name = ? WHERE id = ?').bind(cleanName(input.name, 'group name'), me.groupId).run();
     }
-    if (input.everyoneAdmin !== undefined) {
-        statements.push(env.DB.prepare('UPDATE groups SET everyone_admin = ? WHERE id = ?').bind(input.everyoneAdmin ? 1 : 0, me.groupId));
-        // Turning it off must not leave the group without an admin: whoever does it stays one.
-        if (!input.everyoneAdmin) statements.push(env.DB.prepare('UPDATE devices SET is_admin = 1 WHERE id = ?').bind(me.id));
-    }
-    if (statements.length) await env.DB.batch(statements);
     return json({ ok: true });
 }
 
-async function rotateInvite(env, me) {
-    requireAdmin(me);
-    const code = newCode();
-    await env.DB.prepare('UPDATE groups SET invite_code = ? WHERE id = ?').bind(code, me.groupId).run();
-    return json({ inviteCode: formatCode(code) });
-}
-
 async function deleteGroup(env, me) {
-    requireAdmin(me);
+    requireOwner(me);
     await env.DB.prepare('DELETE FROM groups WHERE id = ?').bind(me.groupId).run();
     return json({ ok: true });
 }
 
 async function listDevices(env, me) {
-    requireAdmin(me);
+    requireOwner(me);
     const { results } = await env.DB.prepare(
-        'SELECT id, player_id, is_admin, label, created_at, last_seen FROM devices WHERE group_id = ? ORDER BY created_at',
+        'SELECT id, player_id, is_owner, label, created_at, last_seen FROM devices WHERE group_id = ? ORDER BY created_at',
     ).bind(me.groupId).all();
     return json({
         devices: results.map((d) => ({
-            id: d.id, playerId: d.player_id, admin: !!d.is_admin, label: d.label,
+            id: d.id, playerId: d.player_id, owner: !!d.is_owner, label: d.label,
             createdAt: d.created_at, lastSeen: d.last_seen, me: d.id === me.id,
         })),
     });
 }
 
-async function updateDevice(env, me, deviceId, request) {
-    requireAdmin(me);
-    const input = await body(request);
-    if (!input.admin) await requireAdminLeft(env, me, deviceId);
-    await env.DB.prepare('UPDATE devices SET is_admin = ? WHERE id = ? AND group_id = ?')
-        .bind(input.admin ? 1 : 0, deviceId, me.groupId).run();
-    return json({ ok: true });
-}
-
-// Admins can remove any device; anyone can remove (leave with) their own.
+// Owners can remove any device; anyone can remove (leave with) their own.
 async function deleteDevice(env, me, deviceId) {
-    if (deviceId !== me.id) requireAdmin(me);
-    const device = await env.DB.prepare('SELECT is_admin FROM devices WHERE id = ? AND group_id = ?').bind(deviceId, me.groupId).first();
-    if (!device) throw notFound();
-    if (device.is_admin) await requireAdminLeft(env, me, deviceId);
-    await env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(deviceId).run();
+    if (deviceId !== me.id) requireOwner(me);
+    await env.DB.prepare('DELETE FROM devices WHERE id = ? AND group_id = ?').bind(deviceId, me.groupId).run();
     return json({ ok: true });
 }
 
@@ -613,6 +592,32 @@ async function setMe(env, me, request) {
     }
     await env.DB.prepare('UPDATE devices SET player_id = ? WHERE id = ?').bind(playerId, me.id).run();
     return json({ ok: true });
+}
+
+// ---- dashboard (read-only, no device) ----------------------------------------
+
+async function dashboardGroup(env, token) {
+    const group = await env.DB.prepare('SELECT id, name FROM groups WHERE dashboard_token = ?').bind(String(token)).first();
+    if (!group) throw new HttpError(404, 'unknown link');
+    return group;
+}
+
+async function getDashboard(env, token) {
+    const group = await dashboardGroup(env, token);
+    const [games, players] = await env.DB.batch([
+        env.DB.prepare('SELECT * FROM games WHERE group_id = ? AND archived = 0 ORDER BY created_at').bind(group.id),
+        env.DB.prepare('SELECT id, name, archived FROM players WHERE group_id = ?').bind(group.id),
+    ]);
+    return json({
+        group: { name: group.name },
+        games: games.results.map(gameOut),
+        players: players.results.map((p) => ({ id: p.id, name: p.name, archived: !!p.archived })),
+    });
+}
+
+async function getDashboardGame(env, token, gameId, url) {
+    const group = await dashboardGroup(env, token);
+    return getGame(env, { groupId: group.id }, gameId, url);
 }
 
 // ---- handlers: players, games, tournaments ----------------------------------
@@ -669,7 +674,6 @@ async function createGame(env, me, request) {
 }
 
 async function updateGame(env, me, gameId, request) {
-    requireAdmin(me);
     await loadGame(env, me, gameId);
     const input = await body(request);
     const sets = [];
@@ -860,15 +864,15 @@ const routes = [
     // [method, pattern, handler, auth: 'none' | 'read' | 'write' (rate-limited per device)]
     ['POST', '^/api/groups$', (c) => createGroup(c.env, c.req), 'none'],
     ['POST', '^/api/join$', (c) => joinGroup(c.env, c.req), 'none'],
-    ['POST', '^/api/recover$', (c) => recoverAdmin(c.env, c.req), 'none'],
+    ['POST', '^/api/owner$', (c) => claimOwner(c.env, c.req), 'none'],
+    ['GET', '^/api/d/(\\w+)$', (c) => getDashboard(c.env, c.m[1]), 'none'],
+    ['GET', '^/api/d/(\\w+)/games/(\\w+)$', (c) => getDashboardGame(c.env, c.m[1], c.m[2], c.url), 'none'],
     ['GET', `${G}$`, (c) => getGroup(c.env, c.me), 'read'],
     ['PATCH', `${G}$`, (c) => updateGroup(c.env, c.me, c.req), 'write'],
     ['DELETE', `${G}$`, (c) => deleteGroup(c.env, c.me), 'write'],
-    ['POST', `${G}/invite$`, (c) => rotateInvite(c.env, c.me), 'write'],
-    ['POST', `${G}/recovery$`, (c) => newRecoveryLink(c.env, c.me), 'write'],
+    ['POST', `${G}/links/(office|dashboard|owner)$`, (c) => rotateLink(c.env, c.me, c.m[2]), 'write'],
     ['PUT', `${G}/me$`, (c) => setMe(c.env, c.me, c.req), 'write'],
     ['GET', `${G}/devices$`, (c) => listDevices(c.env, c.me), 'read'],
-    ['PATCH', `${G}/devices/(\\w+)$`, (c) => updateDevice(c.env, c.me, c.m[2], c.req), 'write'],
     ['DELETE', `${G}/devices/(\\w+)$`, (c) => deleteDevice(c.env, c.me, c.m[2]), 'write'],
     ['POST', `${G}/players$`, (c) => createPlayer(c.env, c.me, c.req), 'write'],
     ['PATCH', `${G}/players/(\\w+)$`, (c) => updatePlayer(c.env, c.me, c.m[2], c.req), 'write'],

@@ -3,11 +3,13 @@
 CREATE TABLE groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    -- Office link /j/<code>: shared with everyone; joining lets you log rounds.
     invite_code TEXT NOT NULL UNIQUE,
-    -- 1: every device in the group is an admin (the default; office trust).
-    everyone_admin INTEGER NOT NULL DEFAULT 1,
-    -- SHA-256 of the admin recovery token; opening /r/<token> makes a device admin.
-    recovery_hash TEXT UNIQUE,
+    -- Dashboard link /d/<token>: read-only view for wall screens. Shown to
+    -- members so they can share it, hence stored as is.
+    dashboard_token TEXT NOT NULL UNIQUE,
+    -- SHA-256 of the owner link /o/<token>; opening it makes a device an owner.
+    owner_hash TEXT NOT NULL UNIQUE,
     created_at INTEGER NOT NULL
 );
 
@@ -29,7 +31,8 @@ CREATE TABLE devices (
     token_hash TEXT NOT NULL UNIQUE,
     group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     player_id TEXT REFERENCES players(id) ON DELETE SET NULL,
-    is_admin INTEGER NOT NULL DEFAULT 0,
+    -- Opened the owner link: may make new links, rename/delete the group, remove devices.
+    is_owner INTEGER NOT NULL DEFAULT 0,
     label TEXT, -- e.g. "iPhone · Safari", from the User-Agent at join
     created_at INTEGER NOT NULL,
     last_seen INTEGER -- updated at most once a day
