@@ -22,7 +22,7 @@ tennis, anything with two teams. Fair team ratings, no accounts.
 2. `npx wrangler d1 migrations apply scoreboard --remote`
 3. Push to GitHub and import the repo in Cloudflare → Workers & Pages →
    Create → Import a repository (Workers Builds). The Worker name must be
-   `score`; the custom domain `scoreboard.apphub.casa` comes from `wrangler.jsonc`.
+   `scoreboard`; the custom domain `scoreboard.apphub.casa` comes from `wrangler.jsonc`.
 4. After that, every push to `main` deploys. New migrations must be applied
    with step 2 before (or right after) the deploy that needs them.
 

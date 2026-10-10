@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // Must match the Worker created by the Workers Builds import. Never rename.
-  "name": "score",
+  "name": "scoreboard",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
