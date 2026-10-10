@@ -2,7 +2,9 @@
 // for every non-API path). Render user text with textContent only — h() does
 // that for strings; never build markup from names.
 
-import { displayRating, winProbability, balanceTeams, newRating, PROVISIONAL_ROUNDS } from './rating.js';
+import {
+    displayRating, displayDelta, winProbability, balanceTeams, newRating, PROVISIONAL_ROUNDS, SCALE,
+} from './rating.js';
 import qrcodegen from './qrcodegen.js';
 import { t, locale, applyI18n } from './i18n.js';
 
@@ -16,8 +18,7 @@ function h(tag, props, ...kids) {
         if (v === null || v === undefined || v === false) continue;
         if (k === 'class') el.className = v;
         else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-        else if (k === 'dataset') Object.assign(el.dataset, v);
-        else if (k === 'value' || k === 'checked' || k === 'selected') el[k] = v;
+        else if (k === 'value' || k === 'checked' || k === 'selected' || k === 'open') el[k] = v;
         else el.setAttribute(k, v === true ? '' : v);
     }
     for (const kid of kids.flat(Infinity)) {
@@ -33,22 +34,28 @@ const ICONS = {
     plus: '<path d="M12 5v14M5 12h14"/>',
     share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
     settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
-    copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
     printer: '<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
     trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
     shuffle: '<path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/>',
     repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+    swap: '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
     history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
-    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    tv: '<rect width="20" height="15" x="2" y="7" rx="2"/><path d="m17 2-5 5-5-5"/>',
+    mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-10 5L2 7"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
 };
 
 function icon(name) {
     const span = document.createElement('span');
-    span.className = 'icon';
     span.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
     return span.firstChild;
 }
+
+let uid = 0;
+const newDomId = () => `x${++uid}`;
 
 // ---- local storage ------------------------------------------------------------
 
@@ -64,26 +71,28 @@ function saveGroups(list) {
     localStorage.setItem('groups', JSON.stringify(list));
 }
 function rememberGroup(entry) {
-    const list = myGroups().filter((g) => g.id !== entry.id);
-    list.unshift(entry);
-    saveGroups(list);
+    saveGroups([entry, ...myGroups().filter((g) => g.id !== entry.id)]);
 }
 function updateGroupEntry(id, patch) {
     saveGroups(myGroups().map((g) => (g.id === id ? { ...g, ...patch } : g)));
 }
 function forgetGroup(id) {
     saveGroups(myGroups().filter((g) => g.id !== id));
+    if ((localStorage.getItem('lastPath') || '').startsWith(`/g/${id}`)) localStorage.removeItem('lastPath');
 }
 const tokenFor = (gid) => myGroups().find((g) => g.id === gid)?.token;
 
 // ---- API ----------------------------------------------------------------------
 
 class ApiError extends Error {
-    constructor(status, message) {
+    constructor(status, message, data) {
         super(message);
         this.status = status;
+        this.data = data;
     }
 }
+
+const ERRORS = { 'too many requests, wait a minute': 'errRateLimit', 'limit reached': 'errLimit', 'too far back to change': 'errTooFarBack' };
 
 async function api(method, path, body, token) {
     let res;
@@ -100,7 +109,7 @@ async function api(method, path, body, token) {
         throw new ApiError(0, t('offline'));
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, data.error || res.statusText);
+    if (!res.ok) throw new ApiError(res.status, ERRORS[data.error] ? t(ERRORS[data.error]) : data.error || res.statusText, data);
     return data;
 }
 
@@ -113,7 +122,7 @@ async function gapi(gid, method, path, body) {
         if (err.status === 401) {
             forgetGroup(gid);
             toast(t('removedFromGroup'));
-            navigate('/', true);
+            navigate('/?home', true);
         }
         throw err;
     }
@@ -123,10 +132,11 @@ async function gapi(gid, method, path, body) {
 
 let pollTimer = null;
 let pollFn = null;
+let routeSeq = 0;
 // Bumped by every page load/refresh; a slower, older refresh must not draw
 // over a newer one.
 let loadSeq = 0;
-let routeSeq = 0;
+let wakeLock = null;
 
 function navigate(path, replace = false) {
     history[replace ? 'replaceState' : 'pushState'](null, '', path);
@@ -147,6 +157,8 @@ const ROUTES = [
     [/^\/$/, pageHome],
     [/^\/settings$/, pageAppSettings],
     [/^\/j\/([\w-]+)$/, pageJoin],
+    [/^\/o\/([\w-]+)$/, pageOwnerLink],
+    [/^\/d\/(\w+)$/, pageDashboard],
     [/^\/g\/(\w+)$/, pageGroup],
     [/^\/g\/(\w+)\/settings$/, pageGroupSettings],
     [/^\/g\/(\w+)\/poster$/, pagePoster],
@@ -159,18 +171,21 @@ const ROUTES = [
 async function route() {
     clearInterval(pollTimer);
     pollTimer = null;
+    wakeLock?.release().catch(() => {});
+    wakeLock = null;
+    document.querySelectorAll('dialog').forEach((d) => d.remove());
     const seq = ++routeSeq;
     const path = location.pathname.replace(/\/+$/, '') || '/';
-    // Launched from the home screen: go back to where we were.
-    if (path === '/' && new URLSearchParams(location.search).has('app')) {
+    // Opening the app goes back to where you were; "/?home" shows the start page.
+    if (path === '/' && !new URLSearchParams(location.search).has('home')) {
         const last = localStorage.getItem('lastPath');
-        if (last && last !== '/') return navigate(last, true);
+        if (last && tokenFor(last.split('/')[2])) return navigate(last, true);
     }
     for (const [pattern, page] of ROUTES) {
         const m = path.match(pattern);
         if (!m) continue;
         if (path.startsWith('/g/')) {
-            if (!tokenFor(m[1])) return navigate('/', true);
+            if (!tokenFor(m[1])) return navigate('/?home', true);
             localStorage.setItem('lastPath', path);
         }
         // The old page stays visible while the next one loads, but can't be used.
@@ -179,15 +194,14 @@ async function route() {
         try {
             await page(...m.slice(1), () => seq === routeSeq);
         } catch (err) {
-            if (seq !== routeSeq) return;
-            if (err.status === 401) return;
-            render(topbar({ back: '/' }), h('main', { class: 'wrap narrow' },
+            if (seq !== routeSeq || err.status === 401) return;
+            render(topbar({ back: '/?home' }), h('main', { class: 'wrap narrow' },
                 h('div', { class: 'card empty' }, h('p', null, err.status === 404 ? t('notFound') : err.message),
-                    h('a', { class: 'btn', href: '/' }, t('home')))));
+                    h('a', { class: 'btn', href: '/?home' }, t('home')))));
         }
         return;
     }
-    navigate('/', true);
+    navigate('/?home', true);
 }
 
 function render(...nodes) {
@@ -206,12 +220,12 @@ function rerender(...nodes) {
     window.scrollTo?.(0, y);
 }
 
-function poll(fn) {
+function poll(fn, ms = 60000) {
     clearInterval(pollTimer);
     pollFn = fn;
     pollTimer = setInterval(() => {
         if (document.visibilityState === 'visible' && !document.querySelector('dialog[open]')) fn();
-    }, 60000);
+    }, ms);
 }
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && pollTimer && !document.querySelector('dialog[open]')) pollFn();
@@ -223,7 +237,7 @@ function topbar({ back, title, actions = [] } = {}) {
     return h('header', { class: 'topbar' },
         back
             ? h('a', { class: 'icon-btn', href: back, 'aria-label': t('back'), title: t('back') }, icon('back'))
-            : h('a', { class: 'brand', href: '/' }, h('span', { class: 'brand-dot' }), t('appName')),
+            : h('a', { class: 'brand', href: '/?home' }, h('span', { class: 'brand-dot' }), t('appName')),
         title ? h('h1', { class: 'title' }, title) : h('span', { class: 'title' }),
         h('div', { class: 'actions' }, actions));
 }
@@ -250,9 +264,9 @@ function errorToast(err) {
     toast(err.message || String(err));
 }
 
-function joinUrl(code) {
-    return `${location.origin}/j/${code}`;
-}
+const officeUrl = (code) => `${location.origin}/j/${code}`;
+const dashboardUrl = (token) => `${location.origin}/d/${token}`;
+const ownerUrl = (token) => `${location.origin}/o/${token}`;
 
 async function share(title, text, url) {
     if (navigator.share) {
@@ -263,11 +277,15 @@ async function share(title, text, url) {
             if (err.name === 'AbortError') return;
         }
     }
+    await copy(url);
+}
+
+async function copy(text) {
     try {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(text);
         toast(t('linkCopied'));
     } catch {
-        prompt(t('copyThisLink'), url);
+        prompt(t('copyThisLink'), text);
     }
 }
 
@@ -284,7 +302,7 @@ function qrSvg(text) {
     svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
     svg.setAttribute('class', 'qr');
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', text);
+    svg.setAttribute('aria-label', t('qrFor', { url: text }));
     const bg = document.createElementNS(ns, 'rect');
     bg.setAttribute('width', size);
     bg.setAttribute('height', size);
@@ -324,12 +342,24 @@ function deltaEl(n, cls = '') {
     return h('span', { class: `delta ${n > 0 ? 'up' : n < 0 ? 'down' : ''} ${cls}` }, fmtDelta(n));
 }
 
-function roundDelta(p) {
-    return p.before && p.after ? displayRating(p.after) - displayRating(p.before) : 0;
-}
+const roundDelta = (p) => (p.before && p.after ? displayDelta(p.before, p.after) : 0);
+const playerName = (ctx, id) => ctx.playersById.get(id)?.name ?? '?';
+const teamName = (game, i) => (i === 0 ? game.teamA || t('teamBlue') : game.teamB || t('teamOrange'));
 
-function playerName(ctx, id) {
-    return ctx.playersById.get(id)?.name ?? '?';
+// A dialog that labels itself, closes on Escape/backdrop and removes itself.
+function sheet(title, ...content) {
+    const id = newDomId();
+    const dialog = h('dialog', { class: 'sheet', 'aria-labelledby': id },
+        h('div', { class: 'sheet-body' },
+            h('div', { class: 'sheet-head' }, h('h2', { id, tabindex: '-1' }, title),
+                iconButton('x', t('close'), () => dialog.close(), 'small')),
+            ...content));
+    dialog.addEventListener('close', () => dialog.remove());
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+    document.body.append(dialog);
+    dialog.showModal();
+    dialog.querySelector('h2').focus();
+    return dialog;
 }
 
 // Group data shared by all group pages; refetched on each page load.
@@ -342,12 +372,12 @@ async function loadGroup(gid) {
     return data;
 }
 
-// ---- pages: home, join, app settings -------------------------------------------
+// ---- pages: home, joining, owner link, app settings ---------------------------
 
 async function pageHome() {
     document.title = t('appName');
     const groups = myGroups();
-    const codeInput = h('input', { class: 'input code-input', placeholder: 'ABCD-EFGH', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': t('inviteCode') });
+    const codeInput = h('input', { class: 'input code-input', placeholder: 'ABCD-EFGH', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': t('officeCode') });
     const joinForm = h('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); joinWithCode(codeInput.value); } },
         codeInput, h('button', { class: 'btn' }, t('join')));
 
@@ -359,7 +389,9 @@ async function pageHome() {
         try {
             const res = await api('POST', '/groups', { name: groupName.value, playerName: yourName.value || undefined, gameName: gameName.value || undefined });
             rememberGroup({ id: res.groupId, name: res.name, token: res.token });
-            navigate(`/g/${res.groupId}`);
+            const next = res.gameId ? `/g/${res.groupId}/game/${res.gameId}` : `/g/${res.groupId}`;
+            navigate(next);
+            ownerLinkDialog(res.ownerToken, { created: true });
         } catch (err) { errorToast(err); }
     } },
     h('label', { class: 'field' }, h('span', null, t('groupName')), groupName),
@@ -383,20 +415,54 @@ async function joinWithCode(raw) {
     if (code.length !== 8) return toast(t('invalidCode'));
     const pretty = `${code.slice(0, 4)}-${code.slice(4)}`;
     const known = myGroups().find((g) => g.code === pretty);
-    if (known) return navigate(`/g/${known.id}`, true);
+    if (known) {
+        // Already a member: scanning the poster again opens the game.
+        const last = localStorage.getItem('lastPath');
+        return navigate(last?.startsWith(`/g/${known.id}`) ? last : `/g/${known.id}`, true);
+    }
     try {
         const res = await api('POST', '/join', { code });
         rememberGroup({ id: res.groupId, name: res.name, token: res.token, code: pretty });
         navigate(`/g/${res.groupId}?welcome`, true);
     } catch (err) {
-        toast(err.status === 404 ? t('unknownCode') : err.message);
-        if (location.pathname.startsWith('/j/')) navigate('/', true);
+        if (err.status !== 404) return errorToast(err);
+        if (!location.pathname.startsWith('/j/')) return toast(t('unknownCode'));
+        render(topbar({ back: '/?home' }), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' },
+            h('h2', null, t('staleCodeTitle')), h('p', null, t('staleCodeText')), h('a', { class: 'btn', href: '/?home' }, t('home')))));
     }
 }
 
 async function pageJoin(code) {
-    render(topbar({ back: '/' }), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' }, h('p', null, t('joining')))));
+    render(topbar({ back: '/?home' }), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' }, h('p', null, t('joining')))));
     await joinWithCode(code);
+}
+
+// Opening the owner link: this browser becomes an owner of the group.
+async function pageOwnerLink(token) {
+    render(topbar({ back: '/?home' }), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' }, h('p', null, t('joining')))));
+    try {
+        const res = await api('POST', '/owner', { token, tokens: myGroups().map((g) => g.token) });
+        if (res.token) rememberGroup({ id: res.groupId, name: res.name, token: res.token });
+        toast(t('nowOwner', { group: res.name }));
+        navigate(`/g/${res.groupId}/settings`, true);
+    } catch (err) {
+        render(topbar({ back: '/?home' }), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' },
+            h('h2', null, err.status === 404 ? t('staleOwnerTitle') : err.message),
+            err.status === 404 && h('p', null, t('staleOwnerText')), h('a', { class: 'btn', href: '/?home' }, t('home')))));
+    }
+}
+
+function ownerLinkDialog(token, { created = false } = {}) {
+    const url = ownerUrl(token);
+    const mail = `mailto:?subject=${encodeURIComponent(t('ownerMailSubject'))}&body=${encodeURIComponent(t('ownerMailBody', { url }))}`;
+    sheet(created ? t('groupCreated') : t('newOwnerLink'),
+        h('p', null, t('ownerLinkIntro')),
+        h('input', { class: 'input mono', value: url, readonly: true, 'aria-label': t('ownerLink'), onfocus: (e) => e.target.select() }),
+        h('div', { class: 'row wrap-row' },
+            h('button', { class: 'btn', type: 'button', onclick: () => copy(url) }, icon('copy'), t('copy')),
+            h('a', { class: 'btn ghost', href: mail }, icon('mail'), t('emailToMe')),
+            h('button', { class: 'btn ghost', type: 'button', onclick: () => share(t('ownerLink'), t('ownerLink'), url) }, icon('share'), t('share'))),
+        h('p', { class: 'muted small' }, t('ownerLinkWarning')));
 }
 
 function segmented(options, current, onchange) {
@@ -413,7 +479,7 @@ async function pageAppSettings() {
     document.title = `${t('settings')} · ${t('appName')}`;
     const groups = myGroups();
     render(
-        topbar({ back: '/', title: t('settings') }),
+        topbar({ back: '/?home', title: t('settings') }),
         h('main', { class: 'wrap narrow' },
             h('section', { class: 'card pad' }, h('h2', null, t('theme')),
                 segmented([['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')], ['hacker', t('themeHacker')]],
@@ -426,57 +492,72 @@ async function pageAppSettings() {
                     h('a', { href: `/g/${g.id}` }, g.name),
                     h('a', { class: 'btn ghost small', href: `/g/${g.id}/settings` }, t('groupSettings')))))
                     : h('p', { class: 'muted' }, t('noGroups'))),
-            h('p', { class: 'muted small center' }, t('aboutRating'))));
+            h('section', { class: 'card pad' }, h('h2', null, t('aboutRatingTitle')), ratingExplainer())));
+}
+
+function ratingExplainer() {
+    return h('div', { class: 'prose' },
+        h('p', null, t('ratingInfo1')),
+        h('p', null, t('ratingInfo2', { n: PROVISIONAL_ROUNDS })),
+        h('p', null, t('ratingInfo3')),
+        h('p', { class: 'muted small' }, t('ratingInfo4')));
 }
 
 // ---- who am I -----------------------------------------------------------------
 
 function whoAmI(gid, ctx, onDone) {
     const active = ctx.players.filter((p) => !p.archived);
-    const nameInput = h('input', { class: 'input', placeholder: t('yourNamePlaceholder'), maxlength: 40 });
+    const nameInput = h('input', { class: 'input', placeholder: t('yourNamePlaceholder'), maxlength: 40, 'aria-label': t('yourNamePlaceholder') });
+    const done = () => { dialog.close(); onDone(); };
     const choose = async (playerId) => {
         try {
             await gapi(gid, 'PUT', '/me', { playerId });
-            dialog.close();
-            onDone();
+            done();
         } catch (err) { errorToast(err); }
     };
-    const dialog = h('dialog', { class: 'sheet' },
-        h('div', { class: 'sheet-body' },
-            h('h2', null, t('whoAreYou')),
-            active.length > 0 && h('div', { class: 'chips' }, active.map((p) => h('button', {
-                type: 'button', class: `pchip ${p.id === ctx.me.playerId ? 'sel' : ''}`, onclick: () => choose(p.id),
-            }, p.name))),
-            h('form', { class: 'row', onsubmit: async (e) => {
-                e.preventDefault();
-                try {
-                    await gapi(gid, 'POST', '/players', { name: nameInput.value, me: true });
-                    dialog.close();
-                    onDone();
-                } catch (err) { toast(err.status === 409 ? t('nameTaken') : err.message); }
-            } }, nameInput, h('button', { class: 'btn' }, active.length ? t('imNew') : t('add'))),
-            h('div', { class: 'sheet-actions' },
-                ctx.me.playerId && h('button', { type: 'button', class: 'btn ghost', onclick: () => choose(null) }, t('notAPlayer')),
-                h('button', { type: 'button', class: 'btn ghost', onclick: () => dialog.close() }, t('skip')))));
-    dialog.addEventListener('close', () => dialog.remove());
-    document.body.append(dialog);
-    dialog.showModal();
+    const dialog = sheet(t('whoAreYou'),
+        active.length > 0 && h('p', { class: 'muted small' }, t('whoAreYouHint')),
+        active.length > 0 && h('div', { class: 'chips' }, active.map((p) => h('button', {
+            type: 'button', class: `pchip ${p.id === ctx.me.playerId ? 'sel' : ''}`, onclick: () => choose(p.id),
+        }, p.name))),
+        h('form', { class: 'row', onsubmit: async (e) => {
+            e.preventDefault();
+            try {
+                await gapi(gid, 'POST', '/players', { name: nameInput.value, me: true });
+                done();
+            } catch (err) {
+                if (err.status === 409 && err.data?.player) return choose(err.data.player.id);
+                errorToast(err);
+            }
+        } }, nameInput, h('button', { class: 'btn' }, active.length ? t('imNew') : t('add'))),
+        h('div', { class: 'sheet-actions' },
+            ctx.me.playerId && h('button', { type: 'button', class: 'btn ghost', onclick: () => choose(null) }, t('notAPlayer')),
+            h('button', { type: 'button', class: 'btn ghost', onclick: done }, t('skip'))));
 }
 
 // ---- group page ---------------------------------------------------------------
 
-function inviteCard(gid, ctx) {
-    const code = ctx.group.inviteCode;
-    const url = joinUrl(code);
+function officeLinkCard(gid, ctx) {
+    const url = officeUrl(ctx.group.inviteCode);
     return h('section', { class: 'card pad invite' },
         h('div', { class: 'invite-text' },
-            h('h2', null, t('invite')),
-            h('p', { class: 'muted' }, t('inviteHint')),
-            h('div', { class: 'code' }, code),
+            h('h2', null, t('officeLink')),
+            h('p', { class: 'muted' }, t('officeLinkHint')),
+            h('div', { class: 'code' }, ctx.group.inviteCode),
             h('div', { class: 'row wrap-row' },
                 h('button', { class: 'btn', type: 'button', onclick: () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), url) }, icon('share'), t('share')),
                 h('a', { class: 'btn ghost', href: `/g/${gid}/poster` }, icon('printer'), t('poster')))),
         h('a', { class: 'invite-qr', href: `/g/${gid}/poster`, 'aria-label': t('poster') }, qrSvg(url)));
+}
+
+function dashboardLinkCard(ctx) {
+    const url = dashboardUrl(ctx.group.dashboardToken);
+    return h('section', { class: 'card pad' },
+        h('h2', null, t('dashboardLink')),
+        h('p', { class: 'muted' }, t('dashboardLinkHint')),
+        h('div', { class: 'row wrap-row' },
+            h('a', { class: 'btn ghost', href: url, target: '_blank', rel: 'noopener' }, icon('tv'), t('openDashboard')),
+            h('button', { class: 'btn ghost', type: 'button', onclick: () => share(ctx.group.name, t('dashboardShareText', { group: ctx.group.name }), url) }, icon('share'), t('share'))));
 }
 
 async function pageGroup(gid, current) {
@@ -484,13 +565,13 @@ async function pageGroup(gid, current) {
     if (!current()) return;
     document.title = `${ctx.group.name} · ${t('appName')}`;
     const games = ctx.games.filter((g) => !g.archived);
-    const gameName = h('input', { class: 'input', placeholder: t('gameNamePlaceholder'), maxlength: 40 });
+    const gameName = h('input', { class: 'input', placeholder: t('gameNamePlaceholder'), maxlength: 40, 'aria-label': t('gameNamePlaceholder') });
     const me = ctx.playersById.get(ctx.me.playerId);
     const welcome = new URLSearchParams(location.search).has('welcome');
 
     render(
-        topbar({ back: '/', title: ctx.group.name, actions: [
-            iconButton('share', t('share'), () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), joinUrl(ctx.group.inviteCode))),
+        topbar({ back: '/?home', title: ctx.group.name, actions: [
+            iconButton('share', t('share'), () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), officeUrl(ctx.group.inviteCode))),
             iconLink('settings', `/g/${gid}/settings`, t('groupSettings')),
         ] }),
         h('main', { class: 'wrap narrow' },
@@ -510,7 +591,8 @@ async function pageGroup(gid, current) {
                     h('button', { class: 'btn ghost small', type: 'button', onclick: () => whoAmI(gid, ctx, () => route()) },
                         me ? t('youAre', { name: me.name }) : t('whoAreYou'))),
                 h('div', { class: 'chips' }, ctx.players.filter((p) => !p.archived).map((p) => h('span', { class: `pchip static ${p.id === ctx.me.playerId ? 'sel' : ''}` }, p.name)))),
-            inviteCard(gid, ctx)));
+            officeLinkCard(gid, ctx),
+            dashboardLinkCard(ctx)));
 
     if (welcome) {
         history.replaceState(null, '', `/g/${gid}`);
@@ -518,72 +600,74 @@ async function pageGroup(gid, current) {
     }
 }
 
-// ---- game page ----------------------------------------------------------------
+// ---- leaderboard and rounds (shared with the dashboard) -----------------------
 
-async function loadGame(gid, gameId) {
-    const [ctx, data] = await Promise.all([
-        loadGroup(gid),
-        gapi(gid, 'GET', `/games/${gameId}?since=${startOfToday()}`),
-    ]);
-    ctx.game = data.game;
-    ctx.tournaments = data.tournaments;
-    ctx.rounds = data.rounds;
-    ctx.ratings = new Map(data.ratings.map((r) => [r.playerId, r]));
-    return ctx;
-}
-
-function leaderboard(gid, ctx, todayRounds) {
-    // Rating before each player's first round today, for the "today" column.
+// ctx: { game, ratings (Map), playersById, me? }. hrefFor(playerId) or null.
+function leaderboard(ctx, todayRounds, hrefFor, { big = false } = {}) {
+    // Skill estimate before each player's first round today, for "today".
     const startOfDay = new Map();
     for (const r of [...todayRounds].reverse()) {
         for (const p of r.players) if (!startOfDay.has(p.id) && p.before) startOfDay.set(p.id, p.before);
     }
     const rows = [...ctx.ratings.values()]
         .filter((r) => ctx.playersById.get(r.playerId) && !ctx.playersById.get(r.playerId).archived)
-        .map((r) => ({ ...r, display: displayRating(r) }))
-        .sort((a, b) => b.display - a.display || b.wins - a.wins);
+        .map((r) => ({ ...r, display: displayRating(r) }));
+    const ranked = rows.filter((r) => r.rounds >= PROVISIONAL_ROUNDS).sort((a, b) => b.display - a.display || b.wins - a.wins);
+    const fresh = rows.filter((r) => r.rounds < PROVISIONAL_ROUNDS).sort((a, b) => b.rounds - a.rounds || b.display - a.display);
     if (!rows.length) return h('p', { class: 'muted empty-small' }, t('noRoundsYet'));
-    let rank = 0;
-    return h('table', { class: 'board' },
-        h('thead', null, h('tr', null,
-            h('th', { class: 'num' }, '#'), h('th', null, t('player')), h('th', { class: 'num' }, t('rating')),
-            h('th', { class: 'num' }, t('todayShort')), h('th', { class: 'num hide-narrow' }, t('wl')))),
-        h('tbody', null, rows.map((r, i) => {
-            const provisional = r.rounds < PROVISIONAL_ROUNDS;
-            if (!provisional) rank++;
-            const start = startOfDay.get(r.playerId);
-            const today = start ? r.display - displayRating(start) : null;
-            const isMe = r.playerId === ctx.me.playerId;
-            return h('tr', { class: `${isMe ? 'me' : ''} ${provisional ? 'provisional' : ''} ${i < 3 && !provisional ? `top top${rank}` : ''}` },
-                h('td', { class: 'num rank' }, provisional ? '–' : rank),
-                h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${ctx.game.id}/p/${r.playerId}` }, playerName(ctx, r.playerId)),
-                    provisional && h('span', { class: 'chip', title: t('provisionalHint', { n: PROVISIONAL_ROUNDS }) }, t('provisional'))),
-                h('td', { class: 'num rating' }, r.display),
-                h('td', { class: 'num' }, today === null ? '' : deltaEl(today)),
-                h('td', { class: 'num hide-narrow muted' }, `${r.wins}–${r.rounds - r.wins}`));
-        })));
+    const nameCell = (r) => {
+        const name = playerName(ctx, r.playerId);
+        return h('td', { class: 'name' },
+            hrefFor ? h('a', { href: hrefFor(r.playerId) }, name) : name,
+            h('span', { class: 'sub' }, t('wlShort', { w: r.wins, l: r.rounds - r.wins })));
+    };
+    const todayCell = (r) => {
+        const start = startOfDay.get(r.playerId);
+        return h('td', { class: 'num' }, start ? deltaEl(Math.round(SCALE * (r.mu - start.mu))) : '');
+    };
+    const rowProps = (r, cls) => ({
+        class: `${cls} ${r.playerId === ctx.me?.playerId ? 'me' : ''} ${hrefFor ? 'clickable' : ''}`,
+        onclick: hrefFor ? (e) => { if (!e.target.closest('a')) navigate(hrefFor(r.playerId)); } : null,
+    });
+    return h('div', { class: `board-wrap ${big ? 'big' : ''}` },
+        ranked.length > 0 && h('table', { class: 'board' },
+            h('thead', null, h('tr', null,
+                h('th', { class: 'num' }, h('span', { class: 'sr-only' }, t('rank')), '#'), h('th', null, t('player')),
+                h('th', { class: 'num' }, t('rating')), h('th', { class: 'num' }, t('todayShort')))),
+            h('tbody', null, ranked.map((r, i) => h('tr', rowProps(r, i < 3 ? `top top${i + 1}` : ''),
+                h('td', { class: 'num rank' }, i + 1), nameCell(r), h('td', { class: 'num rating' }, r.display), todayCell(r))))),
+        fresh.length > 0 && h('div', { class: 'fresh' },
+            h('h3', null, t('newPlayers'), h('span', { class: 'muted small' }, ` · ${t('newPlayersHint', { n: PROVISIONAL_ROUNDS })}`)),
+            h('table', { class: 'board compact' }, h('tbody', null, fresh.map((r) => h('tr', rowProps(r, 'provisional'),
+                nameCell(r),
+                h('td', { class: 'num muted' }, t('toGo', { n: PROVISIONAL_ROUNDS - r.rounds })),
+                h('td', { class: 'num rating' }, r.display), todayCell(r)))))));
 }
 
-function roundItem(gid, ctx, round, { showDay = false, onChange } = {}) {
+function roundItem(ctx, round, { showDay = false, onEdit } = {}) {
     const team = (i) => round.players.filter((p) => p.team === i);
+    const names = (i) => team(i).map((p) => playerName(ctx, p.id)).join(', ');
     const side = (i) => h('div', { class: `side side-${i} ${round.winner === i ? 'won' : ''}` },
+        round.winner === i && h('span', { class: 'win-mark' }, icon('trophy'), t('win')),
         team(i).map((p) => h('span', { class: 'who' }, h('span', { class: 'pname' }, playerName(ctx, p.id)), deltaEl(roundDelta(p), 'small'))));
     const hasScore = round.scoreA !== null && round.scoreB !== null;
     const tour = round.tournamentId && ctx.tournaments?.find((x) => x.id === round.tournamentId);
-    const el = h(round.canEdit ? 'button' : 'div', {
-        class: 'round', type: round.canEdit ? 'button' : null,
-        onclick: round.canEdit ? () => roundSheet(gid, ctx, { round, onSaved: onChange }) : null,
+    const when = showDay ? `${fmtDay(round.playedAt)} ${fmtTime(round.playedAt)}` : fmtTime(round.playedAt);
+    const label = t('roundAria', { winners: names(round.winner), losers: names(1 - round.winner), when })
+        + (hasScore ? `, ${round.scoreA}–${round.scoreB}` : '');
+    return h('li', null, h(onEdit ? 'button' : 'div', {
+        class: 'round', type: onEdit ? 'button' : null, 'aria-label': label,
+        onclick: onEdit ? () => onEdit(round) : null,
     },
     side(0),
-    h('div', { class: 'mid' },
-        h('span', { class: 'score' }, hasScore ? `${round.scoreA}–${round.scoreB}` : round.winner === 0 ? '◀' : '▶'),
-        h('span', { class: 'when' }, showDay ? `${fmtDay(round.playedAt)} ${fmtTime(round.playedAt)}` : fmtTime(round.playedAt)),
+    h('div', { class: 'mid', 'aria-hidden': 'true' },
+        hasScore && h('span', { class: 'score' }, `${round.scoreA}–${round.scoreB}`),
+        h('span', { class: 'when' }, when),
         tour && h('span', { class: 'tour' }, icon('trophy'), tour.name)),
-    side(1));
-    return h('li', null, el);
+    side(1)));
 }
 
-function roundList(gid, ctx, rounds, opts = {}) {
+function roundList(ctx, rounds, opts = {}) {
     if (!rounds.length) return h('p', { class: 'muted empty-small' }, opts.empty || t('noRoundsToday'));
     const items = [];
     let lastDay = null;
@@ -593,14 +677,47 @@ function roundList(gid, ctx, rounds, opts = {}) {
             if (day !== lastDay) items.push(h('li', { class: 'day' }, day));
             lastDay = day;
         }
-        items.push(roundItem(gid, ctx, r, opts));
+        items.push(roundItem(ctx, r, opts));
     }
     return h('ul', { class: 'rounds' }, items);
 }
 
-function teamLegend(ctx) {
+function teamLegend(game) {
     return h('div', { class: 'team-legend' },
-        h('span', { class: 'tl tl-0' }, ctx.game.teamA), h('span', { class: 'muted' }, t('vs')), h('span', { class: 'tl tl-1' }, ctx.game.teamB));
+        h('span', { class: 'tl tl-0' }, teamName(game, 0)), h('span', { class: 'muted' }, t('vs')), h('span', { class: 'tl tl-1' }, teamName(game, 1)));
+}
+
+function ratingInfoButton() {
+    return iconButton('info', t('aboutRatingTitle'), () => sheet(t('aboutRatingTitle'), ratingExplainer()), 'small');
+}
+
+// ---- game page ----------------------------------------------------------------
+
+async function loadGame(gid, gameId) {
+    const [ctx, data] = await Promise.all([
+        loadGroup(gid),
+        gapi(gid, 'GET', `/games/${gameId}?since=${startOfToday()}`),
+    ]);
+    return withGameData(ctx, data);
+}
+
+function withGameData(ctx, data) {
+    ctx.game = data.game;
+    ctx.tournaments = data.tournaments;
+    ctx.rounds = data.rounds;
+    ctx.ratings = new Map(data.ratings.map((r) => [r.playerId, r]));
+    ctx.handicaps = new Map(data.handicaps.map((x) => [x.format, x]));
+    return ctx;
+}
+
+// iPhone Safari forgets sites after 7 days unless they're on the home screen.
+function homeScreenNudge() {
+    const ios = /iPhone|iPad/.test(navigator.userAgent);
+    if (!ios || navigator.standalone || localStorage.getItem('a2hsDismissed')) return null;
+    const el = h('section', { class: 'card pad nudge' },
+        h('p', null, t('a2hs')),
+        h('button', { class: 'btn ghost small', type: 'button', onclick: () => { localStorage.setItem('a2hsDismissed', '1'); el.remove(); } }, t('gotIt')));
+    return el;
 }
 
 async function pageGame(gid, gameId, current) {
@@ -611,22 +728,21 @@ async function pageGame(gid, gameId, current) {
     const today = ctx.rounds.filter((r) => r.playedAt >= startOfToday());
     const recent = today.length ? today : ctx.rounds.slice(0, 5);
     const refresh = () => pageGame(gid, gameId, current);
-    const tourName = h('input', { class: 'input', placeholder: t('tournamentPlaceholder'), maxlength: 40 });
+    const tourName = h('input', { class: 'input', placeholder: t('tournamentPlaceholder'), maxlength: 40, 'aria-label': t('tournamentPlaceholder') });
+    const edit = (round) => roundSheet(gid, ctx, { round, onSaved: refresh });
+    const empty = !ctx.rounds.length;
 
     (pollTimer ? rerender : render)(
         topbar({ back: `/g/${gid}`, title: ctx.game.name, actions: [
-            iconButton('share', t('share'), () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), joinUrl(ctx.group.inviteCode))),
+            iconButton('share', t('share'), () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), officeUrl(ctx.group.inviteCode))),
             iconLink('settings', `/g/${gid}/settings`, t('groupSettings')),
         ] }),
         h('main', { class: 'wrap game-grid' },
-            h('section', { class: 'card pad board-card' },
-                h('div', { class: 'section-head' }, h('h2', null, t('leaderboard')), teamLegend(ctx)),
-                leaderboard(gid, ctx, today)),
-            h('div', { class: 'side-col' },
-                h('section', { class: 'card pad' },
-                    h('div', { class: 'section-head' }, h('h2', null, today.length ? t('today') : t('recent')),
-                        h('a', { class: 'btn ghost small', href: `/g/${gid}/game/${gameId}/history` }, icon('history'), t('history'))),
-                    roundList(gid, ctx, recent, { showDay: !today.length, onChange: refresh })),
+            h('div', { class: 'main-col' },
+                homeScreenNudge(),
+                h('section', { class: 'card pad board-card' },
+                    h('div', { class: 'section-head' }, h('h2', null, t('leaderboard'), ratingInfoButton()), teamLegend(ctx.game)),
+                    empty ? h('p', { class: 'muted empty-small' }, t('emptyGame')) : leaderboard(ctx, today, (pid) => `/g/${gid}/game/${gameId}/p/${pid}`)),
                 h('section', { class: 'card pad' },
                     h('h2', null, t('tournaments')),
                     ctx.tournaments.length > 0 && h('ul', { class: 'list' }, ctx.tournaments.slice(0, 8).map((x) => h('li', null,
@@ -639,7 +755,12 @@ async function pageGame(gid, gameId, current) {
                             navigate(`/g/${gid}/game/${gameId}/t/${x.id}`);
                         } catch (err) { errorToast(err); }
                     } }, tourName, h('button', { class: 'btn ghost' }, icon('plus'), t('start'))))),
-            h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { tournamentId: null, onSaved: refresh }) },
+            h('div', { class: 'side-col' },
+                h('section', { class: 'card pad' },
+                    h('div', { class: 'section-head' }, h('h2', null, today.length ? t('today') : t('recent')),
+                        h('a', { class: 'btn ghost small', href: `/g/${gid}/game/${gameId}/history` }, icon('history'), t('history'))),
+                    roundList(ctx, recent, { showDay: !today.length, onEdit: edit, empty: empty ? t('emptyGameRounds') : undefined }))),
+            h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { onSaved: refresh }) },
                 icon('plus'), t('newRound'))));
     if (!pollTimer) poll(refresh);
 }
@@ -649,35 +770,49 @@ async function pageHistory(gid, gameId, current) {
     if (!current()) return;
     document.title = `${t('history')} · ${ctx.game.name}`;
     let rounds = [];
-    let more = true;
+    let next = '';
     const list = h('div');
     const moreBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => load() }, t('loadMore'));
+    const redraw = () => list.replaceChildren(roundList(ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'),
+        onEdit: (round) => roundSheet(gid, ctx, { round, onSaved: () => pageHistory(gid, gameId, current) }) }));
     async function load() {
-        const before = rounds.length ? rounds[rounds.length - 1].playedAt : '';
-        const res = await gapi(gid, 'GET', `/games/${gameId}/rounds?before=${before}&limit=50`);
+        const res = await gapi(gid, 'GET', `/games/${gameId}/rounds?limit=50&before=${next}`);
         rounds = rounds.concat(res.rounds);
-        more = res.more;
-        list.replaceChildren(roundList(gid, ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'), onChange: () => pageHistory(gid, gameId, current) }));
-        moreBtn.hidden = !more;
+        next = res.next || '';
+        redraw();
+        moreBtn.hidden = !next;
     }
     render(
-        topbar({ back: `/g/${gid}/game/${gameId}`, title: t('history') }),
+        topbar({ back: `/g/${gid}/game/${gameId}`, title: `${t('history')} · ${ctx.game.name}` }),
         h('main', { class: 'wrap narrow' }, h('section', { class: 'card pad' }, list, h('div', { class: 'center' }, moreBtn))));
     await load();
+}
+
+// All rounds matching a filter, following the paging cursor (bounded).
+async function allRounds(gid, gameId, query, maxPages = 10) {
+    const out = [];
+    let next = '';
+    for (let i = 0; i < maxPages; i++) {
+        const res = await gapi(gid, 'GET', `/games/${gameId}/rounds?limit=200&${query}&before=${next}`);
+        out.push(...res.rounds);
+        next = res.next;
+        if (!next) break;
+    }
+    return out;
 }
 
 // ---- tournament page ----------------------------------------------------------
 
 async function pageTournament(gid, gameId, tid, current) {
     const seq = ++loadSeq;
-    const [ctx, res] = await Promise.all([loadGame(gid, gameId), gapi(gid, 'GET', `/games/${gameId}/rounds?tournament=${tid}&limit=1000`)]);
+    const [ctx, rounds] = await Promise.all([loadGame(gid, gameId), allRounds(gid, gameId, `tournament=${tid}`)]);
     if (!current() || seq !== loadSeq) return;
     const tour = ctx.tournaments.find((x) => x.id === tid);
     if (!tour) throw Object.assign(new Error(t('notFound')), { status: 404 });
     document.title = `${tour.name} · ${ctx.game.name}`;
     const refresh = () => pageTournament(gid, gameId, tid, current);
     const stats = new Map();
-    for (const r of res.rounds) {
+    for (const r of rounds) {
         for (const p of r.players) {
             const s = stats.get(p.id) || { id: p.id, wins: 0, losses: 0, delta: 0 };
             if (p.team === r.winner) s.wins++; else s.losses++;
@@ -714,7 +849,7 @@ async function pageTournament(gid, gameId, tid, current) {
                     h('button', { class: 'btn ghost small', type: 'button', onclick: toggleEnded }, tour.endedAt ? t('reopen') : t('endTournament')))),
             h('div', { class: 'side-col' },
                 h('section', { class: 'card pad' }, h('h2', null, t('rounds')),
-                    roundList(gid, ctx, res.rounds, { groupByDay: true, empty: t('noRoundsYet'), onChange: refresh }))),
+                    roundList(ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'), onEdit: (round) => roundSheet(gid, ctx, { round, onSaved: refresh }) }))),
             !tour.endedAt && h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { tournamentId: tid, onSaved: refresh }) },
                 icon('plus'), t('newRound'))));
     if (!pollTimer) poll(refresh);
@@ -728,167 +863,181 @@ function ratingChart(points) {
     svg.setAttribute('class', 'chart');
     svg.setAttribute('viewBox', '0 0 300 100');
     svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('role', 'img');
     if (points.length < 2) return svg;
-    const min = Math.min(...points);
-    const max = Math.max(...points);
-    const span = Math.max(max - min, 20);
-    const xy = points.map((v, i) => [(i / (points.length - 1)) * 300, 95 - ((v - min) / span) * 90]);
-    const line = document.createElementNS(ns, 'polyline');
-    line.setAttribute('points', xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '));
-    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    const min = Math.min(1000, ...points) - 10;
+    const max = Math.max(1000, ...points) + 10;
+    const y = (v) => 95 - ((v - min) / (max - min)) * 90;
+    const xy = points.map((v, i) => `${((i / (points.length - 1)) * 300).toFixed(1)},${y(v).toFixed(1)}`);
+    const base = document.createElementNS(ns, 'line');
+    base.setAttribute('x1', 0);
+    base.setAttribute('x2', 300);
+    base.setAttribute('y1', y(1000));
+    base.setAttribute('y2', y(1000));
+    base.setAttribute('class', 'baseline');
+    base.setAttribute('vector-effect', 'non-scaling-stroke');
     const area = document.createElementNS(ns, 'polygon');
-    area.setAttribute('points', `0,100 ${xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} 300,100`);
+    area.setAttribute('points', `0,100 ${xy.join(' ')} 300,100`);
     area.setAttribute('class', 'area');
-    svg.append(area, line);
+    const line = document.createElementNS(ns, 'polyline');
+    line.setAttribute('points', xy.join(' '));
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(area, base, line);
+    svg.setAttribute('aria-label', t('chartAria', { n: points.length - 1, first: points[1], last: points[points.length - 1], min: Math.min(...points), max: Math.max(...points) }));
     return svg;
 }
 
 async function pagePlayer(gid, gameId, pid, current) {
-    const [ctx, res] = await Promise.all([loadGame(gid, gameId), gapi(gid, 'GET', `/games/${gameId}/rounds?player=${pid}&limit=1000`)]);
+    const [ctx, stats] = await Promise.all([loadGame(gid, gameId), gapi(gid, 'GET', `/games/${gameId}/players/${pid}`)]);
     if (!current()) return;
     const player = ctx.playersById.get(pid);
     if (!player) throw Object.assign(new Error(t('notFound')), { status: 404 });
     document.title = `${player.name} · ${ctx.game.name}`;
-    const rounds = res.rounds; // newest first
     const rating = ctx.ratings.get(pid) || { ...newRating(), rounds: 0, wins: 0 };
     const display = displayRating(rating);
-    const chrono = [...rounds].reverse();
-    const points = [1000, ...chrono.map((r) => {
-        const p = r.players.find((x) => x.id === pid);
-        return p.after ? displayRating(p.after) : 1000;
-    })];
-    const best = Math.max(...points);
+    const points = [1000, ...stats.history.map(([, mu, sigma]) => displayRating({ mu, sigma }))];
+    const best = points.length > 1 ? Math.max(...points.slice(1)) : null;
     let streak = 0;
     let streakWin = null;
-    for (const r of rounds) {
-        const won = r.players.find((x) => x.id === pid).team === r.winner;
-        if (streakWin === null) streakWin = won;
-        if (won !== streakWin) break;
+    for (const [, , , won] of [...stats.history].reverse()) {
+        if (streakWin === null) streakWin = !!won;
+        if (!!won !== streakWin) break;
         streak++;
     }
-    const withMap = new Map();
-    const vsMap = new Map();
-    const bump = (map, id, won) => {
-        const s = map.get(id) || { id, games: 0, wins: 0 };
-        s.games++;
-        if (won) s.wins++;
-        map.set(id, s);
-    };
-    for (const r of rounds) {
-        const myTeam = r.players.find((x) => x.id === pid).team;
-        const won = myTeam === r.winner;
-        for (const p of r.players) {
-            if (p.id === pid) continue;
-            bump(p.team === myTeam ? withMap : vsMap, p.id, won);
-        }
-    }
     const pct = (s) => s.wins / s.games;
-    const qualified = (map) => [...map.values()].filter((s) => s.games >= 3);
-    const bestMate = qualified(withMap).sort((a, b) => pct(b) - pct(a) || b.games - a.games)[0];
-    const nemesis = qualified(vsMap).sort((a, b) => pct(a) - pct(b) || b.games - a.games)[0];
+    const qualified = (list) => list.filter((s) => s.games >= 3);
+    const bestMate = qualified(stats.with).sort((a, b) => pct(b) - pct(a) || b.games - a.games)[0];
+    const nemesis = qualified(stats.against).sort((a, b) => pct(a) - pct(b) || b.games - a.games)[0];
     const ranked = [...ctx.ratings.values()].filter((r) => r.rounds >= PROVISIONAL_ROUNDS && !ctx.playersById.get(r.playerId)?.archived)
         .sort((a, b) => displayRating(b) - displayRating(a));
     const rank = ranked.findIndex((r) => r.playerId === pid) + 1;
     const stat = (label, value, sub) => h('div', { class: 'stat' }, h('span', { class: 'stat-label' }, label), h('span', { class: 'stat-value' }, value), sub && h('span', { class: 'stat-sub' }, sub));
-    const pctText = (s) => `${Math.round(pct(s) * 100)} %`;
-    const h2hRows = (map) => [...map.values()].sort((a, b) => b.games - a.games).map((s) => h('tr', null,
-        h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
-        h('td', { class: 'num' }, s.games), h('td', { class: 'num' }, `${s.wins}–${s.games - s.wins}`), h('td', { class: 'num muted' }, pctText(s))));
-    const h2hTable = (title, map) => map.size > 0 && h('div', null, h('h3', null, title), h('table', { class: 'board compact' },
+    const h2hTable = (title, list) => list.length > 0 && h('div', null, h('h3', null, title), h('table', { class: 'board compact' },
         h('thead', null, h('tr', null, h('th', null, t('player')), h('th', { class: 'num' }, t('roundsShort')), h('th', { class: 'num' }, t('wl')), h('th', { class: 'num' }, '%'))),
-        h('tbody', null, h2hRows(map))));
+        h('tbody', null, [...list].sort((a, b) => b.games - a.games).map((s) => h('tr', null,
+            h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
+            h('td', { class: 'num' }, s.games), h('td', { class: 'num' }, `${s.wins}–${s.games - s.wins}`),
+            h('td', { class: 'num muted' }, `${Math.round(pct(s) * 100)} %`))))));
+
+    let rounds = [];
+    let next = '';
+    const list = h('div');
+    const moreBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => loadRounds() }, t('loadMore'));
+    async function loadRounds() {
+        const res = await gapi(gid, 'GET', `/games/${gameId}/rounds?player=${pid}&limit=30&before=${next}`);
+        rounds = rounds.concat(res.rounds);
+        next = res.next || '';
+        list.replaceChildren(roundList(ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'),
+            onEdit: (round) => roundSheet(gid, ctx, { round, onSaved: () => pagePlayer(gid, gameId, pid, current) }) }));
+        moreBtn.hidden = !next;
+    }
 
     render(
-        topbar({ back: `/g/${gid}/game/${gameId}`, title: player.name }),
+        topbar({ back: `/g/${gid}/game/${gameId}`, title: `${player.name} · ${ctx.game.name}` }),
         h('main', { class: 'wrap game-grid' },
             h('section', { class: 'card pad board-card' },
                 h('div', { class: 'stats' },
-                    stat(t('rating'), display, rating.rounds < PROVISIONAL_ROUNDS ? t('provisional') : rank ? t('rankOf', { rank, n: ranked.length }) : ''),
-                    stat(t('rounds'), rating.rounds, rating.rounds ? `${Math.round((rating.wins / rating.rounds) * 100)} % ${t('wins')}` : ''),
-                    stat(t('best'), best),
-                    stat(t('streak'), streak ? `${streak} ${streakWin ? 'W' : 'L'}` : '–')),
+                    stat(t('rating'), display, rating.rounds < PROVISIONAL_ROUNDS ? t('toGo', { n: PROVISIONAL_ROUNDS - rating.rounds }) : t('rankOf', { rank, n: ranked.length })),
+                    stat(t('rounds'), rating.rounds, rating.rounds ? `${rating.wins}–${rating.rounds - rating.wins} · ${Math.round((rating.wins / rating.rounds) * 100)} %` : ''),
+                    stat(t('best'), best ?? '–'),
+                    stat(t('streak'), streak ? `${streak} ${streakWin ? t('winLetter') : t('lossLetter')}` : '–')),
                 ratingChart(points),
                 h('div', { class: 'stats' },
                     bestMate && stat(t('bestTeammate'), playerName(ctx, bestMate.id), `${bestMate.wins}–${bestMate.games - bestMate.wins}`),
                     nemesis && stat(t('nemesis'), playerName(ctx, nemesis.id), `${nemesis.wins}–${nemesis.games - nemesis.wins}`)),
-                h('div', { class: 'h2h' }, h2hTable(t('with'), withMap), h2hTable(t('against'), vsMap))),
+                h('div', { class: 'h2h' }, h2hTable(t('with'), stats.with), h2hTable(t('against'), stats.against))),
             h('div', { class: 'side-col' },
-                h('section', { class: 'card pad' }, h('h2', null, t('rounds')),
-                    roundList(gid, ctx, rounds.slice(0, 100), { groupByDay: true, empty: t('noRoundsYet'), onChange: () => pagePlayer(gid, gameId, pid, current) })))));
+                h('section', { class: 'card pad' }, h('h2', null, t('rounds')), list, h('div', { class: 'center' }, moreBtn)))));
+    await loadRounds();
 }
 
 // ---- round sheet --------------------------------------------------------------
 
-// Record a new round (or edit `round`). Tap a player chip to cycle it through
-// team A → team B → out.
+// Records a new round (or edits `round`). Players sit on the bench until
+// tapped onto a team; tapping a team member moves them across, × benches them.
+// A new round opens with the last round's line-up, and tapping who won saves.
 function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     const editing = !!round;
+    const game = ctx.game;
     const assign = new Map(); // playerId -> 0 | 1
     let winner = editing ? round.winner : null;
-    if (editing) for (const p of round.players) assign.set(p.id, p.team);
-
-    const ratingOf = (id) => ctx.ratings.get(id) || { ...newRating(), rounds: 0, wins: 0 };
-    // Most active players first, then alphabetical.
-    let players = ctx.players.filter((p) => !p.archived || assign.has(p.id))
-        .sort((a, b) => ratingOf(b.id).rounds - ratingOf(a.id).rounds || a.name.localeCompare(b.name, locale()));
-
     const lastRound = ctx.rounds?.[0];
-    const chips = h('div', { class: 'chips pool' });
-    const summary = h('div', { class: 'matchup' });
-    const winA = h('button', { type: 'button', class: 'win-btn win-0', onclick: () => { winner = winner === 0 ? null : 0; draw(); } });
-    const winB = h('button', { type: 'button', class: 'win-btn win-1', onclick: () => { winner = winner === 1 ? null : 1; draw(); } });
-    const scoreA = h('input', { class: 'input score-input', type: 'number', inputmode: 'numeric', min: 0, max: 999, placeholder: '–', 'aria-label': t('scoreFor', { team: ctx.game.teamA }), value: editing && round.scoreA !== null ? String(round.scoreA) : '' });
-    const scoreB = h('input', { class: 'input score-input', type: 'number', inputmode: 'numeric', min: 0, max: 999, placeholder: '–', 'aria-label': t('scoreFor', { team: ctx.game.teamB }), value: editing && round.scoreB !== null ? String(round.scoreB) : '' });
-    // A typed score picks the winner.
-    const fromScore = () => {
-        const a = scoreA.value === '' ? null : Number(scoreA.value);
-        const b = scoreB.value === '' ? null : Number(scoreB.value);
-        if (a !== null && b !== null && a !== b) { winner = a > b ? 0 : 1; draw(); }
-    };
-    scoreA.addEventListener('input', fromScore);
-    scoreB.addEventListener('input', fromScore);
+    const usable = (id) => ctx.playersById.get(id) && !ctx.playersById.get(id).archived;
+    if (editing) {
+        for (const p of round.players) assign.set(p.id, p.team);
+    } else if (lastRound) {
+        for (const p of lastRound.players) if (usable(p.id)) assign.set(p.id, p.team);
+    } else if (ctx.me.playerId && usable(ctx.me.playerId)) {
+        assign.set(ctx.me.playerId, 0);
+    }
 
+    const ratingOf = (id) => ctx.ratings.get(id) || newRating();
+    // Stable order: you first, then alphabetical.
+    const order = (a, b) => (b.id === ctx.me.playerId) - (a.id === ctx.me.playerId) || a.name.localeCompare(b.name, locale());
+    let players = ctx.players.filter((p) => !p.archived || assign.has(p.id)).sort(order);
+    const teamIds = (i) => players.filter((p) => assign.get(p.id) === i).map((p) => p.id);
+
+    const teamBoxes = [0, 1].map(() => h('div'));
+    const bench = h('div', { class: 'chips bench-chips' });
+    const scoreInput = (i) => h('input', {
+        class: 'input score-input', type: 'number', inputmode: 'numeric', min: 0, max: 999, placeholder: '–',
+        'aria-label': t('scoreFor', { team: teamName(game, i) }),
+        value: editing && (i ? round.scoreB : round.scoreA) !== null ? String(i ? round.scoreB : round.scoreA) : '',
+    });
+    const scores = [scoreInput(0), scoreInput(1)];
     const tournaments = (ctx.tournaments || []).filter((x) => !x.endedAt || x.id === (round?.tournamentId ?? tournamentId));
-    const tourSelect = h('select', { class: 'input' },
+    const tourSelect = h('select', { class: 'input', 'aria-label': t('tournament') },
         h('option', { value: '' }, t('noTournament')),
         tournaments.map((x) => h('option', { value: x.id, selected: x.id === (editing ? round.tournamentId : tournamentId) }, x.name)));
+    const winButtons = [0, 1].map((i) => h('button', { type: 'button', class: `win-btn win-${i}`, onclick: () => pickWinner(i) }));
+    const saveBtn = editing && h('button', { type: 'button', class: 'btn', onclick: () => save() }, t('save'));
+    const newName = h('input', { class: 'input', placeholder: t('addPlayerPlaceholder'), maxlength: 40, 'aria-label': t('addPlayerPlaceholder') });
 
-    const newName = h('input', { class: 'input', placeholder: t('addPlayerPlaceholder'), maxlength: 40 });
-    const saveBtn = h('button', { type: 'button', class: 'btn', onclick: save }, editing ? t('save') : t('saveRound'));
+    // A typed score picks the winner (but doesn't save).
+    const fromScore = () => {
+        const [a, b] = scores.map((s) => (s.value === '' ? null : Number(s.value)));
+        if (a !== null && b !== null && a !== b) { winner = a > b ? 0 : 1; draw(); }
+    };
+    scores.forEach((s) => s.addEventListener('input', fromScore));
 
-    function teamIds(i) {
-        return players.filter((p) => assign.get(p.id) === i).map((p) => p.id);
+    function chip(p, team) {
+        if (team === undefined) {
+            return h('button', { type: 'button', class: 'pchip', onclick: () => {
+                assign.set(p.id, teamIds(0).length <= teamIds(1).length ? 0 : 1);
+                draw();
+            } }, p.name);
+        }
+        return h('span', { class: `pchip team-${team}` },
+            h('button', { type: 'button', class: 'chip-main', 'aria-label': t('moveTo', { name: p.name, team: teamName(game, 1 - team) }),
+                onclick: () => { assign.set(p.id, 1 - team); draw(); } }, p.name),
+            h('button', { type: 'button', class: 'chip-x', 'aria-label': t('benchPlayer', { name: p.name }),
+                onclick: () => { assign.delete(p.id); draw(); } }, icon('x')));
     }
 
     function draw() {
-        chips.replaceChildren(...players.map((p) => {
-            const team = assign.get(p.id);
-            return h('button', {
-                type: 'button',
-                class: `pchip ${team === 0 ? 'team-0' : team === 1 ? 'team-1' : ''}`,
-                'aria-pressed': String(team !== undefined),
-                onclick: () => {
-                    if (team === undefined) assign.set(p.id, 0);
-                    else if (team === 0) assign.set(p.id, 1);
-                    else assign.delete(p.id);
-                    draw();
-                },
-            }, p.name, team !== undefined && h('span', { class: 'chip-team' }, team === 0 ? ctx.game.teamA : ctx.game.teamB));
-        }));
-        const a = teamIds(0);
-        const b = teamIds(1);
-        const ready = a.length > 0 && b.length > 0;
-        const prob = ready ? winProbability(a.map(ratingOf), b.map(ratingOf)) : null;
-        const names = (ids) => (ids.length ? ids.map((id) => playerName(ctx, id)).join(', ') : t('tapToAdd'));
-        summary.replaceChildren(
-            h('div', { class: 'mteam mteam-0' }, h('strong', null, ctx.game.teamA), h('span', null, names(a))),
-            h('div', { class: 'mvs' }, prob === null ? t('vs') : `${Math.round(prob * 100)}–${100 - Math.round(prob * 100)} %`),
-            h('div', { class: 'mteam mteam-1' }, h('strong', null, ctx.game.teamB), h('span', null, names(b))));
-        winA.textContent = t('teamWon', { team: ctx.game.teamA });
-        winB.textContent = t('teamWon', { team: ctx.game.teamB });
-        winA.classList.toggle('on', winner === 0);
-        winB.classList.toggle('on', winner === 1);
-        saveBtn.disabled = !(ready && winner !== null);
+        const ids = [teamIds(0), teamIds(1)];
+        const ready = ids[0].length > 0 && ids[1].length > 0;
+        const prob = ready && !editing ? winProbability(ids[0].map(ratingOf), ids[1].map(ratingOf), ctx.handicaps) : null;
+        [0, 1].forEach((i) => teamBoxes[i].replaceChildren(h('div', { class: `team-box team-box-${i}` },
+            h('div', { class: 'team-box-head' }, h('strong', null, teamName(game, i)),
+                prob !== null && h('span', { class: 'odds' }, `${Math.round((i ? 1 - prob : prob) * 100)} %`)),
+            h('div', { class: 'chips' }, ids[i].length
+                ? players.filter((p) => assign.get(p.id) === i).map((p) => chip(p, i))
+                : h('span', { class: 'muted small' }, t('tapToAdd'))))));
+        bench.replaceChildren(...players.filter((p) => !assign.has(p.id)).map((p) => chip(p)));
+        winButtons.forEach((b, i) => {
+            b.textContent = t('teamWon', { team: teamName(game, i) });
+            b.disabled = !ready;
+            b.classList.toggle('on', editing && winner === i);
+            if (editing) b.setAttribute('aria-pressed', String(winner === i));
+        });
+        if (saveBtn) saveBtn.disabled = !(ready && winner !== null);
+    }
+
+    function pickWinner(i) {
+        winner = i;
+        if (editing) draw();
+        else save();
     }
 
     async function addPlayer(e) {
@@ -899,17 +1048,14 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
         try {
             p = await gapi(gid, 'POST', '/players', { name });
         } catch (err) {
-            if (err.status !== 409) return errorToast(err);
-            // Someone already added them: pick that player instead.
-            const fresh = await gapi(gid, 'GET', '').catch(() => null);
-            p = fresh?.players.find((x) => x.name.toLowerCase() === name.toLowerCase());
-            if (!p) return toast(t('nameTaken'));
+            if (err.status !== 409 || !err.data?.player) return errorToast(err);
+            p = err.data.player; // Someone already added them: use that player.
         }
         if (!ctx.playersById.has(p.id)) {
             ctx.players.push(p);
             ctx.playersById.set(p.id, p);
         }
-        if (!players.some((x) => x.id === p.id)) players = [...players, p];
+        if (!players.some((x) => x.id === p.id)) players = [...players, p].sort(order);
         if (!assign.has(p.id)) assign.set(p.id, teamIds(0).length <= teamIds(1).length ? 0 : 1);
         newName.value = '';
         draw();
@@ -918,14 +1064,13 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     function sameAsLast() {
         if (!lastRound) return;
         assign.clear();
-        for (const p of lastRound.players) if (ctx.playersById.get(p.id) && !ctx.playersById.get(p.id).archived) assign.set(p.id, p.team);
-        winner = null;
+        for (const p of lastRound.players) if (usable(p.id)) assign.set(p.id, p.team);
         draw();
     }
 
     function swapTeams() {
         for (const [id, team] of assign) assign.set(id, 1 - team);
-        if (winner !== null) winner = 1 - winner;
+        if (editing && winner !== null) winner = 1 - winner;
         draw();
     }
 
@@ -933,30 +1078,38 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
         const ids = [...assign.keys()];
         if (ids.length < 2) return toast(t('pickPlayersFirst'));
         if (ids.length > 14) return toast(t('tooManyToBalance'));
-        const [a, b] = balanceTeams(ids.map((id) => ({ id, ...ratingOf(id) })));
+        const [a, b] = balanceTeams(ids.map((id) => ({ id, ...ratingOf(id) })), ctx.handicaps);
         assign.clear();
         for (const p of a) assign.set(p.id, 0);
         for (const p of b) assign.set(p.id, 1);
-        winner = null;
         draw();
+    }
+
+    // Same players and winner logged in the last two minutes: probably a double entry.
+    function looksLikeDuplicate(body) {
+        const key = (teams) => teams.map((x) => [...x].sort().join()).join('|');
+        const want = key(body.teams);
+        return (ctx.rounds || []).some((r) => Date.now() - r.playedAt < 120000 && r.winner === body.winner
+            && key([0, 1].map((i) => r.players.filter((p) => p.team === i).map((p) => p.id))) === want);
     }
 
     async function save() {
         const body = {
             teams: [teamIds(0), teamIds(1)],
             winner,
-            scoreA: scoreA.value === '' ? null : Number(scoreA.value),
-            scoreB: scoreB.value === '' ? null : Number(scoreB.value),
+            scoreA: scores[0].value === '' ? null : Number(scores[0].value),
+            scoreB: scores[1].value === '' ? null : Number(scores[1].value),
             tournamentId: tourSelect.value || null,
         };
-        saveBtn.disabled = true;
+        if (!editing && looksLikeDuplicate(body) && !confirm(t('duplicateConfirm'))) return;
+        winButtons.forEach((b) => { b.disabled = true; });
         try {
             if (editing) {
                 await gapi(gid, 'PATCH', `/rounds/${round.id}`, body);
                 dialog.close();
                 toast(t('roundUpdated'));
             } else {
-                const created = await gapi(gid, 'POST', `/games/${ctx.game.id}/rounds`, body);
+                const created = await gapi(gid, 'POST', `/games/${game.id}/rounds`, body);
                 dialog.close();
                 const winners = body.teams[winner].map((id) => playerName(ctx, id)).join(' & ');
                 toast(t('roundSaved', { winners }), { label: t('undo'), run: async () => {
@@ -965,13 +1118,12 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
             }
             onSaved?.();
         } catch (err) {
-            saveBtn.disabled = false;
+            draw();
             errorToast(err);
         }
     }
 
     async function remove() {
-        if (!confirm(t('deleteRoundConfirm'))) return;
         try {
             await gapi(gid, 'DELETE', `/rounds/${round.id}`);
             dialog.close();
@@ -982,35 +1134,32 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
         } catch (err) { errorToast(err); }
     }
 
-    const dialog = h('dialog', { class: 'sheet round-sheet' },
-        h('div', { class: 'sheet-body' },
-            h('div', { class: 'sheet-head' },
-                h('h2', null, editing ? t('editRound') : t('newRound')),
-                iconButton('x', t('close'), () => dialog.close(), 'small')),
-            h('p', { class: 'muted small' }, t('tapHint', { a: ctx.game.teamA, b: ctx.game.teamB })),
-            chips,
-            h('form', { class: 'row', onsubmit: addPlayer }, newName, h('button', { class: 'btn ghost' }, icon('plus'), t('add'))),
-            h('div', { class: 'row wrap-row tools' },
-                !editing && lastRound && h('button', { type: 'button', class: 'btn ghost small', onclick: sameAsLast }, icon('repeat'), t('sameAsLast')),
-                h('button', { type: 'button', class: 'btn ghost small', onclick: balance }, icon('shuffle'), t('balance')),
-                h('button', { type: 'button', class: 'btn ghost small', onclick: swapTeams }, t('swap')),
-                h('button', { type: 'button', class: 'btn ghost small', onclick: () => { assign.clear(); winner = null; draw(); } }, t('clear'))),
-            summary,
-            h('div', { class: 'winners' }, winA, winB),
-            h('div', { class: 'row score-row' },
-                h('span', { class: 'muted small' }, t('scoreOptional')), scoreA, h('span', null, '–'), scoreB),
-            tournaments.length > 0 && h('label', { class: 'field' }, h('span', null, t('tournament')), tourSelect),
-            h('div', { class: 'sheet-actions' },
-                editing && h('button', { type: 'button', class: 'btn ghost danger', onclick: remove }, t('delete')),
+    const hasDetails = editing ? round.scoreA !== null || !!round.tournamentId : !!tournamentId;
+    const dialog = sheet(editing ? t('editRound') : t('newRound'),
+        h('div', { class: 'teams' }, teamBoxes),
+        h('div', { class: 'bench' },
+            h('div', { class: 'section-head' }, h('h3', null, t('bench')), h('span', { class: 'muted small' }, t('benchHint'))),
+            bench,
+            h('form', { class: 'row', onsubmit: addPlayer }, newName, h('button', { class: 'btn ghost' }, icon('plus'), t('add')))),
+        h('div', { class: 'row wrap-row tools' },
+            !editing && lastRound && h('button', { type: 'button', class: 'btn ghost small', onclick: sameAsLast }, icon('repeat'), t('sameAsLast')),
+            h('button', { type: 'button', class: 'btn ghost small', onclick: balance }, icon('shuffle'), t('balance')),
+            h('button', { type: 'button', class: 'btn ghost small', onclick: swapTeams }, icon('swap'), t('swap')),
+            h('button', { type: 'button', class: 'btn ghost small', onclick: () => { assign.clear(); draw(); } }, t('clear'))),
+        h('details', { class: 'more', open: hasDetails },
+            h('summary', null, tournaments.length ? t('scoreAndTournament') : t('scoreOptional')),
+            h('div', { class: 'row score-row' }, h('span', { class: 'muted small' }, t('score')), scores[0], h('span', null, '–'), scores[1]),
+            tournaments.length > 0 && h('label', { class: 'field' }, h('span', null, t('tournament')), tourSelect)),
+        h('div', { class: 'sheet-footer' },
+            !editing && h('p', { class: 'muted small center' }, t('whoWon')),
+            h('div', { class: 'winners' }, winButtons),
+            editing && h('div', { class: 'sheet-actions' },
+                h('button', { type: 'button', class: 'btn ghost danger', onclick: remove }, t('delete')),
                 h('span', { class: 'spacer' }),
-                h('button', { type: 'button', class: 'btn ghost', onclick: () => dialog.close() }, t('cancel')),
                 saveBtn)));
-    dialog.addEventListener('close', () => dialog.remove());
-    document.body.append(dialog);
+    dialog.classList.add('round-sheet');
     draw();
-    dialog.showModal();
-    // The page's player list can be a minute old (or older than a player
-    // someone just added): merge in the current one.
+    // The page's player list can be a minute old: merge in the current one.
     gapi(gid, 'GET', '').then((fresh) => {
         let added = false;
         for (const p of fresh.players) {
@@ -1020,23 +1169,18 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
             if (!p.archived) players.push(p);
             added = true;
         }
-        if (added && dialog.open) draw();
+        if (added && dialog.open) { players.sort(order); draw(); }
     }).catch(() => {});
 }
 
 // ---- group settings -----------------------------------------------------------
 
-function switchEl(checked, disabled, onchange) {
-    const input = h('input', { type: 'checkbox', checked, disabled, onchange: () => onchange(input.checked) });
-    return h('label', { class: 'switch' }, input, h('span'));
-}
-
 async function pageGroupSettings(gid, current) {
     const ctx = await loadGroup(gid);
-    const devices = ctx.me.admin ? (await gapi(gid, 'GET', '/devices')).devices : [];
+    const devices = ctx.me.owner ? (await gapi(gid, 'GET', '/devices')).devices : [];
     if (!current()) return;
     document.title = `${t('groupSettings')} · ${ctx.group.name}`;
-    const admin = ctx.me.admin;
+    const owner = ctx.me.owner;
     const refresh = () => pageGroupSettings(gid, current);
     const patch = async (path, body, msg) => {
         try {
@@ -1045,77 +1189,78 @@ async function pageGroupSettings(gid, current) {
             refresh();
         } catch (err) { errorToast(err); }
     };
-    const nameInput = h('input', { class: 'input', value: ctx.group.name, maxlength: 40, disabled: !admin });
+    const rotate = async (kind, confirmKey, doneKey) => {
+        if (!confirm(t(confirmKey))) return;
+        try {
+            const res = await gapi(gid, 'POST', `/links/${kind}`);
+            if (kind === 'owner') ownerLinkDialog(res.ownerToken);
+            else toast(t(doneKey));
+            if (kind !== 'owner') refresh();
+        } catch (err) { errorToast(err); }
+    };
+    const nameInput = h('input', { class: 'input', value: ctx.group.name, maxlength: 40, 'aria-label': t('groupName') });
+    const ownerNames = ctx.owners.map((o) => (o.playerId ? playerName(ctx, o.playerId) : o.label || t('unnamedDevice')));
 
-    const playerRows = ctx.players.map((p) => {
-        const mine = p.id === ctx.me.playerId;
-        const can = admin || mine;
-        return h('li', { class: `list-row ${p.archived ? 'faded' : ''}` },
-            h('span', null, p.name, mine && h('span', { class: 'chip' }, t('you'))),
-            can && h('span', { class: 'row' },
-                h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-                    const name = prompt(t('rename'), p.name);
-                    if (name) patch(`/players/${p.id}`, { name });
-                } }, t('rename')),
-                h('button', { class: 'btn ghost small', type: 'button', onclick: () => patch(`/players/${p.id}`, { archived: !p.archived }) },
-                    p.archived ? t('unarchive') : t('archive'))));
-    });
+    const playerRows = ctx.players.map((p) => h('li', { class: `list-row ${p.archived ? 'faded' : ''}` },
+        h('span', null, p.name, p.id === ctx.me.playerId && h('span', { class: 'chip' }, t('you'))),
+        h('span', { class: 'row' },
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
+                const name = prompt(t('rename'), p.name);
+                if (name) patch(`/players/${p.id}`, { name });
+            } }, t('rename')),
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => patch(`/players/${p.id}`, { archived: !p.archived }) },
+                p.archived ? t('unarchive') : t('archive')))));
 
     const gameRows = ctx.games.map((g) => h('li', { class: `list-row ${g.archived ? 'faded' : ''}` },
-        h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${g.teamA} / ${g.teamB}`)),
-        admin && h('span', { class: 'row wrap-row' },
+        h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${teamName(g, 0)} / ${teamName(g, 1)}`)),
+        h('span', { class: 'row wrap-row' },
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
                 const name = prompt(t('rename'), g.name);
                 if (name) patch(`/games/${g.id}`, { name });
             } }, t('rename')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-                const a = prompt(t('teamNames', { n: 1 }), g.teamA);
-                if (!a) return;
-                const b = prompt(t('teamNames', { n: 2 }), g.teamB);
-                if (b) patch(`/games/${g.id}`, { teamA: a, teamB: b });
+                const a = prompt(t('teamNames', { n: 1 }), teamName(g, 0));
+                if (a === null) return;
+                const b = prompt(t('teamNames', { n: 2 }), teamName(g, 1));
+                if (b === null) return;
+                // Keeping the default names stores nothing, so they follow the language.
+                patch(`/games/${g.id}`, { teamA: a === t('teamBlue') ? null : a, teamB: b === t('teamOrange') ? null : b });
             } }, t('teams')),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => patch(`/games/${g.id}`, { recalculate: true }, t('recalculated')) }, t('recalculate')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => patch(`/games/${g.id}`, { archived: !g.archived }) },
                 g.archived ? t('unarchive') : t('archive')))));
 
+    const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(locale()) : '–');
     const deviceRows = devices.map((d) => h('li', { class: 'list-row' },
-        h('span', null, d.playerId ? playerName(ctx, d.playerId) : t('unnamedDevice'),
-            d.me && h('span', { class: 'chip' }, t('thisDevice')),
-            h('span', { class: 'muted small' }, ` · ${new Date(d.createdAt).toLocaleDateString(locale())}`)),
-        h('span', { class: 'row' },
-            h('span', { class: 'muted small' }, t('admin')),
-            switchEl(d.admin || ctx.group.everyoneAdmin, ctx.group.everyoneAdmin || d.me, (v) => patch(`/devices/${d.id}`, { admin: v })),
-            !d.me && iconButton('x', t('removeDevice'), async () => {
-                if (!confirm(t('removeDeviceConfirm'))) return;
-                try { await gapi(gid, 'DELETE', `/devices/${d.id}`); refresh(); } catch (err) { errorToast(err); }
-            }, 'small danger'))));
+        h('span', { class: 'device' },
+            h('span', null, d.playerId ? playerName(ctx, d.playerId) : t('unnamedDevice'),
+                d.me && h('span', { class: 'chip' }, t('thisDevice')), d.owner && h('span', { class: 'chip' }, t('owner'))),
+            h('span', { class: 'muted small' }, [d.label, t('lastSeen', { date: fmtDate(d.lastSeen) })].filter(Boolean).join(' · '))),
+        !d.me && iconButton('x', t('removeDevice'), async () => {
+            if (!confirm(t('removeDeviceConfirm'))) return;
+            try { await gapi(gid, 'DELETE', `/devices/${d.id}`); refresh(); } catch (err) { errorToast(err); }
+        }, 'small danger')));
 
     render(
         topbar({ back: `/g/${gid}`, title: t('groupSettings') }),
         h('main', { class: 'wrap narrow' },
             h('section', { class: 'card pad' }, h('h2', null, t('group')),
-                h('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); patch('', { name: nameInput.value }, t('saved')); } },
-                    nameInput, admin && h('button', { class: 'btn ghost' }, t('save'))),
-                h('p', { class: 'muted small' }, admin ? t('youAreAdmin') : t('youAreNotAdmin'))),
-            h('section', { class: 'card pad' }, h('h2', null, t('permissions')),
-                h('div', { class: 'setting' },
-                    h('div', null, h('strong', null, t('everyoneAdmin')), h('p', { class: 'muted small' }, t('everyoneAdminHint'))),
-                    switchEl(ctx.group.everyoneAdmin, !admin, (v) => patch('', { everyoneAdmin: v }))),
-                h('div', { class: 'setting stack-setting' },
-                    h('div', null, h('strong', null, t('whoCanEdit')), h('p', { class: 'muted small' }, t('whoCanEditHint'))),
-                    admin
-                        ? segmented([['anyone', t('editAnyone')], ['admin', t('editAdmins')]], ctx.group.editPolicy, (v) => patch('', { editPolicy: v }))
-                        : h('span', { class: 'chip' }, ctx.group.editPolicy === 'anyone' ? t('editAnyone') : t('editAdmins')))),
-            inviteCard(gid, ctx),
-            admin && h('section', { class: 'card pad' }, h('h2', null, t('inviteCode')),
-                h('p', { class: 'muted small' }, t('rotateHint')),
-                h('button', { class: 'btn ghost', type: 'button', onclick: async () => {
-                    if (!confirm(t('rotateConfirm'))) return;
-                    try { await gapi(gid, 'POST', '/invite'); toast(t('rotated')); refresh(); } catch (err) { errorToast(err); }
-                } }, t('rotate'))),
+                owner
+                    ? h('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); patch('', { name: nameInput.value }, t('saved')); } },
+                        nameInput, h('button', { class: 'btn ghost' }, t('save')))
+                    : h('p', null, ctx.group.name),
+                h('p', { class: 'muted small' }, owner ? t('youAreOwner') : t('ownersAre', { names: ownerNames.join(', ') || '–' }))),
+            officeLinkCard(gid, ctx),
+            dashboardLinkCard(ctx),
+            owner && h('section', { class: 'card pad' }, h('h2', null, icon('key'), t('ownerTools')),
+                h('p', { class: 'muted small' }, t('ownerToolsHint')),
+                h('div', { class: 'stack' },
+                    h('button', { class: 'btn ghost', type: 'button', onclick: () => rotate('office', 'rotateOfficeConfirm', 'rotatedOffice') }, t('rotateOffice')),
+                    h('button', { class: 'btn ghost', type: 'button', onclick: () => rotate('dashboard', 'rotateDashboardConfirm', 'rotatedDashboard') }, t('rotateDashboard')),
+                    h('button', { class: 'btn ghost', type: 'button', onclick: () => rotate('owner', 'rotateOwnerConfirm') }, t('rotateOwner')))),
+            !owner && h('section', { class: 'card pad' }, h('h2', null, icon('key'), t('ownerTools')), h('p', { class: 'muted' }, t('notOwnerHint'))),
             h('section', { class: 'card pad' }, h('h2', null, t('players')), h('ul', { class: 'list' }, playerRows)),
             h('section', { class: 'card pad' }, h('h2', null, t('games')), h('ul', { class: 'list' }, gameRows)),
-            admin && h('section', { class: 'card pad' }, h('h2', null, t('devices')), h('p', { class: 'muted small' }, t('devicesHint')),
+            owner && h('section', { class: 'card pad' }, h('h2', null, t('devices')), h('p', { class: 'muted small' }, t('devicesHint')),
                 h('ul', { class: 'list' }, deviceRows)),
             h('section', { class: 'card pad danger-zone' }, h('h2', null, t('dangerZone')),
                 h('div', { class: 'row wrap-row' },
@@ -1123,12 +1268,12 @@ async function pageGroupSettings(gid, current) {
                         if (!confirm(t('leaveConfirm'))) return;
                         try { await gapi(gid, 'DELETE', `/devices/${ctx.me.deviceId}`); } catch { /* leaving anyway */ }
                         forgetGroup(gid);
-                        navigate('/', true);
+                        navigate('/?home', true);
                     } }, t('leaveGroup')),
-                    admin && h('button', { class: 'btn ghost danger', type: 'button', onclick: async () => {
+                    owner && h('button', { class: 'btn ghost danger', type: 'button', onclick: async () => {
                         const typed = prompt(t('deleteGroupConfirm', { name: ctx.group.name }));
                         if (typed !== ctx.group.name) return;
-                        try { await gapi(gid, 'DELETE', ''); forgetGroup(gid); navigate('/', true); } catch (err) { errorToast(err); }
+                        try { await gapi(gid, 'DELETE', ''); forgetGroup(gid); navigate('/?home', true); } catch (err) { errorToast(err); }
                     } }, t('deleteGroup'))))));
 }
 
@@ -1137,7 +1282,8 @@ async function pageGroupSettings(gid, current) {
 async function pagePoster(gid, current) {
     const ctx = await loadGroup(gid);
     if (!current()) return;
-    const url = joinUrl(ctx.group.inviteCode);
+    const url = officeUrl(ctx.group.inviteCode);
+    const games = ctx.games.filter((g) => !g.archived).map((g) => g.name).join(' · ');
     document.title = `${ctx.group.name} · ${t('poster')}`;
     render(
         topbar({ back: `/g/${gid}`, title: t('poster'), actions: [
@@ -1146,10 +1292,56 @@ async function pagePoster(gid, current) {
         ] }),
         h('main', { class: 'poster' },
             h('h1', null, ctx.group.name),
-            h('p', { class: 'poster-sub' }, t('posterScan')),
+            games && h('p', { class: 'poster-games' }, games),
             qrSvg(url),
+            h('ol', { class: 'poster-steps' }, h('li', null, t('posterStep1')), h('li', null, t('posterStep2')), h('li', null, t('posterStep3'))),
             h('p', { class: 'poster-code' }, ctx.group.inviteCode),
             h('p', { class: 'poster-url' }, url.replace(/^https?:\/\//, ''))));
+}
+
+// ---- dashboard (read-only, for wall screens) -----------------------------------
+
+async function pageDashboard(token, current) {
+    const seq = ++loadSeq;
+    const base = await api('GET', `/d/${token}`);
+    const params = new URLSearchParams(location.search);
+    const game = base.games.find((g) => g.id === params.get('game')) || base.games[0];
+    const data = game ? await api('GET', `/d/${token}/games/${game.id}?since=${startOfToday()}`) : null;
+    if (!current() || seq !== loadSeq) return;
+    document.title = `${base.group.name} · ${t('appName')}`;
+    const ctx = { group: base.group, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])), me: null };
+    const refresh = () => pageDashboard(token, current);
+    const url = dashboardUrl(token);
+    let content;
+    if (!data) {
+        content = h('div', { class: 'card empty' }, h('p', null, t('noGames')));
+    } else {
+        withGameData(ctx, data);
+        const today = ctx.rounds.filter((r) => r.playedAt >= startOfToday());
+        content = h('div', { class: 'game-grid tv-grid' },
+            h('section', { class: 'card pad board-card' },
+                h('div', { class: 'section-head' }, h('h2', null, t('leaderboard')), teamLegend(ctx.game)),
+                leaderboard(ctx, today, null, { big: true })),
+            h('section', { class: 'card pad' },
+                h('h2', null, today.length ? t('today') : t('recent')),
+                roundList(ctx, (today.length ? today : ctx.rounds).slice(0, 8), { showDay: !today.length })));
+    }
+    (pollTimer ? rerender : render)(
+        h('header', { class: 'topbar' },
+            h('span', { class: 'brand' }, h('span', { class: 'brand-dot' }), base.group.name),
+            h('h1', { class: 'title' }, game?.name || ''),
+            h('div', { class: 'actions' },
+                base.games.length > 1 && h('select', { class: 'input game-select', 'aria-label': t('games'),
+                    onchange: (e) => navigate(`/d/${token}?game=${e.target.value}`, true) },
+                base.games.map((g) => h('option', { value: g.id, selected: g.id === game?.id }, g.name))),
+                iconButton('share', t('share'), () => share(base.group.name, t('dashboardShareText', { group: base.group.name }), url)),
+                iconLink('settings', '/settings', t('settings')))),
+        h('main', { class: 'wrap tv' }, content, h('p', { class: 'muted small center' }, t('dashboardFooter'))));
+    if (!pollTimer) {
+        poll(refresh, 30000);
+        // Keep a wall screen awake while the dashboard is showing.
+        navigator.wakeLock?.request('screen').then((l) => { wakeLock = l; }).catch(() => {});
+    }
 }
 
 // ---- boot ---------------------------------------------------------------------

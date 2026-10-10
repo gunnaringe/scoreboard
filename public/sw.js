@@ -1,7 +1,7 @@
 // Network-first for app files so a deploy is picked up on the next load, with
 // the cache as an offline fallback. The API is never cached. Every non-API
 // navigation is the same index.html (client-side routing).
-const CACHE = 'scoreboard-v1';
+const CACHE = 'scoreboard-v2';
 const PRECACHE = ['/', '/styles.css', '/theme.js', '/i18n.js', '/rating.js', '/qrcodegen.js', '/app.js',
     '/manifest.webmanifest', '/icons/icon.svg', '/fonts/vt323-latin.woff2', '/fonts/vt323-latin-ext.woff2'];
 

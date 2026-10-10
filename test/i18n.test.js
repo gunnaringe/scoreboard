@@ -10,6 +10,7 @@ test('every language has the same keys', () => {
 
 test('every t() key used by the app exists', () => {
     const src = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-    const used = new Set([...src.matchAll(/\bt\('(\w+)'/g)].map((m) => m[1]));
+    // t('key'), plus keys passed around as strings: rotate(..., 'rotateOfficeConfirm', ...) and ERRORS.
+    const used = new Set([...src.matchAll(/\bt\('(\w+)'/g), ...src.matchAll(/'((?:rotate\w+Confirm|rotated\w+|err\w+))'/g)].map((m) => m[1]));
     for (const key of used) assert.ok(key in I18N.en, `missing key: ${key}`);
 });
