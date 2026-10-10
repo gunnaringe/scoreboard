@@ -21,8 +21,9 @@ const MAX_NAME = 40;
 const MAX_TEAM = 8;
 const PAGE = 50;
 const MAX_PAGE = 200;
-// Recalculating more rounds than this in one request risks the 10 ms CPU limit.
-const MAX_RERATE = 800;
+// Recalculating more rounds than this in one request risks the 10 ms CPU
+// limit (measured: ~4 ms for 300 rounds, ~10 ms for 800).
+const MAX_RERATE = 300;
 const CAPS = { players: 200, games: 50, devices: 500, tournaments: 200, roundsPerDay: 500 };
 
 class HttpError extends Error {
@@ -116,11 +117,15 @@ async function body(request) {
     }
 }
 
-async function limit(binding, key) {
+async function limit(binding, key, message = 'too many requests, wait a minute') {
     if (!binding) return;
     const { success } = await binding.limit({ key });
-    if (!success) throw new HttpError(429, 'too many requests, wait a minute');
+    if (!success) throw new HttpError(429, message);
 }
+
+// The whole office shares one IP, so this is generous; an 8-letter code from a
+// 31-letter alphabet can't be guessed at this rate anyway.
+const joinLimit = (env, request) => limit(env.JOIN_LIMIT, ipKey(request), 'too many attempts, wait a minute');
 
 const ipKey = (request) => request.headers.get('cf-connecting-ip') || 'local';
 
@@ -430,7 +435,7 @@ async function retrying(fn) {
 const newDashboardToken = () => randomString('abcdefghijklmnopqrstuvwxyz0123456789', 16);
 
 async function createGroup(env, request) {
-    await limit(env.JOIN_LIMIT, ipKey(request));
+    await joinLimit(env, request);
     const input = await body(request);
     const name = cleanName(input.name, 'group name');
     const now = Date.now();
@@ -473,7 +478,7 @@ async function addDevice(env, request, groupId, owner) {
 
 // Office link: anyone with the code joins as a member.
 async function joinGroup(env, request) {
-    await limit(env.JOIN_LIMIT, ipKey(request));
+    await joinLimit(env, request);
     const input = await body(request);
     const code = normalizeCode(input.code);
     if (code.length !== 8) throw new HttpError(404, 'unknown code');
@@ -486,7 +491,7 @@ async function joinGroup(env, request) {
 // Owner link: makes this browser an owner — its existing device in the group
 // if it has one (it sends the tokens it knows), else a new device.
 async function claimOwner(env, request) {
-    await limit(env.JOIN_LIMIT, ipKey(request));
+    await joinLimit(env, request);
     const input = await body(request);
     const group = await env.DB.prepare('SELECT id, name FROM groups WHERE owner_hash = ?')
         .bind(await sha256(String(input.token || ''))).first();
@@ -620,6 +625,11 @@ async function getDashboardGame(env, token, gameId, url) {
     return getGame(env, { groupId: group.id }, gameId, url);
 }
 
+async function getDashboardVersion(env, token, gameId) {
+    const group = await dashboardGroup(env, token);
+    return gameVersion(env, { groupId: group.id }, gameId);
+}
+
 // ---- handlers: players, games, tournaments ----------------------------------
 
 async function createPlayer(env, me, request) {
@@ -704,11 +714,18 @@ async function getGame(env, me, gameId, url) {
     ]);
     return json({
         game: gameOut(game),
+        version: game.version,
         ratings: ratings.results.map((r) => ({ playerId: r.player_id, mu: r.mu, sigma: r.sigma, rounds: r.rounds, wins: r.wins })),
         handicaps: handicaps.results.map((h) => ({ format: h.format, mu: h.mu, sigma: h.sigma })),
         tournaments: tournaments.results.map(tournamentOut),
         rounds: await roundsOut(env, rounds.results),
     });
+}
+
+// Cheap change check for polling screens: a few rows instead of the whole page.
+async function gameVersion(env, me, gameId) {
+    const game = await loadGame(env, me, gameId);
+    return json({ version: game.version });
 }
 
 // Paged history, newest first. Cursor: "playedAt.id" from the previous page's
@@ -867,6 +884,7 @@ const routes = [
     ['POST', '^/api/owner$', (c) => claimOwner(c.env, c.req), 'none'],
     ['GET', '^/api/d/(\\w+)$', (c) => getDashboard(c.env, c.m[1]), 'none'],
     ['GET', '^/api/d/(\\w+)/games/(\\w+)$', (c) => getDashboardGame(c.env, c.m[1], c.m[2], c.url), 'none'],
+    ['GET', '^/api/d/(\\w+)/games/(\\w+)/version$', (c) => getDashboardVersion(c.env, c.m[1], c.m[2]), 'none'],
     ['GET', `${G}$`, (c) => getGroup(c.env, c.me), 'read'],
     ['PATCH', `${G}$`, (c) => updateGroup(c.env, c.me, c.req), 'write'],
     ['DELETE', `${G}$`, (c) => deleteGroup(c.env, c.me), 'write'],
@@ -879,6 +897,7 @@ const routes = [
     ['POST', `${G}/games$`, (c) => createGame(c.env, c.me, c.req), 'write'],
     ['GET', `${G}/games/(\\w+)$`, (c) => getGame(c.env, c.me, c.m[2], c.url), 'read'],
     ['PATCH', `${G}/games/(\\w+)$`, (c) => updateGame(c.env, c.me, c.m[2], c.req), 'write'],
+    ['GET', `${G}/games/(\\w+)/version$`, (c) => gameVersion(c.env, c.me, c.m[2]), 'read'],
     ['GET', `${G}/games/(\\w+)/rounds$`, (c) => listRounds(c.env, c.me, c.m[2], c.url), 'read'],
     ['POST', `${G}/games/(\\w+)/rounds$`, (c) => createRound(c.env, c.me, c.m[2], c.req), 'write'],
     ['GET', `${G}/games/(\\w+)/players/(\\w+)$`, (c) => playerStats(c.env, c.me, c.m[2], c.m[3]), 'read'],

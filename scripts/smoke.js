@@ -131,6 +131,12 @@ assert.equal((await call('GET', `${G}/games/${game}/rounds?limit=100000`, member
 const stats = await call('GET', `${G}/games/${game}/players/${ids[0]}`, member);
 assert.equal(stats.history.length, view.ratings.find((r) => r.playerId === ids[0]).rounds);
 
+// ---- polling version ----------------------------------------------------------
+const v1 = (await call('GET', `${G}/games/${game}/version`, member)).version;
+assert.equal(v1, view.version);
+await call('POST', `${G}/games/${game}/rounds`, member, { teams: [[ids[0]], [ids[1]]], winner: 0 });
+assert.equal((await call('GET', `${G}/games/${game}/version`, member)).version, v1 + 1, 'a rating write bumps the version');
+
 // ---- owner, office and dashboard links ---------------------------------------
 // Members can do everything with rounds, players and games, but not links,
 // group settings or devices.
@@ -145,6 +151,7 @@ const board = await call('GET', `/api/d/${dash}`);
 assert.equal(board.group.name, 'Office');
 assert.equal((await call('GET', `/api/d/${dash}/games/${game}?since=0`)).ratings.length, view.ratings.length);
 assert.equal((await call('POST', `/api/d/${dash}/games/${game}/rounds`, null, {})).status, 404, 'dashboard cannot write');
+assert.equal((await call('GET', `/api/d/${dash}/games/${game}/version`)).version, v1 + 1);
 // Owner link: an existing member's device becomes owner...
 const own = await call('POST', '/api/owner', null, { token: created.ownerToken, tokens: [member] });
 assert.equal(own.groupId, gid);

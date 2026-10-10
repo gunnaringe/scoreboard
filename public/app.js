@@ -92,7 +92,7 @@ class ApiError extends Error {
     }
 }
 
-const ERRORS = { 'too many requests, wait a minute': 'errRateLimit', 'limit reached': 'errLimit', 'too far back to change': 'errTooFarBack' };
+const ERRORS = { 'too many requests, wait a minute': 'errRateLimit', 'too many attempts, wait a minute': 'errJoinLimit', 'limit reached': 'errLimit', 'too far back to change': 'errTooFarBack' };
 
 async function api(method, path, body, token) {
     let res;
@@ -227,6 +227,26 @@ function poll(fn, ms = 60000) {
         if (document.visibilityState === 'visible' && !document.querySelector('dialog[open]')) fn();
     }, ms);
 }
+// Polling screens ask for the game's version (2–3 rows read) and only reload
+// the page (hundreds of rows on a busy day) when a rating write changed it, at
+// midnight so "today" resets, and every 40th check for names and tournaments.
+// A wall screen stays around 1–2 % of the account's daily D1 read quota.
+let shownVersion = null;
+function pollVersion(fetchVersion, refresh, ms) {
+    let ticks = 0;
+    let day = startOfToday();
+    poll(async () => {
+        ticks++;
+        try {
+            const { version } = await fetchVersion();
+            if (version !== shownVersion || ticks % 40 === 0 || day !== startOfToday()) {
+                day = startOfToday();
+                refresh();
+            }
+        } catch { /* offline: try again next time */ }
+    }, ms);
+}
+
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && pollTimer && !document.querySelector('dialog[open]')) pollFn();
 });
@@ -707,6 +727,7 @@ function withGameData(ctx, data) {
     ctx.rounds = data.rounds;
     ctx.ratings = new Map(data.ratings.map((r) => [r.playerId, r]));
     ctx.handicaps = new Map(data.handicaps.map((x) => [x.format, x]));
+    ctx.version = data.version;
     return ctx;
 }
 
@@ -762,7 +783,8 @@ async function pageGame(gid, gameId, current) {
                     roundList(ctx, recent, { showDay: !today.length, onEdit: edit, empty: empty ? t('emptyGameRounds') : undefined }))),
             h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { onSaved: refresh }) },
                 icon('plus'), t('newRound'))));
-    if (!pollTimer) poll(refresh);
+    shownVersion = ctx.version;
+    if (!pollTimer) pollVersion(() => gapi(gid, 'GET', `/games/${gameId}/version`), refresh, 60000);
 }
 
 async function pageHistory(gid, gameId, current) {
@@ -852,7 +874,8 @@ async function pageTournament(gid, gameId, tid, current) {
                     roundList(ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'), onEdit: (round) => roundSheet(gid, ctx, { round, onSaved: refresh }) }))),
             !tour.endedAt && h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { tournamentId: tid, onSaved: refresh }) },
                 icon('plus'), t('newRound'))));
-    if (!pollTimer) poll(refresh);
+    shownVersion = ctx.version;
+    if (!pollTimer) pollVersion(() => gapi(gid, 'GET', `/games/${gameId}/version`), refresh, 60000);
 }
 
 // ---- player page --------------------------------------------------------------
@@ -1301,16 +1324,19 @@ async function pagePoster(gid, current) {
 
 // ---- dashboard (read-only, for wall screens) -----------------------------------
 
-async function pageDashboard(token, current) {
+let dashboardRefreshes = 0;
+
+async function pageDashboard(token, current, known = null) {
     const seq = ++loadSeq;
-    const base = await api('GET', `/d/${token}`);
+    const base = known || await api('GET', `/d/${token}`);
     const params = new URLSearchParams(location.search);
     const game = base.games.find((g) => g.id === params.get('game')) || base.games[0];
     const data = game ? await api('GET', `/d/${token}/games/${game.id}?since=${startOfToday()}`) : null;
     if (!current() || seq !== loadSeq) return;
     document.title = `${base.group.name} · ${t('appName')}`;
     const ctx = { group: base.group, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])), me: null };
-    const refresh = () => pageDashboard(token, current);
+    // Group, games and players only change rarely: refetched every 10th refresh.
+    const refresh = () => pageDashboard(token, current, ++dashboardRefreshes % 10 ? base : null);
     const url = dashboardUrl(token);
     let content;
     if (!data) {
@@ -1337,8 +1363,9 @@ async function pageDashboard(token, current) {
                 iconButton('share', t('share'), () => share(base.group.name, t('dashboardShareText', { group: base.group.name }), url)),
                 iconLink('settings', '/settings', t('settings')))),
         h('main', { class: 'wrap tv' }, content, h('p', { class: 'muted small center' }, t('dashboardFooter'))));
+    shownVersion = data?.version ?? null;
     if (!pollTimer) {
-        poll(refresh, 30000);
+        if (game) pollVersion(() => api('GET', `/d/${token}/games/${game.id}/version`), refresh, 30000);
         // Keep a wall screen awake while the dashboard is showing.
         navigator.wakeLock?.request('screen').then((l) => { wakeLock = l; }).catch(() => {});
     }
