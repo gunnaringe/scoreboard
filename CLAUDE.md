@@ -38,8 +38,9 @@ setup (D1 database, Workers Builds import).
   (`replayGame`), rewriting only rows that changed. Replay of 5,000 rounds is
   ~17–29 ms CPU, over the free plan's 10 ms/request — fine for occasional
   edits of old rounds, but keep the common paths off it.
-  `scripts/smoke.js` checks fast path == full replay. Admins have a "Recalculate" button per game as a repair
-  for the rare concurrent-insert race.
+  `scripts/smoke.js` checks fast path == full replay. Admins have a
+  "Recalculate" button per game as a repair for the rare concurrent-insert
+  race.
 - Display rating = `1000 + 40·(mu − 3·sigma)`; under 5 rounds is
   "provisional" (shown, not ranked).
 - Tournament rounds count towards the game's overall rating; the tournament
