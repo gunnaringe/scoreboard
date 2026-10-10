@@ -69,8 +69,9 @@ round change plus all rating rows in **one batch**. The batch starts with a
 version guard on `games.version` that fails (via `json('stale')`) if another
 write got in first; `retrying()` then redoes the request. Changes more than
 `MAX_RERATE` (300) rounds back are refused: measured ~4 ms for 300 rounds and
-~10 ms for 800, against the 10 ms CPU limit. `scripts/smoke.js` does random edits/deletes/restores, concurrent
-saves and uneven formats, then checks every stored value against a full replay.
+~10 ms for 800, against the 10 ms CPU limit. `scripts/smoke.js` does random
+edits/deletes/restores, concurrent saves and uneven formats, then checks every
+stored value against a full replay.
 
 ## Free-plan limits that shape the code
 
@@ -79,9 +80,9 @@ saves and uneven formats, then checks every stored value against a full replay.
   before `ON CONFLICT` (SQLite parser quirk).
 - Daily D1 quotas (5M rows read, 100k written) are shared by the whole account
   and enforced (requests fail until 00:00 UTC). Hence: `WRITE_LIMIT` 60/min per
-  device on every change, `JOIN_LIMIT` 100/min per IP on join/create/owner
-  (a whole office joins from one IP),
-  page size ≤ 200 with a `(played_at, id)` cursor, and per-group caps (`CAPS`).
+  device on every change, `JOIN_LIMIT` 100/min per IP on join/create/owner (a
+  whole office joins from one IP), page size ≤ 200 with a `(played_at, id)`
+  cursor, and per-group caps (`CAPS`).
 - Workers: 10 ms CPU per request (see MAX_RERATE).
 - Polling (game page 60 s while visible, dashboard 30 s) asks
   `/games/<id>/version` (2–3 rows) and reloads only when it changed, at
