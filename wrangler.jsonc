@@ -15,8 +15,7 @@
     {
       "binding": "DB",
       "database_name": "scoreboard",
-      // Placeholder: replace with the ID from `wrangler d1 create scoreboard`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "b9c77a8e-76e6-4b86-8bd9-d9b83f794eac",
       "migrations_dir": "migrations"
     }
   ],
