@@ -4,11 +4,10 @@ CREATE TABLE groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     invite_code TEXT NOT NULL UNIQUE,
-    -- 1: every device in the group is an admin.
-    everyone_admin INTEGER NOT NULL DEFAULT 0,
-    -- 'anyone': any member may edit/delete any round. 'admin': only admins
-    -- (and the device that logged it) may.
-    edit_policy TEXT NOT NULL DEFAULT 'anyone',
+    -- 1: every device in the group is an admin (the default; office trust).
+    everyone_admin INTEGER NOT NULL DEFAULT 1,
+    -- SHA-256 of the admin recovery token; opening /r/<token> makes a device admin.
+    recovery_hash TEXT UNIQUE,
     created_at INTEGER NOT NULL
 );
 
@@ -16,10 +15,12 @@ CREATE TABLE players (
     id TEXT PRIMARY KEY,
     group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    -- Normalised name (NFKC, lower case, no invisible characters) for uniqueness.
+    name_key TEXT NOT NULL,
     archived INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    UNIQUE (group_id, name_key)
 );
-CREATE INDEX players_group ON players(group_id);
 
 -- A device is a browser that joined with the invite code. Only the SHA-256 of
 -- its token is stored.
@@ -29,7 +30,9 @@ CREATE TABLE devices (
     group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     player_id TEXT REFERENCES players(id) ON DELETE SET NULL,
     is_admin INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    label TEXT, -- e.g. "iPhone · Safari", from the User-Agent at join
+    created_at INTEGER NOT NULL,
+    last_seen INTEGER -- updated at most once a day
 );
 CREATE INDEX devices_group ON devices(group_id);
 
@@ -37,9 +40,12 @@ CREATE TABLE games (
     id TEXT PRIMARY KEY,
     group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    team_a TEXT NOT NULL DEFAULT 'Blue',
-    team_b TEXT NOT NULL DEFAULT 'Orange',
+    -- NULL: the localised default (Blue/Orange, Blå/Oransje).
+    team_a TEXT,
+    team_b TEXT,
     archived INTEGER NOT NULL DEFAULT 0,
+    -- Bumped by every rating write; a stale batch fails instead of losing an update.
+    version INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
 CREATE INDEX games_group ON games(group_id);
@@ -62,13 +68,17 @@ CREATE TABLE rounds (
     score_a INTEGER,
     score_b INTEGER,
     created_by TEXT, -- device id
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    -- Uneven rounds ("2v1"): the format's handicap before/after this round.
+    format TEXT,
+    h_mu_before REAL, h_sigma_before REAL,
+    h_mu_after REAL, h_sigma_after REAL
 );
 CREATE INDEX rounds_game ON rounds(game_id, played_at);
 CREATE INDEX rounds_tournament ON rounds(tournament_id);
 
 -- Ratings before/after each round are stored so history, deltas and
--- tournament standings never need a replay. Rewritten by replays.
+-- tournament standings never need a replay.
 CREATE TABLE round_players (
     round_id TEXT NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
     player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -87,6 +97,14 @@ CREATE TABLE ratings (
     sigma REAL NOT NULL,
     rounds INTEGER NOT NULL,
     wins INTEGER NOT NULL,
-    last_played INTEGER NOT NULL,
     PRIMARY KEY (game_id, player_id)
+);
+
+-- Learned advantage of the bigger team per uneven format ("2v1", "3v2", ...).
+CREATE TABLE handicaps (
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    format TEXT NOT NULL,
+    mu REAL NOT NULL,
+    sigma REAL NOT NULL,
+    PRIMARY KEY (game_id, format)
 );
