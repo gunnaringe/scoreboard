@@ -104,11 +104,21 @@ go test -race ./...     # rating golden vectors, store (random edits vs replay),
                         # migrations, API via the generated client, admin CLI
 npm test                # i18n keys, no rating code in the frontend, RPC coverage
 make smoke              # black-box run of scripts/smoke.js against a real server
+make e2e                # browser tests, both modes (needs Chromium)
 ```
 
 `scripts/smoke.js` speaks Connect JSON and checks every stored rating, handicap
-and win probability against the JS reference. Frontend changes need a real
-browser check (Playwright/Chromium): the Go tests can't see rendering bugs.
+and win probability against the JS reference.
+
+`make e2e` (`scripts/e2e.mjs`, `playwright-core` + any Chromium: `CHROME=…`)
+starts the real binary and drives it in a browser: multi mode with branding
+(create group, rounds, edit/delete/undo, tournament, player page, owner link,
+rotated links, poster, dashboard following new rounds), operator-only group
+creation in Norwegian, single mode and single mode with the dashboard off. Any
+console error fails it; screenshots go to `/tmp/scoreboard-e2e`. **Frontend
+changes need it** (or a manual look): the Go tests can't see rendering bugs.
+Gotcha when writing selectors: `innerText` is affected by CSS
+`text-transform` (headings come back upper-case).
 
 ## Gotchas
 

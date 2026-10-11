@@ -6,9 +6,11 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "golden": "node scripts/gen-golden.mjs",
-    "qr": "scripts/build-qr.sh"
+    "qr": "scripts/build-qr.sh",
+    "e2e": "node scripts/e2e.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.64.0"
   }
 }

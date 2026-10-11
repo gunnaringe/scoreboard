@@ -138,7 +138,8 @@ unset optional fields are left out. Typed Go clients are in `gen/`.
 
 ```sh
 make test        # go test ./... and the frontend tests
-make smoke       # end-to-end check against a throwaway server
+make smoke       # API end-to-end check against a throwaway server
+make e2e         # browser tests of both modes (Chromium via playwright-core)
 make check       # what CI runs
 make gen         # regenerate gen/ after editing proto/ (needs buf)
 ```
