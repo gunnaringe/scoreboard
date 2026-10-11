@@ -160,30 +160,67 @@ func (s *Store) migrate(fsys fs.FS, dir string) error {
 		return err
 	}
 	for _, m := range migrations {
-		err := s.write(ctx, func(tx *sql.Tx) error {
-			// Checked inside the transaction, so two servers starting at once can't both apply it.
-			var sum string
-			err := tx.QueryRowContext(ctx, `SELECT checksum FROM schema_migrations WHERE version = ?`, m.version).Scan(&sum)
-			switch {
-			case err == nil:
-				if sum != m.checksum {
-					return fmt.Errorf("%s was changed after it was applied; add a new migration instead", m.version)
-				}
-				return nil
-			case !errors.Is(err, sql.ErrNoRows):
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, m.body); err != nil {
-				return err
-			}
-			_, err = tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)`, m.version, m.checksum, s.nowMs())
-			return err
-		})
-		if err != nil {
+		if err := s.applyMigration(ctx, m); err != nil {
 			return fmt.Errorf("migration %s: %w", m.version, err)
 		}
 	}
 	return nil
+}
+
+// applyMigration applies one migration if the database hasn't seen it, on a
+// dedicated connection with foreign keys switched off. That is what makes the
+// standard SQLite table rebuild (create new, copy, drop old, rename) safe: with
+// them on, DROP TABLE would run ON DELETE CASCADE and silently empty the child
+// tables. PRAGMA foreign_keys cannot be changed inside a transaction, hence
+// the connection; before committing, foreign_key_check refuses a migration that
+// leaves dangling references, and the pragma is restored afterwards.
+func (s *Store) applyMigration(ctx context.Context, m migration) (err error) {
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+		return err
+	}
+	defer func() {
+		if _, e := conn.ExecContext(ctx, `PRAGMA foreign_keys = ON`); e != nil && err == nil {
+			err = e
+		}
+	}()
+	tx, err := conn.BeginTx(ctx, nil) // BEGIN IMMEDIATE: two servers starting at once queue up
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Checked inside the transaction, so another server can't have applied it meanwhile.
+	var sum string
+	switch err := tx.QueryRowContext(ctx, `SELECT checksum FROM schema_migrations WHERE version = ?`, m.version).Scan(&sum); {
+	case err == nil:
+		if sum != m.checksum {
+			return fmt.Errorf("%s was changed after it was applied; add a new migration instead", m.version)
+		}
+		return nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, m.body); err != nil {
+		return err
+	}
+	rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		return err
+	}
+	dangling := rows.Next()
+	rows.Close()
+	if dangling {
+		return errors.New("it leaves rows whose foreign key points nowhere (PRAGMA foreign_key_check); nothing was changed")
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, checksum, applied_at) VALUES (?, ?, ?)`, m.version, m.checksum, s.nowMs()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) refuseNewerDatabase(ctx context.Context, migrations []migration) error {

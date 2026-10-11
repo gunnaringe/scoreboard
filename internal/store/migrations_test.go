@@ -153,3 +153,82 @@ func TestBadMigrationNames(t *testing.T) {
 		}
 	}
 }
+
+// The classic SQLite migration: rebuild a table (create new, copy, drop old,
+// rename). With foreign keys on, DROP TABLE would run ON DELETE CASCADE and
+// silently empty the child tables; the runner must switch them off for the
+// migration and then verify nothing dangles.
+func TestTableRebuildKeepsChildRows(t *testing.T) {
+	const parentChild = `
+		CREATE TABLE parents (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+		CREATE TABLE children (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES parents(id) ON DELETE CASCADE, note TEXT);`
+	const rebuild = `
+		CREATE TABLE parents_new (id INTEGER PRIMARY KEY, name TEXT NOT NULL, rank INTEGER NOT NULL DEFAULT 0);
+		INSERT INTO parents_new (id, name) SELECT id, name FROM parents;
+		DROP TABLE parents;
+		ALTER TABLE parents_new RENAME TO parents;`
+	path := t.TempDir() + "/rebuild.db"
+	old, err := openWith(path, files(map[string]string{"0001_init.sql": parentChild}), "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`INSERT INTO parents (id, name) VALUES (1, 'a'), (2, 'b')`,
+		`INSERT INTO children (parent_id, note) VALUES (1, 'x'), (1, 'y'), (2, 'z')`,
+	} {
+		if _, err := old.db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old.Close()
+
+	up, err := openWith(path, files(map[string]string{"0001_init.sql": parentChild, "0002_rank.sql": rebuild}), "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer up.Close()
+	var children, parents int
+	up.db.QueryRow(`SELECT COUNT(*) FROM children`).Scan(&children)
+	up.db.QueryRow(`SELECT COUNT(*) FROM parents`).Scan(&parents)
+	if parents != 2 || children != 3 {
+		t.Fatalf("after the rebuild: %d parents, %d children (the cascade ate the children)", parents, children)
+	}
+	// Foreign keys are enforced again afterwards, on every connection of the pool.
+	var on int
+	up.db.QueryRow(`PRAGMA foreign_keys`).Scan(&on)
+	if on != 1 {
+		t.Fatal("foreign keys left switched off")
+	}
+	if _, err := up.db.Exec(`INSERT INTO children (parent_id) VALUES (999)`); err == nil {
+		t.Fatal("a child without a parent was accepted")
+	}
+}
+
+// A migration that leaves dangling references is refused and rolled back.
+func TestMigrationLeavingDanglingReferencesIsRefused(t *testing.T) {
+	const base = `
+		CREATE TABLE parents (id INTEGER PRIMARY KEY);
+		CREATE TABLE children (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES parents(id));
+		INSERT INTO parents VALUES (1);
+		INSERT INTO children (parent_id) VALUES (1);`
+	path := t.TempDir() + "/dangling.db"
+	a, err := openWith(path, files(map[string]string{"0001_init.sql": base}), "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Close()
+	_, err = openWith(path, files(map[string]string{"0001_init.sql": base, "0002_oops.sql": `DELETE FROM parents;`}), "migrations")
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+		t.Fatalf("got %v", err)
+	}
+	again, err := openWith(path, files(map[string]string{"0001_init.sql": base}), "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	var n int
+	again.db.QueryRow(`SELECT COUNT(*) FROM parents`).Scan(&n)
+	if n != 1 {
+		t.Fatal("the bad migration was not rolled back")
+	}
+}

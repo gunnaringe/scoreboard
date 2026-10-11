@@ -73,6 +73,16 @@ database containing a migration the binary doesn't know (written by a newer
 version) is refused. `migrations_test.go` covers upgrade, rollback, edits and
 newer databases with in-memory file sets.
 
+**Table rebuilds are safe** (the standard SQLite way to change a column: create
+`x_new`, copy, `DROP TABLE x`, `ALTER TABLE x_new RENAME TO x`): the runner
+applies each migration on its own connection with `PRAGMA foreign_keys = OFF`
+(it can't be changed inside a transaction, so a migration file can't do it
+itself), runs `PRAGMA foreign_key_check` before committing and refuses a
+migration that leaves dangling references, then switches foreign keys back on.
+Without that, `DROP TABLE` would run `ON DELETE CASCADE` and silently empty the
+child tables (`TestTableRebuildKeepsChildRows`). Don't put `PRAGMA
+foreign_keys` or `BEGIN`/`COMMIT` in a migration file.
+
 ## Modes
 
 `--mode single`: one implicit group `main` (created at startup), no links; the
