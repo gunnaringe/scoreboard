@@ -1,0 +1,582 @@
+syntax = "proto3";
+
+// The public API: everything the web app can do. The app talks to it with
+// Connect's JSON encoding over plain HTTP POST (/scoreboard.v1.ScoreboardService/<Method>),
+// so any other client can too — send `Authorization: Bearer <device token>`.
+//
+// Conventions
+//   - Times are Unix milliseconds (`*_ms`, int64: JSON renders them as strings).
+//   - A device token identifies the group, so requests never name one.
+//   - Patches use proto3 `optional` (absent = leave unchanged) or a nested
+//     message whose presence means "set" (an empty one clears).
+//   - All rating maths happens on the server: ratings, deltas, win odds and
+//     team suggestions are computed here, never by the client.
+package scoreboard.v1;
+
+option go_package = "github.com/gunnaringe/scoreboard/gen/scoreboard/v1;scoreboardv1";
+
+service ScoreboardService {
+  // ---- instance and access (no device needed) ----------------------------
+
+  // GetInstance describes this instance: mode, features, branding.
+  rpc GetInstance(GetInstanceRequest) returns (GetInstanceResponse);
+  // CreateGroup makes a group and makes the caller its first owner device.
+  // Fails with PERMISSION_DENIED when group creation is off (or single mode).
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  // Join issues a member device for the group the office code belongs to. In
+  // single mode the code is ignored.
+  rpc Join(JoinRequest) returns (JoinResponse);
+  // ClaimOwner makes a browser an owner using the owner link's token.
+  rpc ClaimOwner(ClaimOwnerRequest) returns (ClaimOwnerResponse);
+
+  // ---- the group (device token) ------------------------------------------
+
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse);
+  // UpdateGroup renames the group. Owners only.
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  // DeleteGroup deletes the group and everything in it. Owners only.
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+  // RotateLink replaces the office, dashboard or owner link; the old one stops
+  // working. Owners only.
+  rpc RotateLink(RotateLinkRequest) returns (RotateLinkResponse);
+  // SetMe says which player this device is ("who are you").
+  rpc SetMe(SetMeRequest) returns (SetMeResponse);
+  // ListDevices lists the group's devices. Owners only.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // RemoveDevice removes a device: owners any, everyone their own (leaving).
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+
+  // ---- players, games, tournaments ----------------------------------------
+
+  // CreatePlayer adds a player, or returns the existing one with that name
+  // (case and invisible characters ignored) with existed = true.
+  rpc CreatePlayer(CreatePlayerRequest) returns (CreatePlayerResponse);
+  rpc UpdatePlayer(UpdatePlayerRequest) returns (UpdatePlayerResponse);
+  rpc CreateGame(CreateGameRequest) returns (CreateGameResponse);
+  rpc UpdateGame(UpdateGameRequest) returns (UpdateGameResponse);
+  // GetGame is the game page in one call: leaderboard, handicaps, tournaments
+  // and recent rounds.
+  rpc GetGame(GetGameRequest) returns (GetGameResponse);
+  // GetGameVersion is a cheap change counter for polling screens.
+  rpc GetGameVersion(GetGameVersionRequest) returns (GetGameVersionResponse);
+  rpc CreateTournament(CreateTournamentRequest) returns (CreateTournamentResponse);
+  rpc UpdateTournament(UpdateTournamentRequest) returns (UpdateTournamentResponse);
+
+  // ---- rounds --------------------------------------------------------------
+
+  rpc ListRounds(ListRoundsRequest) returns (ListRoundsResponse);
+  // CreateRound records a round and updates every rating it touches.
+  rpc CreateRound(CreateRoundRequest) returns (CreateRoundResponse);
+  // UpdateRound edits a round; changing teams or winner re-rates the game.
+  rpc UpdateRound(UpdateRoundRequest) returns (UpdateRoundResponse);
+  // DeleteRound soft-deletes a round (ratings are recalculated without it).
+  rpc DeleteRound(DeleteRoundRequest) returns (DeleteRoundResponse);
+  rpc RestoreRound(RestoreRoundRequest) returns (RestoreRoundResponse);
+  rpc GetPlayerStats(GetPlayerStatsRequest) returns (GetPlayerStatsResponse);
+
+  // ---- rating helpers --------------------------------------------------------
+
+  // PreviewRound is the chance that team A beats team B, given today's ratings.
+  rpc PreviewRound(PreviewRoundRequest) returns (PreviewRoundResponse);
+  // SuggestTeams splits players into the two fairest teams.
+  rpc SuggestTeams(SuggestTeamsRequest) returns (SuggestTeamsResponse);
+
+  // ---- dashboard (read-only, the dashboard token instead of a device) ----------
+
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse);
+  rpc GetDashboardGame(GetDashboardGameRequest) returns (GetDashboardGameResponse);
+  rpc GetDashboardGameVersion(GetDashboardGameVersionRequest) returns (GetDashboardGameVersionResponse);
+}
+
+// ---- shared messages ---------------------------------------------------------
+
+message Group {
+  string id = 1;
+  string name = 2;
+  // The office link's code, formatted ABCD-EFGH. Empty in single mode.
+  string office_code = 3;
+  // Token of the read-only dashboard link (/d/<token>).
+  string dashboard_token = 4;
+  int64 created_at_ms = 5;
+}
+
+message Player {
+  string id = 1;
+  string name = 2;
+  bool archived = 3;
+}
+
+message Game {
+  string id = 1;
+  string name = 2;
+  // Team names; absent means the localised defaults (Blue / Orange).
+  optional string team_a = 3;
+  optional string team_b = 4;
+  bool archived = 5;
+  int64 created_at_ms = 6;
+}
+
+message Tournament {
+  string id = 1;
+  string game_id = 2;
+  string name = 3;
+  int64 created_at_ms = 4;
+  optional int64 ended_at_ms = 5;
+}
+
+// Rating is a skill estimate (Weng-Lin mu and sigma).
+message Rating {
+  double mu = 1;
+  double sigma = 2;
+}
+
+message RoundPlayer {
+  string player_id = 1;
+  // 0 = team A, 1 = team B.
+  int32 team = 2;
+  // The player's rating before and after the round; absent for a deleted
+  // round that was edited.
+  Rating before = 3;
+  Rating after = 4;
+  // Display points gained or lost.
+  int32 delta = 5;
+}
+
+message Round {
+  string id = 1;
+  string game_id = 2;
+  optional string tournament_id = 3;
+  int64 played_at_ms = 4;
+  // 0 = team A, 1 = team B.
+  int32 winner = 5;
+  optional int32 score_a = 6;
+  optional int32 score_b = 7;
+  // The device that logged it.
+  optional string created_by = 8;
+  bool deleted = 9;
+  repeated RoundPlayer players = 10;
+}
+
+message PlayerRating {
+  string player_id = 1;
+  double mu = 2;
+  double sigma = 3;
+  int32 rounds = 4;
+  int32 wins = 5;
+  // The Elo-looking number: 1000 for a brand-new player.
+  int32 display = 6;
+  // True until the player has played enough rounds to be ranked.
+  bool provisional = 7;
+  // Display points gained or lost since `since_ms`; absent if they did not play.
+  optional int32 today = 8;
+}
+
+// Handicap is the learned advantage of the bigger team in an uneven format.
+message Handicap {
+  string format = 1; // "2v1", "3v2", ...
+  double mu = 2;
+  double sigma = 3;
+}
+
+message GameView {
+  Game game = 1;
+  int64 version = 2;
+  repeated PlayerRating ratings = 3;
+  repeated Handicap handicaps = 4;
+  repeated Tournament tournaments = 5;
+  repeated Round rounds = 6;
+}
+
+message Device {
+  string id = 1;
+  optional string player_id = 2;
+  bool owner = 3;
+  string label = 4;
+  int64 created_at_ms = 5;
+  optional int64 last_seen_ms = 6;
+  // True for the device making the request.
+  bool is_me = 7;
+}
+
+message Owner {
+  optional string player_id = 1;
+  string label = 2;
+}
+
+message Me {
+  string device_id = 1;
+  optional string player_id = 2;
+  bool owner = 3;
+}
+
+// ---- instance and access --------------------------------------------------------
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  // One office, no links: the app opens straight at the games.
+  MODE_SINGLE = 1;
+  // Several offices, each with office, dashboard and owner links.
+  MODE_MULTI = 2;
+}
+
+message Branding {
+  string name = 1;
+  string short_name = 2;
+  bool logo = 3;
+  string footer = 4;
+  string default_theme = 5;
+  string default_language = 6;
+}
+
+message GetInstanceRequest {}
+
+message GetInstanceResponse {
+  Mode mode = 1;
+  // Single mode: the id of the one group.
+  string group_id = 2;
+  bool allow_group_creation = 3;
+  // Whether a read-only dashboard exists (single mode can switch it off).
+  bool dashboard_enabled = 4;
+  // Rounds a player needs before being ranked.
+  int32 provisional_rounds = 5;
+  Branding branding = 6;
+}
+
+message CreateGroupRequest {
+  string name = 1;
+  string player_name = 2;
+  string game_name = 3;
+}
+
+message CreateGroupResponse {
+  string device_token = 1;
+  string group_id = 2;
+  string name = 3;
+  string game_id = 4;
+  // Shown once: only its fingerprint is stored.
+  string owner_token = 5;
+}
+
+message JoinRequest {
+  string code = 1;
+}
+
+message JoinResponse {
+  string device_token = 1;
+  string group_id = 2;
+  string name = 3;
+}
+
+message ClaimOwnerRequest {
+  string token = 1;
+  // Device tokens the browser already holds: one that belongs to the group is promoted.
+  repeated string known_tokens = 2;
+}
+
+message ClaimOwnerResponse {
+  string group_id = 1;
+  string name = 2;
+  // A new device token; empty when an existing device was promoted.
+  string device_token = 3;
+}
+
+// ---- the group ------------------------------------------------------------------------
+
+message GetGroupRequest {}
+
+message GetGroupResponse {
+  Group group = 1;
+  Me me = 2;
+  repeated Owner owners = 3;
+  repeated Player players = 4;
+  repeated Game games = 5;
+}
+
+message UpdateGroupRequest {
+  optional string name = 1;
+}
+
+message UpdateGroupResponse {}
+
+message DeleteGroupRequest {}
+
+message DeleteGroupResponse {}
+
+enum LinkKind {
+  LINK_KIND_UNSPECIFIED = 0;
+  LINK_KIND_OFFICE = 1;
+  LINK_KIND_DASHBOARD = 2;
+  LINK_KIND_OWNER = 3;
+}
+
+message RotateLinkRequest {
+  LinkKind kind = 1;
+}
+
+message RotateLinkResponse {
+  // Exactly one is set, matching the kind.
+  string office_code = 1;
+  string dashboard_token = 2;
+  string owner_token = 3;
+}
+
+message SetMeRequest {
+  // Absent clears it ("I'm not playing").
+  optional string player_id = 1;
+}
+
+message SetMeResponse {}
+
+message ListDevicesRequest {}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message RemoveDeviceRequest {
+  string device_id = 1;
+}
+
+message RemoveDeviceResponse {}
+
+// ---- players, games, tournaments ---------------------------------------------------------
+
+message CreatePlayerRequest {
+  string name = 1;
+  // Also make this device that player.
+  bool make_me = 2;
+}
+
+message CreatePlayerResponse {
+  Player player = 1;
+  // True when a player with that name already existed and is returned instead.
+  bool existed = 2;
+}
+
+message UpdatePlayerRequest {
+  string player_id = 1;
+  optional string name = 2;
+  optional bool archived = 3;
+}
+
+message UpdatePlayerResponse {}
+
+message CreateGameRequest {
+  string name = 1;
+  optional string team_a = 2;
+  optional string team_b = 3;
+}
+
+message CreateGameResponse {
+  Game game = 1;
+}
+
+message UpdateGameRequest {
+  string game_id = 1;
+  optional string name = 2;
+  // An empty team name resets it to the localised default.
+  optional string team_a = 3;
+  optional string team_b = 4;
+  optional bool archived = 5;
+}
+
+message UpdateGameResponse {}
+
+message GetGameRequest {
+  string game_id = 1;
+  // The start of the viewer's day; rounds since then are always included and
+  // PlayerRating.today counts from it. Defaults to 24 hours ago.
+  int64 since_ms = 2;
+}
+
+message GetGameResponse {
+  GameView view = 1;
+}
+
+message GetGameVersionRequest {
+  string game_id = 1;
+}
+
+message GetGameVersionResponse {
+  int64 version = 1;
+}
+
+message CreateTournamentRequest {
+  string game_id = 1;
+  string name = 2;
+}
+
+message CreateTournamentResponse {
+  Tournament tournament = 1;
+}
+
+message UpdateTournamentRequest {
+  string tournament_id = 1;
+  optional string name = 2;
+  // True ends the tournament, false reopens it.
+  optional bool ended = 3;
+}
+
+message UpdateTournamentResponse {}
+
+// ---- rounds -------------------------------------------------------------------------------
+
+message ListRoundsRequest {
+  string game_id = 1;
+  optional string tournament_id = 2;
+  optional string player_id = 3;
+  // The next_cursor of the previous page; empty for the first.
+  string before = 4;
+  // Page size, 1..200; 0 means 50.
+  int32 limit = 5;
+}
+
+message ListRoundsResponse {
+  // Newest first.
+  repeated Round rounds = 1;
+  // Empty at the end.
+  string next_cursor = 2;
+}
+
+message CreateRoundRequest {
+  string game_id = 1;
+  repeated string team_a = 2;
+  repeated string team_b = 3;
+  // 0 = team A won, 1 = team B won.
+  int32 winner = 4;
+  optional int32 score_a = 5;
+  optional int32 score_b = 6;
+  optional string tournament_id = 7;
+}
+
+message CreateRoundResponse {
+  Round round = 1;
+}
+
+message RoundTeams {
+  repeated string team_a = 1;
+  repeated string team_b = 2;
+}
+
+// RoundScore sets both scores; an absent one is cleared (so {} clears both).
+message RoundScore {
+  optional int32 a = 1;
+  optional int32 b = 2;
+}
+
+// RoundTournament sets the tournament; an absent id removes the round from it.
+message RoundTournament {
+  optional string id = 1;
+}
+
+message UpdateRoundRequest {
+  string round_id = 1;
+  optional int32 winner = 2;
+  // Present: replace the line-up.
+  RoundTeams teams = 3;
+  // Present: set (or clear) the score.
+  RoundScore score = 4;
+  // Present: set (or clear) the tournament.
+  RoundTournament tournament = 5;
+}
+
+message UpdateRoundResponse {
+  Round round = 1;
+}
+
+message DeleteRoundRequest {
+  string round_id = 1;
+}
+
+message DeleteRoundResponse {}
+
+message RestoreRoundRequest {
+  string round_id = 1;
+}
+
+message RestoreRoundResponse {}
+
+message HistoryPoint {
+  int64 played_at_ms = 1;
+  // The player's display rating after the round.
+  int32 display = 2;
+  bool won = 3;
+}
+
+// PairStat is a head-to-head tally with one other player.
+message PairStat {
+  string player_id = 1;
+  int32 games = 2;
+  int32 wins = 3;
+}
+
+message GetPlayerStatsRequest {
+  string game_id = 1;
+  string player_id = 2;
+}
+
+message GetPlayerStatsResponse {
+  // Oldest first.
+  repeated HistoryPoint history = 1;
+  // Results with the player on the same team, and against them.
+  repeated PairStat with = 2;
+  repeated PairStat against = 3;
+}
+
+// ---- rating helpers ---------------------------------------------------------------------------
+
+message PreviewRoundRequest {
+  string game_id = 1;
+  repeated string team_a = 2;
+  repeated string team_b = 3;
+}
+
+message PreviewRoundResponse {
+  // Chance that team A wins, 0..1.
+  double win_probability_a = 1;
+}
+
+message SuggestTeamsRequest {
+  string game_id = 1;
+  // 2..14 players.
+  repeated string player_ids = 2;
+}
+
+message SuggestTeamsResponse {
+  repeated string team_a = 1;
+  repeated string team_b = 2;
+  double win_probability_a = 3;
+}
+
+// ---- dashboard ---------------------------------------------------------------------------------
+
+message GetDashboardRequest {
+  // The dashboard token (single mode: "main").
+  string token = 1;
+}
+
+message GetDashboardResponse {
+  string group_name = 1;
+  // Games that are not archived.
+  repeated Game games = 2;
+  repeated Player players = 3;
+}
+
+message GetDashboardGameRequest {
+  string token = 1;
+  string game_id = 2;
+  int64 since_ms = 3;
+}
+
+message GetDashboardGameResponse {
+  GameView view = 1;
+}
+
+message GetDashboardGameVersionRequest {
+  string token = 1;
+  string game_id = 2;
+}
+
+message GetDashboardGameVersionResponse {
+  int64 version = 1;
+}

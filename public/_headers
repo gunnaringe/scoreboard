@@ -1,6 +1,0 @@
-# Static assets only (the API sets its own headers). Everything the app loads
-# is same-origin; no-referrer keeps owner/dashboard links out of Referer headers.
-/*
-  Content-Security-Policy: default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer

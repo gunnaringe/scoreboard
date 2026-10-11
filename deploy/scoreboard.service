@@ -1,0 +1,28 @@
+# systemd unit for a LAN host or VPS.
+#   sudo install -m 0755 scoreboard /usr/local/bin/scoreboard
+#   sudo useradd --system --home /var/lib/scoreboard scoreboard
+#   sudo install -m 0644 deploy/scoreboard.service /etc/systemd/system/
+#   sudo systemctl enable --now scoreboard
+# Settings go in /etc/scoreboard.env (SCOREBOARD_MODE=single, SCOREBOARD_PUBLIC_URL=..., see `scoreboard serve -h`).
+# Administer with: scoreboard admin <command>   (the admin port listens on 127.0.0.1:8081 only)
+[Unit]
+Description=Scoreboard
+After=network.target
+
+[Service]
+User=scoreboard
+StateDirectory=scoreboard
+Environment=SCOREBOARD_DB=/var/lib/scoreboard/scoreboard.db
+Environment=SCOREBOARD_LISTEN=:8080
+EnvironmentFile=-/etc/scoreboard.env
+ExecStart=/usr/local/bin/scoreboard serve
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/scoreboard
+
+[Install]
+WantedBy=multi-user.target

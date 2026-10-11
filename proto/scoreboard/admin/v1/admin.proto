@@ -1,0 +1,264 @@
+syntax = "proto3";
+
+// The operator's API, served on the admin port (loopback by default) and used
+// by `scoreboard admin`. Every request needs the X-Scoreboard-Admin header (a
+// browser cannot send it cross-origin) and, when the server has an admin token,
+// `Authorization: Bearer <token>`.
+//
+// Group references: most requests take `group`, an id or a name; empty means
+// "the only group" and fails if there are several.
+package scoreboard.admin.v1;
+
+option go_package = "github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1;adminv1";
+
+service AdminService {
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+  // GetConfig returns the running configuration as JSON (secrets hidden).
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  // Backup writes a consistent copy of the database to a path on the server.
+  rpc Backup(BackupRequest) returns (BackupResponse);
+
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  // CreateGroup makes a group without a device (the operator hands out its links).
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse);
+  rpc RenameGroup(RenameGroupRequest) returns (RenameGroupResponse);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+  // RotateLink replaces a link; rotating the owner link returns the new one,
+  // which is how a lost owner link is recovered.
+  rpc RotateLink(RotateLinkRequest) returns (RotateLinkResponse);
+
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc SetDeviceOwner(SetDeviceOwnerRequest) returns (SetDeviceOwnerResponse);
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+
+  rpc ListPlayers(ListPlayersRequest) returns (ListPlayersResponse);
+  rpc UpdatePlayer(UpdatePlayerRequest) returns (UpdatePlayerResponse);
+  // MergePlayers moves everything of one player onto another (the same person
+  // entered twice) and recalculates the ratings.
+  rpc MergePlayers(MergePlayersRequest) returns (MergePlayersResponse);
+
+  rpc ListGames(ListGamesRequest) returns (ListGamesResponse);
+  rpc UpdateGame(UpdateGameRequest) returns (UpdateGameResponse);
+  // Recalculate re-rates a whole game from its rounds.
+  rpc Recalculate(RecalculateRequest) returns (RecalculateResponse);
+
+  rpc ExportGroup(ExportGroupRequest) returns (ExportGroupResponse);
+  // ImportGroup makes a new group from an export and recalculates every rating.
+  rpc ImportGroup(ImportGroupRequest) returns (ImportGroupResponse);
+}
+
+// Links are the URLs of a group (built from the instance's public URL).
+message Links {
+  string office = 1;
+  string office_code = 2;
+  string dashboard = 3;
+  // Only set when it was just made: the database keeps a fingerprint.
+  string owner = 4;
+}
+
+message Group {
+  string id = 1;
+  string name = 2;
+  int64 created_at_ms = 3;
+  Links links = 4;
+  int32 players = 5;
+  int32 games = 6;
+  int32 rounds = 7;
+  int32 devices = 8;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  int32 groups = 1;
+  int32 players = 2;
+  int32 games = 3;
+  int32 rounds = 4;
+  int32 devices = 5;
+  int64 database_bytes = 6;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  string json = 1;
+}
+
+message BackupRequest {
+  string path = 1;
+}
+
+message BackupResponse {
+  string path = 1;
+}
+
+message ListGroupsRequest {}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+}
+
+message CreateGroupRequest {
+  string name = 1;
+  string player = 2;
+  string game = 3;
+}
+
+message CreateGroupResponse {
+  // Its links include the owner link, shown only now.
+  Group group = 1;
+}
+
+message GetGroupRequest {
+  string group = 1;
+}
+
+message GetGroupResponse {
+  Group group = 1;
+}
+
+message RenameGroupRequest {
+  string group = 1;
+  string name = 2;
+}
+
+message RenameGroupResponse {}
+
+message DeleteGroupRequest {
+  string group = 1;
+}
+
+message DeleteGroupResponse {}
+
+enum LinkKind {
+  LINK_KIND_UNSPECIFIED = 0;
+  LINK_KIND_OFFICE = 1;
+  LINK_KIND_DASHBOARD = 2;
+  LINK_KIND_OWNER = 3;
+}
+
+message RotateLinkRequest {
+  string group = 1;
+  LinkKind kind = 2;
+}
+
+message RotateLinkResponse {
+  Group group = 1;
+}
+
+message Device {
+  string id = 1;
+  string player = 2;
+  bool owner = 3;
+  string label = 4;
+  int64 created_at_ms = 5;
+  optional int64 last_seen_ms = 6;
+}
+
+message ListDevicesRequest {
+  string group = 1;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message SetDeviceOwnerRequest {
+  string group = 1;
+  string device_id = 2;
+  bool owner = 3;
+}
+
+message SetDeviceOwnerResponse {}
+
+message RemoveDeviceRequest {
+  string group = 1;
+  string device_id = 2;
+}
+
+message RemoveDeviceResponse {}
+
+message Player {
+  string id = 1;
+  string name = 2;
+  bool archived = 3;
+}
+
+message ListPlayersRequest {
+  string group = 1;
+}
+
+message ListPlayersResponse {
+  repeated Player players = 1;
+}
+
+message UpdatePlayerRequest {
+  string group = 1;
+  // A player id or name.
+  string player = 2;
+  optional string name = 3;
+  optional bool archived = 4;
+}
+
+message UpdatePlayerResponse {}
+
+message MergePlayersRequest {
+  string group = 1;
+  string from = 2;
+  string into = 3;
+}
+
+message MergePlayersResponse {}
+
+message Game {
+  string id = 1;
+  string name = 2;
+  bool archived = 3;
+}
+
+message ListGamesRequest {
+  string group = 1;
+}
+
+message ListGamesResponse {
+  repeated Game games = 1;
+}
+
+message UpdateGameRequest {
+  string group = 1;
+  // A game id or name; empty means the only game.
+  string game = 2;
+  optional string name = 3;
+  optional bool archived = 4;
+}
+
+message UpdateGameResponse {}
+
+message RecalculateRequest {
+  string group = 1;
+  string game = 2;
+}
+
+message RecalculateResponse {}
+
+message ExportGroupRequest {
+  string group = 1;
+}
+
+message ExportGroupResponse {
+  // The export document (players, games, tournaments, rounds) as JSON.
+  string json = 1;
+}
+
+message ImportGroupRequest {
+  // The export document.
+  string json = 1;
+  // Name for the new group; empty keeps the exported name.
+  string name = 2;
+}
+
+message ImportGroupResponse {
+  // Its links include the owner link, shown only now.
+  Group group = 1;
+}

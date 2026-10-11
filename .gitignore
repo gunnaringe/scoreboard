@@ -1,2 +1,7 @@
 node_modules/
-.wrangler/
+/scoreboard
+/dist/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

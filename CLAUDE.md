@@ -1,104 +1,114 @@
 # scoreboard
 
-Office game scoreboard at scoreboard.apphub.casa: groups → games (e.g. Rocket
-League) → rounds, optional tournaments, Weng-Lin team ratings. No accounts.
-
-**Not deployed yet** (2026-10-10): the D1 database exists (ID in
-`wrangler.jsonc`), the Workers Builds import is still to do — see "Deploy" in
-README.md. The deploy command is `npm run deploy`, which runs `wrangler d1
-migrations apply --remote` before `wrangler deploy`, so migrations ship with
-the code. `migrations/0001_init.sql` is applied by the first build: from then
-on never edit it, add new numbered migrations.
-
-## Access: three links per group
-
-- **Office link** `/j/<CODE>` (8-char code, QR poster): anyone with it joins
-  and gets a device token. Members can do everything with rounds, players,
-  games and tournaments — office trust, by the user's choice. They can see and
-  share the office and dashboard links but not change them.
-- **Dashboard link** `/d/<token>`: read-only leaderboard + recent rounds for
-  wall screens, no device needed (`/api/d/...`). Polls every 30 s, wake lock.
-  Stored as is (members are shown it).
-- **Owner link** `/o/<token>`: opening it makes this browser's device an owner
-  (`devices.is_owner`). Owners make new office/dashboard/owner links, rename
-  or delete the group, remove devices. Only its SHA-256 is stored; it's shown
-  once (at creation or when made anew) with copy / mailto / share. The owner
-  link is also the recovery path, so a group can't get locked out.
-
-Device tokens: one per browser per group, SHA-256 stored, `Authorization:
-Bearer`. iOS Safari drops localStorage after 7 days unvisited unless the app
-is on the home screen — the game page nudges iPhone users.
+Game scores with fair team ratings, for an office. One Go binary: web server
+with the frontend embedded, Connect API, SQLite, admin port and CLI. See
+`README.md` for what it does and how to run it; this file is only what is easy
+to get wrong. The earlier Cloudflare Workers + D1 version is the tag
+`worker-final` (never deployed to production).
 
 ## Layout
 
-- `src/worker.js` — the JSON API under `/api/*`. Only these paths run the
-  Worker (`run_worker_first`); everything else is free static assets.
-- `public/` — the app, no build step. `app.js` is a small SPA routing on
-  `location.pathname` (`not_found_handling: single-page-application`). Render
-  user text via `h()` / `textContent`, never markup. `_headers` sets CSP
-  (same-origin only) and `Referrer-Policy: no-referrer`.
-- `public/rating.js` — the rating model, shared by Worker and browser (win
-  odds, team balancing). Must stay deterministic: incremental updates and full
-  replay have to agree (tested).
-- `public/qrcodegen.js` — generated from `vendor/qrcodegen.ts` (Nayuki, MIT)
-  by `scripts/build-qr.sh`. Don't edit by hand.
-- `public/theme.js`, `fonts/`, theme CSS blocks — from `world-clock`
-  (auto/light/dark/hacker). Dark theme uses dark text on accent/team fills
-  (`--on-accent`, `--on-team`) for contrast.
-- `public/i18n.js` — `en` and `no`, same keys (`test/i18n.test.js` also checks
-  every `t('key')` in `app.js` exists). Default team names are NULL in the DB
-  and localised (Blue/Orange, Blå/Oransje).
+- `cmd/scoreboard` — `serve`, `admin`, `healthcheck`, `version`.
+- `internal/config` — flags + env + JSON file (stdlib only); `Validate`.
+- `internal/store` — SQLite (`modernc.org/sqlite`, no cgo): all queries,
+  transactions and re-rating. Migrations in `internal/store/migrations/`.
+- `internal/rating` — the rating model (Weng-Lin) and `Balance`. **The only
+  rating implementation.**
+- `internal/api` — public server: Connect service (`service.go`), JSON codec,
+  static files + `/config.json` + branding routes (`static.go`), rate limiter.
+- `internal/admin` — admin Connect service + CLI client.
+- `internal/branding` — `--branding-dir` loader (accent CSS, manifest, index).
+- `proto/` → `gen/` — protobuf definitions and generated code (checked in).
+- `web/` — the frontend, vanilla JS, no build step, compiled in by `go:embed`
+  (`web/assets.go`). Editing it needs a rebuild + restart to show up.
+- `test/reference/rating.js` — the old JS rating model, kept only as an
+  independent oracle (golden vectors, `scripts/smoke.js`). Not shipped.
 
-## Rating model (tuned with simulations by a review, 2026-10-10)
+## The API is the app
 
-- Weng-Lin Bradley-Terry full pairing, starting sigma 6, beta 25/6, tau 25/300.
-- Team strength = Σ(mu − 25), so team size is worth nothing by itself; each
-  uneven format ("2v1", "3v2") has a learned **handicap** pseudo-player on the
-  bigger team (`handicaps` table; before/after stored on `rounds`). Summing raw
-  mu made 2v1 98 % for the pair and let the solo player farm rating.
-- Display = `1000 + 25·(mu − sigma − 19)` (newcomer = 1000). The +/− shown per
-  round and "today" are mu changes (`displayDelta`), so a losing day never
-  shows a gain. mu − 3σ was rejected: it rewarded volume over skill.
-- Under 10 rounds a player is "new": listed separately, not ranked.
-- Tournament rounds count towards the game's rating.
+Every UI action is an RPC in `scoreboard.v1.ScoreboardService`; the frontend
+uses nothing else (`test/i18n.test.js` checks every `rpc/grpc/act('Name'` in
+`web/app.js` exists in the proto). A device token (`Authorization: Bearer`)
+identifies the group, so requests never carry a group id. When adding a
+feature: proto first, `make gen`, handler in `internal/api/service.go`, store
+method, test through the generated client, then the UI.
 
-## Rating writes (`rerate` in worker.js)
+JSON quirks the frontend relies on (`TestJSONWireFormat` pins them):
+- our `jsonCodec` emits default values (`archived:false`, `winner:0`, `[]`);
+  **unset `optional` fields are omitted** — that is how "no score" differs from 0;
+- int64 is a JSON string: times are `*Ms`, plus `version`; `normalize()` in
+  `web/app.js` turns those keys into numbers;
+- patches: proto3 `optional` = absent leaves unchanged; nested messages
+  (`RoundScore`, `RoundTournament`) set when present and clear when empty;
+  an empty team name resets to the localised default;
+- errors are Connect codes; the frontend maps a few *messages* to translations
+  (`msgRateLimited`, `msgJoinLimited`, `msgLimit` in `server.go` ↔ `ERRORS` in app.js).
 
-Every rating change — new round, edit of teams/winner, delete, restore — goes
-through `rerate`: it recalculates from the changed round onward (not from the
-start), using stored before-values as the starting state, and commits the
-round change plus all rating rows in **one batch**. The batch starts with a
-version guard on `games.version` that fails (via `json('stale')`) if another
-write got in first; `retrying()` then redoes the request. Changes more than
-`MAX_RERATE` (300) rounds back are refused: measured ~4 ms for 300 rounds and
-~10 ms for 800, against the 10 ms CPU limit. `scripts/smoke.js` does random
-edits/deletes/restores, concurrent saves and uneven formats, then checks every
-stored value against a full replay.
+## Rating
 
-## Free-plan limits that shape the code
+All maths is Go. The browser shows server-computed numbers: `display`,
+`delta`, `today`, `provisional` (< 10 rounds = "new", unranked), win odds
+(`PreviewRound`) and team suggestions (`SuggestTeams`, ≤ 14 players).
+Model: Weng-Lin BT-full, sigma0 6, display `1000 + 25·(mu − sigma − 19)`, team
+strength Σ(mu − 25) plus a **learned handicap per uneven format** ("2v1"…)
+(see `internal/rating/rating.go`). `internal/rating/testdata/golden.json` is
+generated from the JS reference (`npm run golden`) and the Go package must
+reproduce it exactly.
 
-- D1: 50 queries/request, 100 bound params/query → bulk writes via one JSON
-  parameter + `json_each()`. `INSERT … SELECT … ON CONFLICT` needs `WHERE true`
-  before `ON CONFLICT` (SQLite parser quirk).
-- Daily D1 quotas (5M rows read, 100k written) are shared by the whole account
-  and enforced (requests fail until 00:00 UTC). Hence: `WRITE_LIMIT` 60/min per
-  device on every change, `JOIN_LIMIT` 100/min per IP on join/create/owner (a
-  whole office joins from one IP), page size ≤ 200 with a `(played_at, id)`
-  cursor, and per-group caps (`CAPS`).
-- Workers: 10 ms CPU per request (see MAX_RERATE).
-- Polling (game page 60 s while visible, dashboard 30 s) asks
-  `/games/<id>/version` (2–3 rows) and reloads only when it changed, at
-  midnight, or every 40th check — a full reload is hundreds of rows on a busy
-  day. Keep it that way: a wall screen runs 24/7.
+Every change to a round (create, edit teams/winner, delete, restore) goes
+through `store` in one write transaction: new rounds apply incrementally, the
+others `replayGame` (recalculate from the first round, rewrite only what
+changed). Rounds get strictly increasing `played_at` so replay order = write
+order. `games.version` is bumped by every change; screens poll
+`GetGameVersion` and reload only when it moved.
 
-## Develop
+## Schema and migrations
 
-    npm install
-    npm run migrate:local
-    npm run dev                 # http://localhost:8787, local D1
-    npm test                    # rating + i18n unit tests
-    node scripts/smoke.js       # end-to-end API check against npm run dev
+`store.Open` creates and migrates the database at startup — nothing else does.
+Migrations are numbered SQL files (`0001_init.sql`, `0002_x.sql`…), embedded,
+applied in order, each in its own transaction (a failure changes nothing),
+recorded in `schema_migrations` with a checksum. **Add a file for every schema
+change; never edit one that has shipped** (startup refuses a changed file). A
+database containing a migration the binary doesn't know (written by a newer
+version) is refused. `migrations_test.go` covers upgrade, rollback, edits and
+newer databases with in-memory file sets.
 
-The service worker isn't registered on localhost. Bump `CACHE` in `sw.js` when
-changing its precache list. Killing `wrangler dev` with `pkill -f` from a shell
-whose command line contains the pattern kills that shell too — use a script.
+## Modes
+
+`--mode single`: one implicit group `main` (created at startup), no links; the
+browser silently gets a device (`Join` ignores the code), the dashboard is
+`/d` (token `main`), no owner actions at all — administration is the CLI. The
+frontend adapts from `/config.json` (same message as `GetInstance`).
+`--mode multi`: office / dashboard / owner links (see README).
+
+## Admin
+
+Second listener (default `127.0.0.1:8081`), `scoreboard.admin.v1.AdminService`.
+Needs the `X-Scoreboard-Admin` header on every request (anti-CSRF) and the
+bearer token if `--admin-token` is set (mandatory if not loopback).
+
+## Testing
+
+```sh
+go test -race ./...     # rating golden vectors, store (random edits vs replay),
+                        # migrations, API via the generated client, admin CLI
+npm test                # i18n keys, no rating code in the frontend, RPC coverage
+make smoke              # black-box run of scripts/smoke.js against a real server
+```
+
+`scripts/smoke.js` speaks Connect JSON and checks every stored rating, handicap
+and win probability against the JS reference. Frontend changes need a real
+browser check (Playwright/Chromium): the Go tests can't see rendering bugs.
+
+## Gotchas
+
+- `go.mod` needs Go ≥ 1.26 (a dependency demands it); the Dockerfile and CI follow.
+- Don't run `pkill -f 'scoreboard serve'` in a shell whose own command line
+  contains that text: it kills the shell. Use a script file.
+- SQLite runs in WAL with `_txlock=immediate`, so writers queue; keep write
+  transactions short.
+- `buf generate` needs `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`
+  (`go install` them); CI checks `gen/` is up to date.
+- The Worker-era `wrangler.jsonc`, D1 migrations and `src/worker.js` are gone
+  (see tag `worker-final`). The Cloudflare Worker `scoreboard` and D1 database
+  that were set up for it are unused by this version.
