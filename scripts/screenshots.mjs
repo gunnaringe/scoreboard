@@ -4,14 +4,20 @@
 //
 //   make screenshots            (CHROME=/path/to/chrome to pick a browser)
 //
-// The data comes from a fixed seed, so only real UI changes alter the images
-// (round times are relative to now, so "today" always has rounds). Run it after
-// any visible change and commit the PNGs with it.
+// The data comes from a fixed seed and the clock is frozen (in the script and
+// the browser). Chromium's blur and anti-aliasing still vary a little from run
+// to run, so an existing PNG is only replaced when the new one looks different
+// (more than a few pixels changed noticeably): git shows just the screens that
+// changed. Run it after any visible change and commit those PNGs with it.
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
+
+process.env.TZ = 'Europe/Oslo';
+// "Now" for the demo: a Wednesday shortly after lunch.
+const NOW = Date.parse('2026-10-14T12:30:00+02:00');
 
 const BIN = process.env.SCOREBOARD_BIN || './scoreboard';
 const OUT = process.env.SHOTS_DIR || 'docs/screenshots';
@@ -43,7 +49,7 @@ const wins = (a, b) => {
 };
 
 const DAY = 86400000;
-const now = Date.now();
+const now = NOW;
 const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
 const days = []; // weekdays over the last six weeks, oldest first, today last
 for (let d = 42; d >= 1; d--) {
@@ -94,6 +100,7 @@ const server = spawn(BIN, ['serve', '--db', join(dir, 'db'), '--listen', `127.0.
 let log = '';
 server.stderr.on('data', (d) => { log += d; });
 const stop = () => { server.kill(); rmSync(dir, { recursive: true, force: true }); };
+process.on('exit', () => server.kill());
 for (let i = 0; ; i++) {
     try { if ((await fetch(`${base}/healthz`)).ok) break; } catch { /* not yet */ }
     if (i > 50) throw new Error(`server did not start:\n${log}`);
@@ -126,7 +133,8 @@ const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 };
 const DESKTOP = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 };
 
 async function open(path, { theme = 'dark', device = PHONE } = {}) {
-    const ctx = await browser.newContext({ ...device, locale: 'en-US', colorScheme: 'dark', reducedMotion: 'reduce' });
+    const ctx = await browser.newContext({ ...device, locale: 'en-US', timezoneId: 'Europe/Oslo', colorScheme: 'dark', reducedMotion: 'reduce' });
+    await ctx.clock.setFixedTime(NOW);
     await ctx.addInitScript(([groups, t]) => {
         localStorage.setItem('groups', groups);
         localStorage.setItem('theme', t);
@@ -141,9 +149,33 @@ async function open(path, { theme = 'dark', device = PHONE } = {}) {
     await p.waitForTimeout(300);
     return p;
 }
+// Share of pixels that differ visibly between two PNGs (1 if the sizes differ).
+async function difference(p, a, b) {
+    return p.evaluate(async ([a, b]) => {
+        const load = (b64) => createImageBitmap(new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: 'image/png' }));
+        const [x, y] = await Promise.all([load(a), load(b)]);
+        if (x.width !== y.width || x.height !== y.height) return 1;
+        const pixels = (img) => {
+            const c = new OffscreenCanvas(img.width, img.height).getContext('2d');
+            c.drawImage(img, 0, 0);
+            return c.getImageData(0, 0, img.width, img.height).data;
+        };
+        const [da, db] = [pixels(x), pixels(y)];
+        let changed = 0;
+        for (let i = 0; i < da.length; i += 4) {
+            if (Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]) > 48) changed++;
+        }
+        return changed / (da.length / 4);
+    }, [a.toString('base64'), b.toString('base64')]);
+}
 async function shot(p, name) {
-    await p.screenshot({ path: join(OUT, `${name}.png`) });
-    console.log(`  ${OUT}/${name}.png`);
+    const file = join(OUT, `${name}.png`);
+    const png = await p.screenshot();
+    const diff = existsSync(file) ? await difference(p, readFileSync(file), png) : 1;
+    if (diff > 0.0005) {
+        writeFileSync(file, png);
+        console.log(`  ${file}${diff < 1 ? ` (${(diff * 100).toFixed(2)} % changed)` : ''}`);
+    } else console.log(`  ${file} unchanged`);
     await p.context().close();
 }
 
