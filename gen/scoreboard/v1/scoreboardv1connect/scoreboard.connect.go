@@ -7,7 +7,9 @@
 // so any other client can too — send `Authorization: Bearer <device token>`.
 //
 // Conventions
-//   - Times are Unix milliseconds (`*_ms`, int64: JSON renders them as strings).
+//   - Times are google.protobuf.Timestamp: RFC 3339 strings in JSON
+//     ("2026-10-15T10:00:00Z"). An unset one means "never" (e.g. a tournament
+//     that has not ended).
 //   - A device token identifies the group, so requests never name one.
 //   - Patches use proto3 `optional` (absent = leave unchanged) or a nested
 //     message whose presence means "set" (an empty one clears).

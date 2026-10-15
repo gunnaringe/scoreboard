@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1"
 	"github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1/adminv1connect"
@@ -201,7 +202,7 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 		render()
 	}
 	done := func(msg string) func() { return func() { fmt.Fprintln(w, msg) } }
-	date := func(ms int64) string { return time.UnixMilli(ms).Format("2006-01-02") }
+	date := func(t *timestamppb.Timestamp) string { return t.AsTime().Local().Format("2006-01-02") }
 	table := func() *tabwriter.Writer { return tabwriter.NewWriter(w, 0, 4, 2, ' ', 0) }
 
 	switch cmd {
@@ -336,10 +337,10 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 				fmt.Fprintln(tw, "ID\tPLAYER\tOWNER\tDEVICE\tJOINED\tLAST SEEN")
 				for _, d := range r.Msg.Devices {
 					seen := "-"
-					if d.LastSeenMs != nil {
-						seen = date(*d.LastSeenMs)
+					if d.LastSeenAt != nil {
+						seen = date(d.LastSeenAt)
 					}
-					fmt.Fprintf(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", d.Id, d.Player, d.Owner, d.Label, date(d.CreatedAtMs), seen)
+					fmt.Fprintf(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", d.Id, d.Player, d.Owner, d.Label, date(d.CreatedAt), seen)
 				}
 				tw.Flush()
 			})

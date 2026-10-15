@@ -17,6 +17,7 @@ package adminv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -155,7 +156,7 @@ type Group struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedAtMs   int64                  `protobuf:"varint,3,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	Links         *Links                 `protobuf:"bytes,4,opt,name=links,proto3" json:"links,omitempty"`
 	Players       int32                  `protobuf:"varint,5,opt,name=players,proto3" json:"players,omitempty"`
 	Games         int32                  `protobuf:"varint,6,opt,name=games,proto3" json:"games,omitempty"`
@@ -209,11 +210,11 @@ func (x *Group) GetName() string {
 	return ""
 }
 
-func (x *Group) GetCreatedAtMs() int64 {
+func (x *Group) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
 func (x *Group) GetLinks() *Links {
@@ -1082,8 +1083,8 @@ type Device struct {
 	Player        string                 `protobuf:"bytes,2,opt,name=player,proto3" json:"player,omitempty"`
 	Owner         bool                   `protobuf:"varint,3,opt,name=owner,proto3" json:"owner,omitempty"`
 	Label         string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
-	CreatedAtMs   int64                  `protobuf:"varint,5,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
-	LastSeenMs    *int64                 `protobuf:"varint,6,opt,name=last_seen_ms,json=lastSeenMs,proto3,oneof" json:"last_seen_ms,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastSeenAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1146,18 +1147,18 @@ func (x *Device) GetLabel() string {
 	return ""
 }
 
-func (x *Device) GetCreatedAtMs() int64 {
+func (x *Device) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
-func (x *Device) GetLastSeenMs() int64 {
-	if x != nil && x.LastSeenMs != nil {
-		return *x.LastSeenMs
+func (x *Device) GetLastSeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeenAt
 	}
-	return 0
+	return nil
 }
 
 type ListDevicesRequest struct {
@@ -2332,17 +2333,18 @@ var File_scoreboard_admin_v1_admin_proto protoreflect.FileDescriptor
 
 const file_scoreboard_admin_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x1fscoreboard/admin/v1/admin.proto\x12\x13scoreboard.admin.v1\"t\n" +
+	"\x1fscoreboard/admin/v1/admin.proto\x12\x13scoreboard.admin.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"t\n" +
 	"\x05Links\x12\x16\n" +
 	"\x06office\x18\x01 \x01(\tR\x06office\x12\x1f\n" +
 	"\voffice_code\x18\x02 \x01(\tR\n" +
 	"officeCode\x12\x1c\n" +
 	"\tdashboard\x18\x03 \x01(\tR\tdashboard\x12\x14\n" +
-	"\x05owner\x18\x04 \x01(\tR\x05owner\"\xe3\x01\n" +
+	"\x05owner\x18\x04 \x01(\tR\x05owner\"\xfa\x01\n" +
 	"\x05Group\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\"\n" +
-	"\rcreated_at_ms\x18\x03 \x01(\x03R\vcreatedAtMs\x120\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x120\n" +
 	"\x05links\x18\x04 \x01(\v2\x1a.scoreboard.admin.v1.LinksR\x05links\x12\x18\n" +
 	"\aplayers\x18\x05 \x01(\x05R\aplayers\x12\x14\n" +
 	"\x05games\x18\x06 \x01(\x05R\x05games\x12\x16\n" +
@@ -2387,16 +2389,16 @@ const file_scoreboard_admin_v1_admin_proto_rawDesc = "" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x121\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1d.scoreboard.admin.v1.LinkKindR\x04kind\"F\n" +
 	"\x12RotateLinkResponse\x120\n" +
-	"\x05group\x18\x01 \x01(\v2\x1a.scoreboard.admin.v1.GroupR\x05group\"\xb8\x01\n" +
+	"\x05group\x18\x01 \x01(\v2\x1a.scoreboard.admin.v1.GroupR\x05group\"\xd5\x01\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06player\x18\x02 \x01(\tR\x06player\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\bR\x05owner\x12\x14\n" +
-	"\x05label\x18\x04 \x01(\tR\x05label\x12\"\n" +
-	"\rcreated_at_ms\x18\x05 \x01(\x03R\vcreatedAtMs\x12%\n" +
-	"\flast_seen_ms\x18\x06 \x01(\x03H\x00R\n" +
-	"lastSeenMs\x88\x01\x01B\x0f\n" +
-	"\r_last_seen_ms\"*\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_seen_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastSeenAt\"*\n" +
 	"\x12ListDevicesRequest\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\"L\n" +
 	"\x13ListDevicesResponse\x125\n" +
@@ -2554,63 +2556,67 @@ var file_scoreboard_admin_v1_admin_proto_goTypes = []any{
 	(*ExportGroupResponse)(nil),    // 43: scoreboard.admin.v1.ExportGroupResponse
 	(*ImportGroupRequest)(nil),     // 44: scoreboard.admin.v1.ImportGroupRequest
 	(*ImportGroupResponse)(nil),    // 45: scoreboard.admin.v1.ImportGroupResponse
+	(*timestamppb.Timestamp)(nil),  // 46: google.protobuf.Timestamp
 }
 var file_scoreboard_admin_v1_admin_proto_depIdxs = []int32{
-	1,  // 0: scoreboard.admin.v1.Group.links:type_name -> scoreboard.admin.v1.Links
-	2,  // 1: scoreboard.admin.v1.ListGroupsResponse.groups:type_name -> scoreboard.admin.v1.Group
-	2,  // 2: scoreboard.admin.v1.CreateGroupResponse.group:type_name -> scoreboard.admin.v1.Group
-	2,  // 3: scoreboard.admin.v1.GetGroupResponse.group:type_name -> scoreboard.admin.v1.Group
-	0,  // 4: scoreboard.admin.v1.RotateLinkRequest.kind:type_name -> scoreboard.admin.v1.LinkKind
-	2,  // 5: scoreboard.admin.v1.RotateLinkResponse.group:type_name -> scoreboard.admin.v1.Group
-	21, // 6: scoreboard.admin.v1.ListDevicesResponse.devices:type_name -> scoreboard.admin.v1.Device
-	28, // 7: scoreboard.admin.v1.ListPlayersResponse.players:type_name -> scoreboard.admin.v1.Player
-	35, // 8: scoreboard.admin.v1.ListGamesResponse.games:type_name -> scoreboard.admin.v1.Game
-	2,  // 9: scoreboard.admin.v1.ImportGroupResponse.group:type_name -> scoreboard.admin.v1.Group
-	3,  // 10: scoreboard.admin.v1.AdminService.GetStats:input_type -> scoreboard.admin.v1.GetStatsRequest
-	5,  // 11: scoreboard.admin.v1.AdminService.GetConfig:input_type -> scoreboard.admin.v1.GetConfigRequest
-	7,  // 12: scoreboard.admin.v1.AdminService.Backup:input_type -> scoreboard.admin.v1.BackupRequest
-	9,  // 13: scoreboard.admin.v1.AdminService.ListGroups:input_type -> scoreboard.admin.v1.ListGroupsRequest
-	11, // 14: scoreboard.admin.v1.AdminService.CreateGroup:input_type -> scoreboard.admin.v1.CreateGroupRequest
-	13, // 15: scoreboard.admin.v1.AdminService.GetGroup:input_type -> scoreboard.admin.v1.GetGroupRequest
-	15, // 16: scoreboard.admin.v1.AdminService.RenameGroup:input_type -> scoreboard.admin.v1.RenameGroupRequest
-	17, // 17: scoreboard.admin.v1.AdminService.DeleteGroup:input_type -> scoreboard.admin.v1.DeleteGroupRequest
-	19, // 18: scoreboard.admin.v1.AdminService.RotateLink:input_type -> scoreboard.admin.v1.RotateLinkRequest
-	22, // 19: scoreboard.admin.v1.AdminService.ListDevices:input_type -> scoreboard.admin.v1.ListDevicesRequest
-	24, // 20: scoreboard.admin.v1.AdminService.SetDeviceOwner:input_type -> scoreboard.admin.v1.SetDeviceOwnerRequest
-	26, // 21: scoreboard.admin.v1.AdminService.RemoveDevice:input_type -> scoreboard.admin.v1.RemoveDeviceRequest
-	29, // 22: scoreboard.admin.v1.AdminService.ListPlayers:input_type -> scoreboard.admin.v1.ListPlayersRequest
-	31, // 23: scoreboard.admin.v1.AdminService.UpdatePlayer:input_type -> scoreboard.admin.v1.UpdatePlayerRequest
-	33, // 24: scoreboard.admin.v1.AdminService.MergePlayers:input_type -> scoreboard.admin.v1.MergePlayersRequest
-	36, // 25: scoreboard.admin.v1.AdminService.ListGames:input_type -> scoreboard.admin.v1.ListGamesRequest
-	38, // 26: scoreboard.admin.v1.AdminService.UpdateGame:input_type -> scoreboard.admin.v1.UpdateGameRequest
-	40, // 27: scoreboard.admin.v1.AdminService.Recalculate:input_type -> scoreboard.admin.v1.RecalculateRequest
-	42, // 28: scoreboard.admin.v1.AdminService.ExportGroup:input_type -> scoreboard.admin.v1.ExportGroupRequest
-	44, // 29: scoreboard.admin.v1.AdminService.ImportGroup:input_type -> scoreboard.admin.v1.ImportGroupRequest
-	4,  // 30: scoreboard.admin.v1.AdminService.GetStats:output_type -> scoreboard.admin.v1.GetStatsResponse
-	6,  // 31: scoreboard.admin.v1.AdminService.GetConfig:output_type -> scoreboard.admin.v1.GetConfigResponse
-	8,  // 32: scoreboard.admin.v1.AdminService.Backup:output_type -> scoreboard.admin.v1.BackupResponse
-	10, // 33: scoreboard.admin.v1.AdminService.ListGroups:output_type -> scoreboard.admin.v1.ListGroupsResponse
-	12, // 34: scoreboard.admin.v1.AdminService.CreateGroup:output_type -> scoreboard.admin.v1.CreateGroupResponse
-	14, // 35: scoreboard.admin.v1.AdminService.GetGroup:output_type -> scoreboard.admin.v1.GetGroupResponse
-	16, // 36: scoreboard.admin.v1.AdminService.RenameGroup:output_type -> scoreboard.admin.v1.RenameGroupResponse
-	18, // 37: scoreboard.admin.v1.AdminService.DeleteGroup:output_type -> scoreboard.admin.v1.DeleteGroupResponse
-	20, // 38: scoreboard.admin.v1.AdminService.RotateLink:output_type -> scoreboard.admin.v1.RotateLinkResponse
-	23, // 39: scoreboard.admin.v1.AdminService.ListDevices:output_type -> scoreboard.admin.v1.ListDevicesResponse
-	25, // 40: scoreboard.admin.v1.AdminService.SetDeviceOwner:output_type -> scoreboard.admin.v1.SetDeviceOwnerResponse
-	27, // 41: scoreboard.admin.v1.AdminService.RemoveDevice:output_type -> scoreboard.admin.v1.RemoveDeviceResponse
-	30, // 42: scoreboard.admin.v1.AdminService.ListPlayers:output_type -> scoreboard.admin.v1.ListPlayersResponse
-	32, // 43: scoreboard.admin.v1.AdminService.UpdatePlayer:output_type -> scoreboard.admin.v1.UpdatePlayerResponse
-	34, // 44: scoreboard.admin.v1.AdminService.MergePlayers:output_type -> scoreboard.admin.v1.MergePlayersResponse
-	37, // 45: scoreboard.admin.v1.AdminService.ListGames:output_type -> scoreboard.admin.v1.ListGamesResponse
-	39, // 46: scoreboard.admin.v1.AdminService.UpdateGame:output_type -> scoreboard.admin.v1.UpdateGameResponse
-	41, // 47: scoreboard.admin.v1.AdminService.Recalculate:output_type -> scoreboard.admin.v1.RecalculateResponse
-	43, // 48: scoreboard.admin.v1.AdminService.ExportGroup:output_type -> scoreboard.admin.v1.ExportGroupResponse
-	45, // 49: scoreboard.admin.v1.AdminService.ImportGroup:output_type -> scoreboard.admin.v1.ImportGroupResponse
-	30, // [30:50] is the sub-list for method output_type
-	10, // [10:30] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	46, // 0: scoreboard.admin.v1.Group.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 1: scoreboard.admin.v1.Group.links:type_name -> scoreboard.admin.v1.Links
+	2,  // 2: scoreboard.admin.v1.ListGroupsResponse.groups:type_name -> scoreboard.admin.v1.Group
+	2,  // 3: scoreboard.admin.v1.CreateGroupResponse.group:type_name -> scoreboard.admin.v1.Group
+	2,  // 4: scoreboard.admin.v1.GetGroupResponse.group:type_name -> scoreboard.admin.v1.Group
+	0,  // 5: scoreboard.admin.v1.RotateLinkRequest.kind:type_name -> scoreboard.admin.v1.LinkKind
+	2,  // 6: scoreboard.admin.v1.RotateLinkResponse.group:type_name -> scoreboard.admin.v1.Group
+	46, // 7: scoreboard.admin.v1.Device.created_at:type_name -> google.protobuf.Timestamp
+	46, // 8: scoreboard.admin.v1.Device.last_seen_at:type_name -> google.protobuf.Timestamp
+	21, // 9: scoreboard.admin.v1.ListDevicesResponse.devices:type_name -> scoreboard.admin.v1.Device
+	28, // 10: scoreboard.admin.v1.ListPlayersResponse.players:type_name -> scoreboard.admin.v1.Player
+	35, // 11: scoreboard.admin.v1.ListGamesResponse.games:type_name -> scoreboard.admin.v1.Game
+	2,  // 12: scoreboard.admin.v1.ImportGroupResponse.group:type_name -> scoreboard.admin.v1.Group
+	3,  // 13: scoreboard.admin.v1.AdminService.GetStats:input_type -> scoreboard.admin.v1.GetStatsRequest
+	5,  // 14: scoreboard.admin.v1.AdminService.GetConfig:input_type -> scoreboard.admin.v1.GetConfigRequest
+	7,  // 15: scoreboard.admin.v1.AdminService.Backup:input_type -> scoreboard.admin.v1.BackupRequest
+	9,  // 16: scoreboard.admin.v1.AdminService.ListGroups:input_type -> scoreboard.admin.v1.ListGroupsRequest
+	11, // 17: scoreboard.admin.v1.AdminService.CreateGroup:input_type -> scoreboard.admin.v1.CreateGroupRequest
+	13, // 18: scoreboard.admin.v1.AdminService.GetGroup:input_type -> scoreboard.admin.v1.GetGroupRequest
+	15, // 19: scoreboard.admin.v1.AdminService.RenameGroup:input_type -> scoreboard.admin.v1.RenameGroupRequest
+	17, // 20: scoreboard.admin.v1.AdminService.DeleteGroup:input_type -> scoreboard.admin.v1.DeleteGroupRequest
+	19, // 21: scoreboard.admin.v1.AdminService.RotateLink:input_type -> scoreboard.admin.v1.RotateLinkRequest
+	22, // 22: scoreboard.admin.v1.AdminService.ListDevices:input_type -> scoreboard.admin.v1.ListDevicesRequest
+	24, // 23: scoreboard.admin.v1.AdminService.SetDeviceOwner:input_type -> scoreboard.admin.v1.SetDeviceOwnerRequest
+	26, // 24: scoreboard.admin.v1.AdminService.RemoveDevice:input_type -> scoreboard.admin.v1.RemoveDeviceRequest
+	29, // 25: scoreboard.admin.v1.AdminService.ListPlayers:input_type -> scoreboard.admin.v1.ListPlayersRequest
+	31, // 26: scoreboard.admin.v1.AdminService.UpdatePlayer:input_type -> scoreboard.admin.v1.UpdatePlayerRequest
+	33, // 27: scoreboard.admin.v1.AdminService.MergePlayers:input_type -> scoreboard.admin.v1.MergePlayersRequest
+	36, // 28: scoreboard.admin.v1.AdminService.ListGames:input_type -> scoreboard.admin.v1.ListGamesRequest
+	38, // 29: scoreboard.admin.v1.AdminService.UpdateGame:input_type -> scoreboard.admin.v1.UpdateGameRequest
+	40, // 30: scoreboard.admin.v1.AdminService.Recalculate:input_type -> scoreboard.admin.v1.RecalculateRequest
+	42, // 31: scoreboard.admin.v1.AdminService.ExportGroup:input_type -> scoreboard.admin.v1.ExportGroupRequest
+	44, // 32: scoreboard.admin.v1.AdminService.ImportGroup:input_type -> scoreboard.admin.v1.ImportGroupRequest
+	4,  // 33: scoreboard.admin.v1.AdminService.GetStats:output_type -> scoreboard.admin.v1.GetStatsResponse
+	6,  // 34: scoreboard.admin.v1.AdminService.GetConfig:output_type -> scoreboard.admin.v1.GetConfigResponse
+	8,  // 35: scoreboard.admin.v1.AdminService.Backup:output_type -> scoreboard.admin.v1.BackupResponse
+	10, // 36: scoreboard.admin.v1.AdminService.ListGroups:output_type -> scoreboard.admin.v1.ListGroupsResponse
+	12, // 37: scoreboard.admin.v1.AdminService.CreateGroup:output_type -> scoreboard.admin.v1.CreateGroupResponse
+	14, // 38: scoreboard.admin.v1.AdminService.GetGroup:output_type -> scoreboard.admin.v1.GetGroupResponse
+	16, // 39: scoreboard.admin.v1.AdminService.RenameGroup:output_type -> scoreboard.admin.v1.RenameGroupResponse
+	18, // 40: scoreboard.admin.v1.AdminService.DeleteGroup:output_type -> scoreboard.admin.v1.DeleteGroupResponse
+	20, // 41: scoreboard.admin.v1.AdminService.RotateLink:output_type -> scoreboard.admin.v1.RotateLinkResponse
+	23, // 42: scoreboard.admin.v1.AdminService.ListDevices:output_type -> scoreboard.admin.v1.ListDevicesResponse
+	25, // 43: scoreboard.admin.v1.AdminService.SetDeviceOwner:output_type -> scoreboard.admin.v1.SetDeviceOwnerResponse
+	27, // 44: scoreboard.admin.v1.AdminService.RemoveDevice:output_type -> scoreboard.admin.v1.RemoveDeviceResponse
+	30, // 45: scoreboard.admin.v1.AdminService.ListPlayers:output_type -> scoreboard.admin.v1.ListPlayersResponse
+	32, // 46: scoreboard.admin.v1.AdminService.UpdatePlayer:output_type -> scoreboard.admin.v1.UpdatePlayerResponse
+	34, // 47: scoreboard.admin.v1.AdminService.MergePlayers:output_type -> scoreboard.admin.v1.MergePlayersResponse
+	37, // 48: scoreboard.admin.v1.AdminService.ListGames:output_type -> scoreboard.admin.v1.ListGamesResponse
+	39, // 49: scoreboard.admin.v1.AdminService.UpdateGame:output_type -> scoreboard.admin.v1.UpdateGameResponse
+	41, // 50: scoreboard.admin.v1.AdminService.Recalculate:output_type -> scoreboard.admin.v1.RecalculateResponse
+	43, // 51: scoreboard.admin.v1.AdminService.ExportGroup:output_type -> scoreboard.admin.v1.ExportGroupResponse
+	45, // 52: scoreboard.admin.v1.AdminService.ImportGroup:output_type -> scoreboard.admin.v1.ImportGroupResponse
+	33, // [33:53] is the sub-list for method output_type
+	13, // [13:33] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_scoreboard_admin_v1_admin_proto_init() }
@@ -2618,7 +2624,6 @@ func file_scoreboard_admin_v1_admin_proto_init() {
 	if File_scoreboard_admin_v1_admin_proto != nil {
 		return
 	}
-	file_scoreboard_admin_v1_admin_proto_msgTypes[20].OneofWrappers = []any{}
 	file_scoreboard_admin_v1_admin_proto_msgTypes[30].OneofWrappers = []any{}
 	file_scoreboard_admin_v1_admin_proto_msgTypes[37].OneofWrappers = []any{}
 	type x struct{}

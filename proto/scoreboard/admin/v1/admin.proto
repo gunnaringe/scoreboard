@@ -11,6 +11,8 @@ package scoreboard.admin.v1;
 
 option go_package = "github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1;adminv1";
 
+import "google/protobuf/timestamp.proto";
+
 service AdminService {
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
   // GetConfig returns the running configuration as JSON (secrets hidden).
@@ -60,7 +62,7 @@ message Links {
 message Group {
   string id = 1;
   string name = 2;
-  int64 created_at_ms = 3;
+  google.protobuf.Timestamp created_at = 3;
   Links links = 4;
   int32 players = 5;
   int32 games = 6;
@@ -152,8 +154,8 @@ message Device {
   string player = 2;
   bool owner = 3;
   string label = 4;
-  int64 created_at_ms = 5;
-  optional int64 last_seen_ms = 6;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_seen_at = 6;
 }
 
 message ListDevicesRequest {

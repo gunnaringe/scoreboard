@@ -9,7 +9,9 @@
 // so any other client can too — send `Authorization: Bearer <device token>`.
 //
 // Conventions
-//   - Times are Unix milliseconds (`*_ms`, int64: JSON renders them as strings).
+//   - Times are google.protobuf.Timestamp: RFC 3339 strings in JSON
+//     ("2026-10-15T10:00:00Z"). An unset one means "never" (e.g. a tournament
+//     that has not ended).
 //   - A device token identifies the group, so requests never name one.
 //   - Patches use proto3 `optional` (absent = leave unchanged) or a nested
 //     message whose presence means "set" (an empty one clears).
@@ -21,6 +23,7 @@ package scoreboardv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -201,8 +204,8 @@ type Group struct {
 	// The office link's code, formatted ABCD-EFGH. Empty in single mode.
 	OfficeCode string `protobuf:"bytes,3,opt,name=office_code,json=officeCode,proto3" json:"office_code,omitempty"`
 	// Token of the read-only dashboard link (/d/<token>).
-	DashboardToken string `protobuf:"bytes,4,opt,name=dashboard_token,json=dashboardToken,proto3" json:"dashboard_token,omitempty"`
-	CreatedAtMs    int64  `protobuf:"varint,5,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	DashboardToken string                 `protobuf:"bytes,4,opt,name=dashboard_token,json=dashboardToken,proto3" json:"dashboard_token,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -265,11 +268,11 @@ func (x *Group) GetDashboardToken() string {
 	return ""
 }
 
-func (x *Group) GetCreatedAtMs() int64 {
+func (x *Group) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
 type Player struct {
@@ -337,10 +340,10 @@ type Game struct {
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Team names; absent means the localised defaults (Blue / Orange).
-	TeamA       *string `protobuf:"bytes,3,opt,name=team_a,json=teamA,proto3,oneof" json:"team_a,omitempty"`
-	TeamB       *string `protobuf:"bytes,4,opt,name=team_b,json=teamB,proto3,oneof" json:"team_b,omitempty"`
-	Archived    bool    `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
-	CreatedAtMs int64   `protobuf:"varint,6,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	TeamA     *string                `protobuf:"bytes,3,opt,name=team_a,json=teamA,proto3,oneof" json:"team_a,omitempty"`
+	TeamB     *string                `protobuf:"bytes,4,opt,name=team_b,json=teamB,proto3,oneof" json:"team_b,omitempty"`
+	Archived  bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Always set (never UNSPECIFIED).
 	RatingSpeed   RatingSpeed `protobuf:"varint,7,opt,name=rating_speed,json=ratingSpeed,proto3,enum=scoreboard.v1.RatingSpeed" json:"rating_speed,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -412,11 +415,11 @@ func (x *Game) GetArchived() bool {
 	return false
 }
 
-func (x *Game) GetCreatedAtMs() int64 {
+func (x *Game) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
 func (x *Game) GetRatingSpeed() RatingSpeed {
@@ -427,12 +430,13 @@ func (x *Game) GetRatingSpeed() RatingSpeed {
 }
 
 type Tournament struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	GameId        string                 `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedAtMs   int64                  `protobuf:"varint,4,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
-	EndedAtMs     *int64                 `protobuf:"varint,5,opt,name=ended_at_ms,json=endedAtMs,proto3,oneof" json:"ended_at_ms,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	GameId    string                 `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
+	Name      string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Unset while the tournament is running.
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -488,18 +492,18 @@ func (x *Tournament) GetName() string {
 	return ""
 }
 
-func (x *Tournament) GetCreatedAtMs() int64 {
+func (x *Tournament) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
-func (x *Tournament) GetEndedAtMs() int64 {
-	if x != nil && x.EndedAtMs != nil {
-		return *x.EndedAtMs
+func (x *Tournament) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
 	}
-	return 0
+	return nil
 }
 
 // Rating is a skill estimate (Weng-Lin mu and sigma).
@@ -640,7 +644,7 @@ type Round struct {
 	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	GameId       string                 `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
 	TournamentId *string                `protobuf:"bytes,3,opt,name=tournament_id,json=tournamentId,proto3,oneof" json:"tournament_id,omitempty"`
-	PlayedAtMs   int64                  `protobuf:"varint,4,opt,name=played_at_ms,json=playedAtMs,proto3" json:"played_at_ms,omitempty"`
+	PlayedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=played_at,json=playedAt,proto3" json:"played_at,omitempty"`
 	// 0 = team A, 1 = team B.
 	Winner int32  `protobuf:"varint,5,opt,name=winner,proto3" json:"winner,omitempty"`
 	ScoreA *int32 `protobuf:"varint,6,opt,name=score_a,json=scoreA,proto3,oneof" json:"score_a,omitempty"`
@@ -704,11 +708,11 @@ func (x *Round) GetTournamentId() string {
 	return ""
 }
 
-func (x *Round) GetPlayedAtMs() int64 {
+func (x *Round) GetPlayedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.PlayedAtMs
+		return x.PlayedAt
 	}
-	return 0
+	return nil
 }
 
 func (x *Round) GetWinner() int32 {
@@ -764,7 +768,7 @@ type PlayerRating struct {
 	Display int32 `protobuf:"varint,6,opt,name=display,proto3" json:"display,omitempty"`
 	// True until the player has played enough rounds to be ranked.
 	Provisional bool `protobuf:"varint,7,opt,name=provisional,proto3" json:"provisional,omitempty"`
-	// Display points gained or lost since `since_ms`; absent if they did not play.
+	// Display points gained or lost since `since`; absent if they did not play.
 	Today         *int32 `protobuf:"varint,8,opt,name=today,proto3,oneof" json:"today,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1002,13 +1006,13 @@ func (x *GameView) GetRounds() []*Round {
 }
 
 type Device struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	PlayerId    *string                `protobuf:"bytes,2,opt,name=player_id,json=playerId,proto3,oneof" json:"player_id,omitempty"`
-	Owner       bool                   `protobuf:"varint,3,opt,name=owner,proto3" json:"owner,omitempty"`
-	Label       string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
-	CreatedAtMs int64                  `protobuf:"varint,5,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
-	LastSeenMs  *int64                 `protobuf:"varint,6,opt,name=last_seen_ms,json=lastSeenMs,proto3,oneof" json:"last_seen_ms,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PlayerId   *string                `protobuf:"bytes,2,opt,name=player_id,json=playerId,proto3,oneof" json:"player_id,omitempty"`
+	Owner      bool                   `protobuf:"varint,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	Label      string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastSeenAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
 	// True for the device making the request.
 	IsMe          bool `protobuf:"varint,7,opt,name=is_me,json=isMe,proto3" json:"is_me,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1073,18 +1077,18 @@ func (x *Device) GetLabel() string {
 	return ""
 }
 
-func (x *Device) GetCreatedAtMs() int64 {
+func (x *Device) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAtMs
+		return x.CreatedAt
 	}
-	return 0
+	return nil
 }
 
-func (x *Device) GetLastSeenMs() int64 {
-	if x != nil && x.LastSeenMs != nil {
-		return *x.LastSeenMs
+func (x *Device) GetLastSeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeenAt
 	}
-	return 0
+	return nil
 }
 
 func (x *Device) GetIsMe() bool {
@@ -2811,7 +2815,7 @@ type GetGameRequest struct {
 	GameId string                 `protobuf:"bytes,1,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
 	// The start of the viewer's day; rounds since then are always included and
 	// PlayerRating.today counts from it. Defaults to 24 hours ago.
-	SinceMs       int64 `protobuf:"varint,2,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2853,11 +2857,11 @@ func (x *GetGameRequest) GetGameId() string {
 	return ""
 }
 
-func (x *GetGameRequest) GetSinceMs() int64 {
+func (x *GetGameRequest) GetSince() *timestamppb.Timestamp {
 	if x != nil {
-		return x.SinceMs
+		return x.Since
 	}
-	return 0
+	return nil
 }
 
 type GetGameResponse struct {
@@ -3888,8 +3892,8 @@ func (*RestoreRoundResponse) Descriptor() ([]byte, []int) {
 }
 
 type HistoryPoint struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	PlayedAtMs int64                  `protobuf:"varint,1,opt,name=played_at_ms,json=playedAtMs,proto3" json:"played_at_ms,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	PlayedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=played_at,json=playedAt,proto3" json:"played_at,omitempty"`
 	// The player's display rating after the round.
 	Display       int32 `protobuf:"varint,2,opt,name=display,proto3" json:"display,omitempty"`
 	Won           bool  `protobuf:"varint,3,opt,name=won,proto3" json:"won,omitempty"`
@@ -3927,11 +3931,11 @@ func (*HistoryPoint) Descriptor() ([]byte, []int) {
 	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{65}
 }
 
-func (x *HistoryPoint) GetPlayedAtMs() int64 {
+func (x *HistoryPoint) GetPlayedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.PlayedAtMs
+		return x.PlayedAt
 	}
-	return 0
+	return nil
 }
 
 func (x *HistoryPoint) GetDisplay() int32 {
@@ -4448,10 +4452,11 @@ func (x *GetDashboardResponse) GetPlayers() []*Player {
 }
 
 type GetDashboardGameRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	GameId        string                 `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
-	SinceMs       int64                  `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Token  string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	GameId string                 `protobuf:"bytes,2,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
+	// As GetGameRequest.since.
+	Since         *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=since,proto3" json:"since,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4500,11 +4505,11 @@ func (x *GetDashboardGameRequest) GetGameId() string {
 	return ""
 }
 
-func (x *GetDashboardGameRequest) GetSinceMs() int64 {
+func (x *GetDashboardGameRequest) GetSince() *timestamppb.Timestamp {
 	if x != nil {
-		return x.SinceMs
+		return x.Since
 	}
-	return 0
+	return nil
 }
 
 type GetDashboardGameResponse struct {
@@ -4651,36 +4656,38 @@ var File_scoreboard_v1_scoreboard_proto protoreflect.FileDescriptor
 
 const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\n" +
-	"\x1escoreboard/v1/scoreboard.proto\x12\rscoreboard.v1\"\x99\x01\n" +
+	"\x1escoreboard/v1/scoreboard.proto\x12\rscoreboard.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb0\x01\n" +
 	"\x05Group\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
 	"\voffice_code\x18\x03 \x01(\tR\n" +
 	"officeCode\x12'\n" +
-	"\x0fdashboard_token\x18\x04 \x01(\tR\x0edashboardToken\x12\"\n" +
-	"\rcreated_at_ms\x18\x05 \x01(\x03R\vcreatedAtMs\"H\n" +
+	"\x0fdashboard_token\x18\x04 \x01(\tR\x0edashboardToken\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"H\n" +
 	"\x06Player\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\barchived\x18\x03 \x01(\bR\barchived\"\xf7\x01\n" +
+	"\barchived\x18\x03 \x01(\bR\barchived\"\x8e\x02\n" +
 	"\x04Game\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\x06team_a\x18\x03 \x01(\tH\x00R\x05teamA\x88\x01\x01\x12\x1a\n" +
 	"\x06team_b\x18\x04 \x01(\tH\x01R\x05teamB\x88\x01\x01\x12\x1a\n" +
-	"\barchived\x18\x05 \x01(\bR\barchived\x12\"\n" +
-	"\rcreated_at_ms\x18\x06 \x01(\x03R\vcreatedAtMs\x12=\n" +
+	"\barchived\x18\x05 \x01(\bR\barchived\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
 	"\frating_speed\x18\a \x01(\x0e2\x1a.scoreboard.v1.RatingSpeedR\vratingSpeedB\t\n" +
 	"\a_team_aB\t\n" +
-	"\a_team_b\"\xa2\x01\n" +
+	"\a_team_b\"\xbb\x01\n" +
 	"\n" +
 	"Tournament\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\agame_id\x18\x02 \x01(\tR\x06gameId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12\"\n" +
-	"\rcreated_at_ms\x18\x04 \x01(\x03R\vcreatedAtMs\x12#\n" +
-	"\vended_at_ms\x18\x05 \x01(\x03H\x00R\tendedAtMs\x88\x01\x01B\x0e\n" +
-	"\f_ended_at_ms\".\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x125\n" +
+	"\bended_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\".\n" +
 	"\x06Rating\x12\x0e\n" +
 	"\x02mu\x18\x01 \x01(\x01R\x02mu\x12\x14\n" +
 	"\x05sigma\x18\x02 \x01(\x01R\x05sigma\"\xb0\x01\n" +
@@ -4689,13 +4696,12 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\x04team\x18\x02 \x01(\x05R\x04team\x12-\n" +
 	"\x06before\x18\x03 \x01(\v2\x15.scoreboard.v1.RatingR\x06before\x12+\n" +
 	"\x05after\x18\x04 \x01(\v2\x15.scoreboard.v1.RatingR\x05after\x12\x14\n" +
-	"\x05delta\x18\x05 \x01(\x05R\x05delta\"\xfd\x02\n" +
+	"\x05delta\x18\x05 \x01(\x05R\x05delta\"\x94\x03\n" +
 	"\x05Round\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\agame_id\x18\x02 \x01(\tR\x06gameId\x12(\n" +
-	"\rtournament_id\x18\x03 \x01(\tH\x00R\ftournamentId\x88\x01\x01\x12 \n" +
-	"\fplayed_at_ms\x18\x04 \x01(\x03R\n" +
-	"playedAtMs\x12\x16\n" +
+	"\rtournament_id\x18\x03 \x01(\tH\x00R\ftournamentId\x88\x01\x01\x127\n" +
+	"\tplayed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bplayedAt\x12\x16\n" +
 	"\x06winner\x18\x05 \x01(\x05R\x06winner\x12\x1c\n" +
 	"\ascore_a\x18\x06 \x01(\x05H\x01R\x06scoreA\x88\x01\x01\x12\x1c\n" +
 	"\ascore_b\x18\a \x01(\x05H\x02R\x06scoreB\x88\x01\x01\x12\"\n" +
@@ -4730,19 +4736,19 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\aratings\x18\x03 \x03(\v2\x1b.scoreboard.v1.PlayerRatingR\aratings\x125\n" +
 	"\thandicaps\x18\x04 \x03(\v2\x17.scoreboard.v1.HandicapR\thandicaps\x12;\n" +
 	"\vtournaments\x18\x05 \x03(\v2\x19.scoreboard.v1.TournamentR\vtournaments\x12,\n" +
-	"\x06rounds\x18\x06 \x03(\v2\x14.scoreboard.v1.RoundR\x06rounds\"\xe5\x01\n" +
+	"\x06rounds\x18\x06 \x03(\v2\x14.scoreboard.v1.RoundR\x06rounds\"\x82\x02\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\tplayer_id\x18\x02 \x01(\tH\x00R\bplayerId\x88\x01\x01\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\bR\x05owner\x12\x14\n" +
-	"\x05label\x18\x04 \x01(\tR\x05label\x12\"\n" +
-	"\rcreated_at_ms\x18\x05 \x01(\x03R\vcreatedAtMs\x12%\n" +
-	"\flast_seen_ms\x18\x06 \x01(\x03H\x01R\n" +
-	"lastSeenMs\x88\x01\x01\x12\x13\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_seen_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastSeenAt\x12\x13\n" +
 	"\x05is_me\x18\a \x01(\bR\x04isMeB\f\n" +
 	"\n" +
-	"_player_idB\x0f\n" +
-	"\r_last_seen_ms\"M\n" +
+	"_player_id\"M\n" +
 	"\x05Owner\x12 \n" +
 	"\tplayer_id\x18\x01 \x01(\tH\x00R\bplayerId\x88\x01\x01\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05labelB\f\n" +
@@ -4860,10 +4866,10 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\a_team_bB\v\n" +
 	"\t_archivedB\x0f\n" +
 	"\r_rating_speed\"\x14\n" +
-	"\x12UpdateGameResponse\"D\n" +
+	"\x12UpdateGameResponse\"[\n" +
 	"\x0eGetGameRequest\x12\x17\n" +
-	"\agame_id\x18\x01 \x01(\tR\x06gameId\x12\x19\n" +
-	"\bsince_ms\x18\x02 \x01(\x03R\asinceMs\">\n" +
+	"\agame_id\x18\x01 \x01(\tR\x06gameId\x120\n" +
+	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\">\n" +
 	"\x0fGetGameResponse\x12+\n" +
 	"\x04view\x18\x01 \x01(\v2\x17.scoreboard.v1.GameViewR\x04view\"0\n" +
 	"\x15GetGameVersionRequest\x12\x17\n" +
@@ -4941,10 +4947,9 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\x13DeleteRoundResponse\"0\n" +
 	"\x13RestoreRoundRequest\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\"\x16\n" +
-	"\x14RestoreRoundResponse\"\\\n" +
-	"\fHistoryPoint\x12 \n" +
-	"\fplayed_at_ms\x18\x01 \x01(\x03R\n" +
-	"playedAtMs\x12\x18\n" +
+	"\x14RestoreRoundResponse\"s\n" +
+	"\fHistoryPoint\x127\n" +
+	"\tplayed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bplayedAt\x12\x18\n" +
 	"\adisplay\x18\x02 \x01(\x05R\adisplay\x12\x10\n" +
 	"\x03won\x18\x03 \x01(\bR\x03won\"Q\n" +
 	"\bPairStat\x12\x1b\n" +
@@ -4978,11 +4983,11 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\n" +
 	"group_name\x18\x01 \x01(\tR\tgroupName\x12)\n" +
 	"\x05games\x18\x02 \x03(\v2\x13.scoreboard.v1.GameR\x05games\x12/\n" +
-	"\aplayers\x18\x03 \x03(\v2\x15.scoreboard.v1.PlayerR\aplayers\"c\n" +
+	"\aplayers\x18\x03 \x03(\v2\x15.scoreboard.v1.PlayerR\aplayers\"z\n" +
 	"\x17GetDashboardGameRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x17\n" +
-	"\agame_id\x18\x02 \x01(\tR\x06gameId\x12\x19\n" +
-	"\bsince_ms\x18\x03 \x01(\x03R\asinceMs\"G\n" +
+	"\agame_id\x18\x02 \x01(\tR\x06gameId\x120\n" +
+	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"G\n" +
 	"\x18GetDashboardGameResponse\x12+\n" +
 	"\x04view\x18\x01 \x01(\v2\x17.scoreboard.v1.GameViewR\x04view\"O\n" +
 	"\x1eGetDashboardGameVersionRequest\x12\x14\n" +
@@ -5139,108 +5144,119 @@ var file_scoreboard_v1_scoreboard_proto_goTypes = []any{
 	(*GetDashboardGameResponse)(nil),        // 79: scoreboard.v1.GetDashboardGameResponse
 	(*GetDashboardGameVersionRequest)(nil),  // 80: scoreboard.v1.GetDashboardGameVersionRequest
 	(*GetDashboardGameVersionResponse)(nil), // 81: scoreboard.v1.GetDashboardGameVersionResponse
+	(*timestamppb.Timestamp)(nil),           // 82: google.protobuf.Timestamp
 }
 var file_scoreboard_v1_scoreboard_proto_depIdxs = []int32{
-	0,  // 0: scoreboard.v1.Game.rating_speed:type_name -> scoreboard.v1.RatingSpeed
-	7,  // 1: scoreboard.v1.RoundPlayer.before:type_name -> scoreboard.v1.Rating
-	7,  // 2: scoreboard.v1.RoundPlayer.after:type_name -> scoreboard.v1.Rating
-	8,  // 3: scoreboard.v1.Round.players:type_name -> scoreboard.v1.RoundPlayer
-	5,  // 4: scoreboard.v1.GameView.game:type_name -> scoreboard.v1.Game
-	10, // 5: scoreboard.v1.GameView.ratings:type_name -> scoreboard.v1.PlayerRating
-	11, // 6: scoreboard.v1.GameView.handicaps:type_name -> scoreboard.v1.Handicap
-	6,  // 7: scoreboard.v1.GameView.tournaments:type_name -> scoreboard.v1.Tournament
-	9,  // 8: scoreboard.v1.GameView.rounds:type_name -> scoreboard.v1.Round
-	1,  // 9: scoreboard.v1.GetInstanceResponse.mode:type_name -> scoreboard.v1.Mode
-	16, // 10: scoreboard.v1.GetInstanceResponse.branding:type_name -> scoreboard.v1.Branding
-	3,  // 11: scoreboard.v1.GetGroupResponse.group:type_name -> scoreboard.v1.Group
-	15, // 12: scoreboard.v1.GetGroupResponse.me:type_name -> scoreboard.v1.Me
-	14, // 13: scoreboard.v1.GetGroupResponse.owners:type_name -> scoreboard.v1.Owner
-	4,  // 14: scoreboard.v1.GetGroupResponse.players:type_name -> scoreboard.v1.Player
-	5,  // 15: scoreboard.v1.GetGroupResponse.games:type_name -> scoreboard.v1.Game
-	2,  // 16: scoreboard.v1.RotateLinkRequest.kind:type_name -> scoreboard.v1.LinkKind
-	13, // 17: scoreboard.v1.ListDevicesResponse.devices:type_name -> scoreboard.v1.Device
-	4,  // 18: scoreboard.v1.CreatePlayerResponse.player:type_name -> scoreboard.v1.Player
-	5,  // 19: scoreboard.v1.CreateGameResponse.game:type_name -> scoreboard.v1.Game
-	0,  // 20: scoreboard.v1.UpdateGameRequest.rating_speed:type_name -> scoreboard.v1.RatingSpeed
-	12, // 21: scoreboard.v1.GetGameResponse.view:type_name -> scoreboard.v1.GameView
-	6,  // 22: scoreboard.v1.CreateTournamentResponse.tournament:type_name -> scoreboard.v1.Tournament
-	9,  // 23: scoreboard.v1.ListRoundsResponse.rounds:type_name -> scoreboard.v1.Round
-	9,  // 24: scoreboard.v1.CreateRoundResponse.round:type_name -> scoreboard.v1.Round
-	59, // 25: scoreboard.v1.UpdateRoundRequest.teams:type_name -> scoreboard.v1.RoundTeams
-	60, // 26: scoreboard.v1.UpdateRoundRequest.score:type_name -> scoreboard.v1.RoundScore
-	61, // 27: scoreboard.v1.UpdateRoundRequest.tournament:type_name -> scoreboard.v1.RoundTournament
-	9,  // 28: scoreboard.v1.UpdateRoundResponse.round:type_name -> scoreboard.v1.Round
-	68, // 29: scoreboard.v1.GetPlayerStatsResponse.history:type_name -> scoreboard.v1.HistoryPoint
-	69, // 30: scoreboard.v1.GetPlayerStatsResponse.with:type_name -> scoreboard.v1.PairStat
-	69, // 31: scoreboard.v1.GetPlayerStatsResponse.against:type_name -> scoreboard.v1.PairStat
-	5,  // 32: scoreboard.v1.GetDashboardResponse.games:type_name -> scoreboard.v1.Game
-	4,  // 33: scoreboard.v1.GetDashboardResponse.players:type_name -> scoreboard.v1.Player
-	12, // 34: scoreboard.v1.GetDashboardGameResponse.view:type_name -> scoreboard.v1.GameView
-	17, // 35: scoreboard.v1.ScoreboardService.GetInstance:input_type -> scoreboard.v1.GetInstanceRequest
-	19, // 36: scoreboard.v1.ScoreboardService.CreateGroup:input_type -> scoreboard.v1.CreateGroupRequest
-	21, // 37: scoreboard.v1.ScoreboardService.Join:input_type -> scoreboard.v1.JoinRequest
-	23, // 38: scoreboard.v1.ScoreboardService.ClaimOwner:input_type -> scoreboard.v1.ClaimOwnerRequest
-	25, // 39: scoreboard.v1.ScoreboardService.GetGroup:input_type -> scoreboard.v1.GetGroupRequest
-	27, // 40: scoreboard.v1.ScoreboardService.UpdateGroup:input_type -> scoreboard.v1.UpdateGroupRequest
-	29, // 41: scoreboard.v1.ScoreboardService.DeleteGroup:input_type -> scoreboard.v1.DeleteGroupRequest
-	31, // 42: scoreboard.v1.ScoreboardService.RotateLink:input_type -> scoreboard.v1.RotateLinkRequest
-	33, // 43: scoreboard.v1.ScoreboardService.SetMe:input_type -> scoreboard.v1.SetMeRequest
-	35, // 44: scoreboard.v1.ScoreboardService.ListDevices:input_type -> scoreboard.v1.ListDevicesRequest
-	37, // 45: scoreboard.v1.ScoreboardService.RemoveDevice:input_type -> scoreboard.v1.RemoveDeviceRequest
-	39, // 46: scoreboard.v1.ScoreboardService.CreatePlayer:input_type -> scoreboard.v1.CreatePlayerRequest
-	41, // 47: scoreboard.v1.ScoreboardService.UpdatePlayer:input_type -> scoreboard.v1.UpdatePlayerRequest
-	43, // 48: scoreboard.v1.ScoreboardService.CreateGame:input_type -> scoreboard.v1.CreateGameRequest
-	45, // 49: scoreboard.v1.ScoreboardService.UpdateGame:input_type -> scoreboard.v1.UpdateGameRequest
-	47, // 50: scoreboard.v1.ScoreboardService.GetGame:input_type -> scoreboard.v1.GetGameRequest
-	49, // 51: scoreboard.v1.ScoreboardService.GetGameVersion:input_type -> scoreboard.v1.GetGameVersionRequest
-	51, // 52: scoreboard.v1.ScoreboardService.CreateTournament:input_type -> scoreboard.v1.CreateTournamentRequest
-	53, // 53: scoreboard.v1.ScoreboardService.UpdateTournament:input_type -> scoreboard.v1.UpdateTournamentRequest
-	55, // 54: scoreboard.v1.ScoreboardService.ListRounds:input_type -> scoreboard.v1.ListRoundsRequest
-	57, // 55: scoreboard.v1.ScoreboardService.CreateRound:input_type -> scoreboard.v1.CreateRoundRequest
-	62, // 56: scoreboard.v1.ScoreboardService.UpdateRound:input_type -> scoreboard.v1.UpdateRoundRequest
-	64, // 57: scoreboard.v1.ScoreboardService.DeleteRound:input_type -> scoreboard.v1.DeleteRoundRequest
-	66, // 58: scoreboard.v1.ScoreboardService.RestoreRound:input_type -> scoreboard.v1.RestoreRoundRequest
-	70, // 59: scoreboard.v1.ScoreboardService.GetPlayerStats:input_type -> scoreboard.v1.GetPlayerStatsRequest
-	72, // 60: scoreboard.v1.ScoreboardService.PreviewRound:input_type -> scoreboard.v1.PreviewRoundRequest
-	74, // 61: scoreboard.v1.ScoreboardService.SuggestTeams:input_type -> scoreboard.v1.SuggestTeamsRequest
-	76, // 62: scoreboard.v1.ScoreboardService.GetDashboard:input_type -> scoreboard.v1.GetDashboardRequest
-	78, // 63: scoreboard.v1.ScoreboardService.GetDashboardGame:input_type -> scoreboard.v1.GetDashboardGameRequest
-	80, // 64: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:input_type -> scoreboard.v1.GetDashboardGameVersionRequest
-	18, // 65: scoreboard.v1.ScoreboardService.GetInstance:output_type -> scoreboard.v1.GetInstanceResponse
-	20, // 66: scoreboard.v1.ScoreboardService.CreateGroup:output_type -> scoreboard.v1.CreateGroupResponse
-	22, // 67: scoreboard.v1.ScoreboardService.Join:output_type -> scoreboard.v1.JoinResponse
-	24, // 68: scoreboard.v1.ScoreboardService.ClaimOwner:output_type -> scoreboard.v1.ClaimOwnerResponse
-	26, // 69: scoreboard.v1.ScoreboardService.GetGroup:output_type -> scoreboard.v1.GetGroupResponse
-	28, // 70: scoreboard.v1.ScoreboardService.UpdateGroup:output_type -> scoreboard.v1.UpdateGroupResponse
-	30, // 71: scoreboard.v1.ScoreboardService.DeleteGroup:output_type -> scoreboard.v1.DeleteGroupResponse
-	32, // 72: scoreboard.v1.ScoreboardService.RotateLink:output_type -> scoreboard.v1.RotateLinkResponse
-	34, // 73: scoreboard.v1.ScoreboardService.SetMe:output_type -> scoreboard.v1.SetMeResponse
-	36, // 74: scoreboard.v1.ScoreboardService.ListDevices:output_type -> scoreboard.v1.ListDevicesResponse
-	38, // 75: scoreboard.v1.ScoreboardService.RemoveDevice:output_type -> scoreboard.v1.RemoveDeviceResponse
-	40, // 76: scoreboard.v1.ScoreboardService.CreatePlayer:output_type -> scoreboard.v1.CreatePlayerResponse
-	42, // 77: scoreboard.v1.ScoreboardService.UpdatePlayer:output_type -> scoreboard.v1.UpdatePlayerResponse
-	44, // 78: scoreboard.v1.ScoreboardService.CreateGame:output_type -> scoreboard.v1.CreateGameResponse
-	46, // 79: scoreboard.v1.ScoreboardService.UpdateGame:output_type -> scoreboard.v1.UpdateGameResponse
-	48, // 80: scoreboard.v1.ScoreboardService.GetGame:output_type -> scoreboard.v1.GetGameResponse
-	50, // 81: scoreboard.v1.ScoreboardService.GetGameVersion:output_type -> scoreboard.v1.GetGameVersionResponse
-	52, // 82: scoreboard.v1.ScoreboardService.CreateTournament:output_type -> scoreboard.v1.CreateTournamentResponse
-	54, // 83: scoreboard.v1.ScoreboardService.UpdateTournament:output_type -> scoreboard.v1.UpdateTournamentResponse
-	56, // 84: scoreboard.v1.ScoreboardService.ListRounds:output_type -> scoreboard.v1.ListRoundsResponse
-	58, // 85: scoreboard.v1.ScoreboardService.CreateRound:output_type -> scoreboard.v1.CreateRoundResponse
-	63, // 86: scoreboard.v1.ScoreboardService.UpdateRound:output_type -> scoreboard.v1.UpdateRoundResponse
-	65, // 87: scoreboard.v1.ScoreboardService.DeleteRound:output_type -> scoreboard.v1.DeleteRoundResponse
-	67, // 88: scoreboard.v1.ScoreboardService.RestoreRound:output_type -> scoreboard.v1.RestoreRoundResponse
-	71, // 89: scoreboard.v1.ScoreboardService.GetPlayerStats:output_type -> scoreboard.v1.GetPlayerStatsResponse
-	73, // 90: scoreboard.v1.ScoreboardService.PreviewRound:output_type -> scoreboard.v1.PreviewRoundResponse
-	75, // 91: scoreboard.v1.ScoreboardService.SuggestTeams:output_type -> scoreboard.v1.SuggestTeamsResponse
-	77, // 92: scoreboard.v1.ScoreboardService.GetDashboard:output_type -> scoreboard.v1.GetDashboardResponse
-	79, // 93: scoreboard.v1.ScoreboardService.GetDashboardGame:output_type -> scoreboard.v1.GetDashboardGameResponse
-	81, // 94: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:output_type -> scoreboard.v1.GetDashboardGameVersionResponse
-	65, // [65:95] is the sub-list for method output_type
-	35, // [35:65] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	82, // 0: scoreboard.v1.Group.created_at:type_name -> google.protobuf.Timestamp
+	82, // 1: scoreboard.v1.Game.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: scoreboard.v1.Game.rating_speed:type_name -> scoreboard.v1.RatingSpeed
+	82, // 3: scoreboard.v1.Tournament.created_at:type_name -> google.protobuf.Timestamp
+	82, // 4: scoreboard.v1.Tournament.ended_at:type_name -> google.protobuf.Timestamp
+	7,  // 5: scoreboard.v1.RoundPlayer.before:type_name -> scoreboard.v1.Rating
+	7,  // 6: scoreboard.v1.RoundPlayer.after:type_name -> scoreboard.v1.Rating
+	82, // 7: scoreboard.v1.Round.played_at:type_name -> google.protobuf.Timestamp
+	8,  // 8: scoreboard.v1.Round.players:type_name -> scoreboard.v1.RoundPlayer
+	5,  // 9: scoreboard.v1.GameView.game:type_name -> scoreboard.v1.Game
+	10, // 10: scoreboard.v1.GameView.ratings:type_name -> scoreboard.v1.PlayerRating
+	11, // 11: scoreboard.v1.GameView.handicaps:type_name -> scoreboard.v1.Handicap
+	6,  // 12: scoreboard.v1.GameView.tournaments:type_name -> scoreboard.v1.Tournament
+	9,  // 13: scoreboard.v1.GameView.rounds:type_name -> scoreboard.v1.Round
+	82, // 14: scoreboard.v1.Device.created_at:type_name -> google.protobuf.Timestamp
+	82, // 15: scoreboard.v1.Device.last_seen_at:type_name -> google.protobuf.Timestamp
+	1,  // 16: scoreboard.v1.GetInstanceResponse.mode:type_name -> scoreboard.v1.Mode
+	16, // 17: scoreboard.v1.GetInstanceResponse.branding:type_name -> scoreboard.v1.Branding
+	3,  // 18: scoreboard.v1.GetGroupResponse.group:type_name -> scoreboard.v1.Group
+	15, // 19: scoreboard.v1.GetGroupResponse.me:type_name -> scoreboard.v1.Me
+	14, // 20: scoreboard.v1.GetGroupResponse.owners:type_name -> scoreboard.v1.Owner
+	4,  // 21: scoreboard.v1.GetGroupResponse.players:type_name -> scoreboard.v1.Player
+	5,  // 22: scoreboard.v1.GetGroupResponse.games:type_name -> scoreboard.v1.Game
+	2,  // 23: scoreboard.v1.RotateLinkRequest.kind:type_name -> scoreboard.v1.LinkKind
+	13, // 24: scoreboard.v1.ListDevicesResponse.devices:type_name -> scoreboard.v1.Device
+	4,  // 25: scoreboard.v1.CreatePlayerResponse.player:type_name -> scoreboard.v1.Player
+	5,  // 26: scoreboard.v1.CreateGameResponse.game:type_name -> scoreboard.v1.Game
+	0,  // 27: scoreboard.v1.UpdateGameRequest.rating_speed:type_name -> scoreboard.v1.RatingSpeed
+	82, // 28: scoreboard.v1.GetGameRequest.since:type_name -> google.protobuf.Timestamp
+	12, // 29: scoreboard.v1.GetGameResponse.view:type_name -> scoreboard.v1.GameView
+	6,  // 30: scoreboard.v1.CreateTournamentResponse.tournament:type_name -> scoreboard.v1.Tournament
+	9,  // 31: scoreboard.v1.ListRoundsResponse.rounds:type_name -> scoreboard.v1.Round
+	9,  // 32: scoreboard.v1.CreateRoundResponse.round:type_name -> scoreboard.v1.Round
+	59, // 33: scoreboard.v1.UpdateRoundRequest.teams:type_name -> scoreboard.v1.RoundTeams
+	60, // 34: scoreboard.v1.UpdateRoundRequest.score:type_name -> scoreboard.v1.RoundScore
+	61, // 35: scoreboard.v1.UpdateRoundRequest.tournament:type_name -> scoreboard.v1.RoundTournament
+	9,  // 36: scoreboard.v1.UpdateRoundResponse.round:type_name -> scoreboard.v1.Round
+	82, // 37: scoreboard.v1.HistoryPoint.played_at:type_name -> google.protobuf.Timestamp
+	68, // 38: scoreboard.v1.GetPlayerStatsResponse.history:type_name -> scoreboard.v1.HistoryPoint
+	69, // 39: scoreboard.v1.GetPlayerStatsResponse.with:type_name -> scoreboard.v1.PairStat
+	69, // 40: scoreboard.v1.GetPlayerStatsResponse.against:type_name -> scoreboard.v1.PairStat
+	5,  // 41: scoreboard.v1.GetDashboardResponse.games:type_name -> scoreboard.v1.Game
+	4,  // 42: scoreboard.v1.GetDashboardResponse.players:type_name -> scoreboard.v1.Player
+	82, // 43: scoreboard.v1.GetDashboardGameRequest.since:type_name -> google.protobuf.Timestamp
+	12, // 44: scoreboard.v1.GetDashboardGameResponse.view:type_name -> scoreboard.v1.GameView
+	17, // 45: scoreboard.v1.ScoreboardService.GetInstance:input_type -> scoreboard.v1.GetInstanceRequest
+	19, // 46: scoreboard.v1.ScoreboardService.CreateGroup:input_type -> scoreboard.v1.CreateGroupRequest
+	21, // 47: scoreboard.v1.ScoreboardService.Join:input_type -> scoreboard.v1.JoinRequest
+	23, // 48: scoreboard.v1.ScoreboardService.ClaimOwner:input_type -> scoreboard.v1.ClaimOwnerRequest
+	25, // 49: scoreboard.v1.ScoreboardService.GetGroup:input_type -> scoreboard.v1.GetGroupRequest
+	27, // 50: scoreboard.v1.ScoreboardService.UpdateGroup:input_type -> scoreboard.v1.UpdateGroupRequest
+	29, // 51: scoreboard.v1.ScoreboardService.DeleteGroup:input_type -> scoreboard.v1.DeleteGroupRequest
+	31, // 52: scoreboard.v1.ScoreboardService.RotateLink:input_type -> scoreboard.v1.RotateLinkRequest
+	33, // 53: scoreboard.v1.ScoreboardService.SetMe:input_type -> scoreboard.v1.SetMeRequest
+	35, // 54: scoreboard.v1.ScoreboardService.ListDevices:input_type -> scoreboard.v1.ListDevicesRequest
+	37, // 55: scoreboard.v1.ScoreboardService.RemoveDevice:input_type -> scoreboard.v1.RemoveDeviceRequest
+	39, // 56: scoreboard.v1.ScoreboardService.CreatePlayer:input_type -> scoreboard.v1.CreatePlayerRequest
+	41, // 57: scoreboard.v1.ScoreboardService.UpdatePlayer:input_type -> scoreboard.v1.UpdatePlayerRequest
+	43, // 58: scoreboard.v1.ScoreboardService.CreateGame:input_type -> scoreboard.v1.CreateGameRequest
+	45, // 59: scoreboard.v1.ScoreboardService.UpdateGame:input_type -> scoreboard.v1.UpdateGameRequest
+	47, // 60: scoreboard.v1.ScoreboardService.GetGame:input_type -> scoreboard.v1.GetGameRequest
+	49, // 61: scoreboard.v1.ScoreboardService.GetGameVersion:input_type -> scoreboard.v1.GetGameVersionRequest
+	51, // 62: scoreboard.v1.ScoreboardService.CreateTournament:input_type -> scoreboard.v1.CreateTournamentRequest
+	53, // 63: scoreboard.v1.ScoreboardService.UpdateTournament:input_type -> scoreboard.v1.UpdateTournamentRequest
+	55, // 64: scoreboard.v1.ScoreboardService.ListRounds:input_type -> scoreboard.v1.ListRoundsRequest
+	57, // 65: scoreboard.v1.ScoreboardService.CreateRound:input_type -> scoreboard.v1.CreateRoundRequest
+	62, // 66: scoreboard.v1.ScoreboardService.UpdateRound:input_type -> scoreboard.v1.UpdateRoundRequest
+	64, // 67: scoreboard.v1.ScoreboardService.DeleteRound:input_type -> scoreboard.v1.DeleteRoundRequest
+	66, // 68: scoreboard.v1.ScoreboardService.RestoreRound:input_type -> scoreboard.v1.RestoreRoundRequest
+	70, // 69: scoreboard.v1.ScoreboardService.GetPlayerStats:input_type -> scoreboard.v1.GetPlayerStatsRequest
+	72, // 70: scoreboard.v1.ScoreboardService.PreviewRound:input_type -> scoreboard.v1.PreviewRoundRequest
+	74, // 71: scoreboard.v1.ScoreboardService.SuggestTeams:input_type -> scoreboard.v1.SuggestTeamsRequest
+	76, // 72: scoreboard.v1.ScoreboardService.GetDashboard:input_type -> scoreboard.v1.GetDashboardRequest
+	78, // 73: scoreboard.v1.ScoreboardService.GetDashboardGame:input_type -> scoreboard.v1.GetDashboardGameRequest
+	80, // 74: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:input_type -> scoreboard.v1.GetDashboardGameVersionRequest
+	18, // 75: scoreboard.v1.ScoreboardService.GetInstance:output_type -> scoreboard.v1.GetInstanceResponse
+	20, // 76: scoreboard.v1.ScoreboardService.CreateGroup:output_type -> scoreboard.v1.CreateGroupResponse
+	22, // 77: scoreboard.v1.ScoreboardService.Join:output_type -> scoreboard.v1.JoinResponse
+	24, // 78: scoreboard.v1.ScoreboardService.ClaimOwner:output_type -> scoreboard.v1.ClaimOwnerResponse
+	26, // 79: scoreboard.v1.ScoreboardService.GetGroup:output_type -> scoreboard.v1.GetGroupResponse
+	28, // 80: scoreboard.v1.ScoreboardService.UpdateGroup:output_type -> scoreboard.v1.UpdateGroupResponse
+	30, // 81: scoreboard.v1.ScoreboardService.DeleteGroup:output_type -> scoreboard.v1.DeleteGroupResponse
+	32, // 82: scoreboard.v1.ScoreboardService.RotateLink:output_type -> scoreboard.v1.RotateLinkResponse
+	34, // 83: scoreboard.v1.ScoreboardService.SetMe:output_type -> scoreboard.v1.SetMeResponse
+	36, // 84: scoreboard.v1.ScoreboardService.ListDevices:output_type -> scoreboard.v1.ListDevicesResponse
+	38, // 85: scoreboard.v1.ScoreboardService.RemoveDevice:output_type -> scoreboard.v1.RemoveDeviceResponse
+	40, // 86: scoreboard.v1.ScoreboardService.CreatePlayer:output_type -> scoreboard.v1.CreatePlayerResponse
+	42, // 87: scoreboard.v1.ScoreboardService.UpdatePlayer:output_type -> scoreboard.v1.UpdatePlayerResponse
+	44, // 88: scoreboard.v1.ScoreboardService.CreateGame:output_type -> scoreboard.v1.CreateGameResponse
+	46, // 89: scoreboard.v1.ScoreboardService.UpdateGame:output_type -> scoreboard.v1.UpdateGameResponse
+	48, // 90: scoreboard.v1.ScoreboardService.GetGame:output_type -> scoreboard.v1.GetGameResponse
+	50, // 91: scoreboard.v1.ScoreboardService.GetGameVersion:output_type -> scoreboard.v1.GetGameVersionResponse
+	52, // 92: scoreboard.v1.ScoreboardService.CreateTournament:output_type -> scoreboard.v1.CreateTournamentResponse
+	54, // 93: scoreboard.v1.ScoreboardService.UpdateTournament:output_type -> scoreboard.v1.UpdateTournamentResponse
+	56, // 94: scoreboard.v1.ScoreboardService.ListRounds:output_type -> scoreboard.v1.ListRoundsResponse
+	58, // 95: scoreboard.v1.ScoreboardService.CreateRound:output_type -> scoreboard.v1.CreateRoundResponse
+	63, // 96: scoreboard.v1.ScoreboardService.UpdateRound:output_type -> scoreboard.v1.UpdateRoundResponse
+	65, // 97: scoreboard.v1.ScoreboardService.DeleteRound:output_type -> scoreboard.v1.DeleteRoundResponse
+	67, // 98: scoreboard.v1.ScoreboardService.RestoreRound:output_type -> scoreboard.v1.RestoreRoundResponse
+	71, // 99: scoreboard.v1.ScoreboardService.GetPlayerStats:output_type -> scoreboard.v1.GetPlayerStatsResponse
+	73, // 100: scoreboard.v1.ScoreboardService.PreviewRound:output_type -> scoreboard.v1.PreviewRoundResponse
+	75, // 101: scoreboard.v1.ScoreboardService.SuggestTeams:output_type -> scoreboard.v1.SuggestTeamsResponse
+	77, // 102: scoreboard.v1.ScoreboardService.GetDashboard:output_type -> scoreboard.v1.GetDashboardResponse
+	79, // 103: scoreboard.v1.ScoreboardService.GetDashboardGame:output_type -> scoreboard.v1.GetDashboardGameResponse
+	81, // 104: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:output_type -> scoreboard.v1.GetDashboardGameVersionResponse
+	75, // [75:105] is the sub-list for method output_type
+	45, // [45:75] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_scoreboard_v1_scoreboard_proto_init() }
@@ -5249,7 +5265,6 @@ func file_scoreboard_v1_scoreboard_proto_init() {
 		return
 	}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[2].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[3].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[6].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[7].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[10].OneofWrappers = []any{}

@@ -203,8 +203,10 @@ curl -s localhost:8080/scoreboard.v1.ScoreboardService/GetGroup \
   -H 'content-type: application/json' -H "authorization: Bearer $TOKEN" -d '{}'
 ```
 
-Times are Unix milliseconds in `*Ms` fields (JSON renders int64 as strings);
-unset optional fields are left out. Typed Go clients are in `gen/`.
+Times are `google.protobuf.Timestamp`, so RFC 3339 strings in JSON
+(`"playedAt": "2026-10-15T10:00:00Z"`); an unset one (a tournament's `endedAt`
+while it runs) is left out, as are unset optional fields. Typed Go clients are
+in `gen/`.
 
 ## Development
 

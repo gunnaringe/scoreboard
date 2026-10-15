@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/gunnaringe/scoreboard/gen/scoreboard/v1"
 	"github.com/gunnaringe/scoreboard/gen/scoreboard/v1/scoreboardv1connect"
@@ -265,7 +267,7 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 	}
 
 	// The game view carries what the page shows, already computed.
-	view := must(e, e.c.GetGame, o.owner, &pb.GetGameRequest{GameId: o.game, SinceMs: 1}).View
+	view := must(e, e.c.GetGame, o.owner, &pb.GetGameRequest{GameId: o.game, Since: timestamppb.New(time.UnixMilli(1))}).View
 	if len(view.Ratings) != 3 || len(view.Handicaps) != 1 || view.Handicaps[0].Format != "2v1" {
 		t.Fatalf("%+v", view)
 	}
@@ -351,7 +353,7 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 		t.Fatalf("%d rounds", len(huge.Rounds))
 	}
 	stats := must(e, e.c.GetPlayerStats, o.owner, &pb.GetPlayerStatsRequest{GameId: o.game, PlayerId: ada})
-	if len(stats.History) != 6 || stats.History[0].PlayedAtMs == 0 || stats.History[0].Display == 0 {
+	if len(stats.History) != 6 || stats.History[0].PlayedAt == nil || stats.History[0].Display == 0 {
 		t.Fatalf("%+v", stats)
 	}
 	if len(stats.With)+len(stats.Against) == 0 {
@@ -572,8 +574,23 @@ func TestJSONWireFormat(t *testing.T) {
 		t.Fatalf("%d %v", status, r)
 	}
 	round := r["round"].(map[string]any)
-	if _, ok := round["playedAtMs"].(string); !ok {
-		t.Fatalf("int64 should be a JSON string: %v", round["playedAtMs"])
+	// Times are google.protobuf.Timestamp: RFC 3339 in UTC.
+	if s, _ := round["playedAt"].(string); !strings.HasSuffix(s, "Z") {
+		t.Fatalf("playedAt should be an RFC 3339 string: %v", round["playedAt"])
+	} else if at, err := time.Parse(time.RFC3339Nano, s); err != nil || time.Since(at) > time.Minute {
+		t.Fatalf("playedAt %q: %v", s, err)
+	}
+	// An unset Timestamp (a running tournament's endedAt) is left out, not null.
+	status, tour := post("CreateTournament", token, fmt.Sprintf(`{"gameId":%q,"name":"Cup"}`, game))
+	if status != 200 {
+		t.Fatalf("%d %v", status, tour)
+	}
+	if _, present := tour["tournament"].(map[string]any)["endedAt"]; present {
+		t.Fatalf("an unset timestamp must be left out: %v", tour)
+	}
+	// Requests take timestamps as RFC 3339 strings too.
+	if status, view := post("GetGame", token, fmt.Sprintf(`{"gameId":%q,"since":"2020-01-01T00:00:00Z"}`, game)); status != 200 {
+		t.Fatalf("%d %v", status, view)
 	}
 	if round["winner"] != float64(0) {
 		t.Fatalf("a zero winner must be sent explicitly: %v", round)
