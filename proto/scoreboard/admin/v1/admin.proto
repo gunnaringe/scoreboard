@@ -215,6 +215,8 @@ message Game {
   string id = 1;
   string name = 2;
   bool archived = 3;
+  // steady, medium or fast.
+  string rating_speed = 4;
 }
 
 message ListGamesRequest {
@@ -231,6 +233,8 @@ message UpdateGameRequest {
   string game = 2;
   optional string name = 3;
   optional bool archived = 4;
+  // steady, medium or fast; a change re-rates the whole game.
+  optional string rating_speed = 5;
 }
 
 message UpdateGameResponse {}

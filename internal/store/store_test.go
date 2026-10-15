@@ -92,12 +92,16 @@ func (f *fixture) verify() {
 	ratings := map[string]rating.Rating{}
 	handicaps := map[string]rating.Rating{}
 	tally := map[string]counts{}
+	game, err := f.s.GetGame(ctx, f.group.ID, f.gameID)
+	if err != nil {
+		f.t.Fatal(err)
+	}
 	for _, r := range f.allRounds() {
 		var teams [2][]string
 		for _, p := range r.Players {
 			teams[p.Team] = append(teams[p.Team], p.ID)
 		}
-		res := rating.Apply(ratings, handicaps, teams, r.Winner)
+		res := rating.Apply(ratings, handicaps, teams, r.Winner, game.RatingSpeed)
 		for _, p := range r.Players {
 			c := res.Players[p.ID]
 			if p.Before == nil || !near(p.Before.Mu, c.Before.Mu) || !near(p.After.Mu, c.After.Mu) || !near(p.After.Sigma, c.After.Sigma) {
@@ -155,6 +159,54 @@ func TestIncrementalEqualsReplay(t *testing.T) {
 			if r.PlayerID == before.Ratings[i].PlayerID && !near(r.Mu, before.Ratings[i].Mu) {
 				t.Fatalf("recalc moved %s", f.names[r.PlayerID])
 			}
+		}
+	}
+}
+
+func TestRatingSpeedReratesTheGame(t *testing.T) {
+	f := newFixture(t, 3)
+	p := f.players
+	for i := 0; i < 30; i++ {
+		f.round(p[i%3:i%3+1], p[(i+1)%3:(i+1)%3+1], i%2)
+	}
+	speedOf := func() rating.Speed {
+		g, err := f.s.GetGame(ctx, f.group.ID, f.gameID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g.RatingSpeed
+	}
+	sigma := func() float64 {
+		v, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+		return v.Ratings[0].Sigma
+	}
+	if speedOf() != rating.Steady {
+		t.Fatalf("new games must be steady, got %q", speedOf())
+	}
+	steadySigma := sigma()
+	version, _ := f.s.GameVersion(ctx, f.group.ID, f.gameID)
+	fast := "fast"
+	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &fast}); err != nil {
+		t.Fatal(err)
+	}
+	if speedOf() != rating.Fast || !(sigma() > steadySigma) {
+		t.Fatalf("speed %q sigma %v (steady %v)", speedOf(), sigma(), steadySigma)
+	}
+	if v, _ := f.s.GameVersion(ctx, f.group.ID, f.gameID); v == version {
+		t.Fatal("version not bumped, screens would not reload")
+	}
+	f.verify()                 // replayed with the new speed
+	f.round(p[0:1], p[1:2], 0) // and new rounds use it too
+	f.verify()
+
+	steady := "steady"
+	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &steady}); err != nil {
+		t.Fatal(err)
+	}
+	f.verify()
+	for _, bad := range []string{"", "ludicrous"} {
+		if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &bad}); err == nil {
+			t.Fatalf("speed %q accepted", bad)
 		}
 	}
 }
@@ -514,6 +566,10 @@ func TestExportImportRoundTrip(t *testing.T) {
 	f := newFixture(t, 5)
 	p := f.players
 	tour, _ := f.s.CreateTournament(ctx, f.group.ID, f.gameID, "Cup")
+	medium := "medium"
+	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &medium}); err != nil {
+		t.Fatal(err)
+	}
 	f.round(p[0:1], p[1:2], 0)
 	r := f.round(p[0:2], p[2:3], 1)
 	f.round(p[3:5], p[0:2], 0)
@@ -536,8 +592,8 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	games, _ := f.s.ListGames(ctx, created.Group.ID)
-	if len(games) != 1 {
-		t.Fatal("game not imported")
+	if len(games) != 1 || games[0].RatingSpeed != rating.Medium {
+		t.Fatalf("game not imported: %+v", games)
 	}
 	orig, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
 	copy, err := f.s.GetGameView(ctx, created.Group.ID, games[0].ID, 0)

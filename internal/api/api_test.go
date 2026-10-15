@@ -308,6 +308,20 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 	if game.TeamA != nil || game.GetTeamB() != "Green" {
 		t.Fatalf("teams: %+v", game)
 	}
+	if game.RatingSpeed != pb.RatingSpeed_RATING_SPEED_STEADY {
+		t.Fatalf("speed: %v", game.RatingSpeed)
+	}
+	vs := must(e, e.c.GetGameVersion, o.owner, &pb.GetGameVersionRequest{GameId: o.game}).Version
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, RatingSpeed: pb.RatingSpeed_RATING_SPEED_FAST.Enum()})
+	if g := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Games[0]; g.RatingSpeed != pb.RatingSpeed_RATING_SPEED_FAST {
+		t.Fatalf("speed not set: %v", g.RatingSpeed)
+	}
+	if v := must(e, e.c.GetGameVersion, o.owner, &pb.GetGameVersionRequest{GameId: o.game}).Version; v <= vs {
+		t.Fatal("changing the speed did not bump the version")
+	}
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, RatingSpeed: pb.RatingSpeed_RATING_SPEED_UNSPECIFIED.Enum()})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, RatingSpeed: pb.RatingSpeed_RATING_SPEED_STEADY.Enum()})
 
 	// Every change bumps the version polling screens watch.
 	must(e, e.c.UpdateRound, o.owner, &pb.UpdateRoundRequest{RoundId: round.Id, Winner: ptr(int32(1))})

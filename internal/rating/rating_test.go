@@ -70,7 +70,7 @@ func TestGoldenSequences(t *testing.T) {
 			ratings := map[string]Rating{}
 			handicaps := map[string]Rating{}
 			for i, round := range seq.Rounds {
-				res := Apply(ratings, handicaps, round.Teams, round.Winner)
+				res := Apply(ratings, handicaps, round.Teams, round.Winner, Steady)
 				want := seq.Results[i]
 				if res.Format != want.Format {
 					t.Fatalf("round %d: format %q, want %q", i, res.Format, want.Format)
@@ -138,8 +138,8 @@ func TestFormat(t *testing.T) {
 }
 
 func TestSoloWinGainsMoreThanLossCosts(t *testing.T) {
-	win := Apply(map[string]Rating{}, map[string]Rating{}, [2][]string{{"solo"}, {"x", "y"}}, 0).Players["solo"]
-	loss := Apply(map[string]Rating{}, map[string]Rating{}, [2][]string{{"solo"}, {"x", "y"}}, 1).Players["solo"]
+	win := Apply(map[string]Rating{}, map[string]Rating{}, [2][]string{{"solo"}, {"x", "y"}}, 0, Steady).Players["solo"]
+	loss := Apply(map[string]Rating{}, map[string]Rating{}, [2][]string{{"solo"}, {"x", "y"}}, 1, Steady).Players["solo"]
 	if !(win.After.Mu-Mu > Mu-loss.After.Mu) {
 		t.Fatalf("win %+v loss %+v", win, loss)
 	}
@@ -149,10 +149,39 @@ func TestHandicapLearnsFromResults(t *testing.T) {
 	ratings := map[string]Rating{}
 	handicaps := map[string]Rating{}
 	for i := 0; i < 60; i++ {
-		Apply(ratings, handicaps, [2][]string{{"a", "b"}, {"c"}}, 1)
+		Apply(ratings, handicaps, [2][]string{{"a", "b"}, {"c"}}, 1, Steady)
 	}
 	if !(handicaps["2v1"].Mu < HandicapMu) {
 		t.Fatalf("handicap did not drop: %+v", handicaps["2v1"])
+	}
+}
+
+func TestSpeeds(t *testing.T) {
+	if Steady.Tau() != Tau {
+		t.Fatalf("Steady must be the tuned default")
+	}
+	for in, want := range map[string]Speed{"": Steady, "steady": Steady, "medium": Medium, "fast": Fast} {
+		if got, ok := ParseSpeed(in); !ok || got != want {
+			t.Fatalf("ParseSpeed(%q) = %q, %v", in, got, ok)
+		}
+	}
+	if _, ok := ParseSpeed("ludicrous"); ok {
+		t.Fatalf("unknown speed accepted")
+	}
+	// After a long even history, a faster game keeps more uncertainty, so the
+	// next round moves the rating further.
+	var prevSigma, prevStep float64
+	for _, speed := range Speeds {
+		ratings := map[string]Rating{}
+		for i := 0; i < 300; i++ {
+			Apply(ratings, nil, [2][]string{{"a"}, {"b"}}, i%2, speed)
+		}
+		c := Apply(ratings, nil, [2][]string{{"a"}, {"b"}}, 0, speed).Players["a"]
+		step := c.After.Mu - c.Before.Mu
+		if !(c.Before.Sigma > prevSigma && step > prevStep) {
+			t.Fatalf("%s: sigma %v step %v, not above %v / %v", speed, c.Before.Sigma, step, prevSigma, prevStep)
+		}
+		prevSigma, prevStep = c.Before.Sigma, step
 	}
 }
 

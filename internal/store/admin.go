@@ -7,6 +7,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/gunnaringe/scoreboard/internal/rating"
 )
 
 // MergePlayers moves everything of player `from` onto `into` (the same person
@@ -130,6 +132,7 @@ type ExportGame struct {
 	TeamA       *string            `json:"teamA,omitempty"`
 	TeamB       *string            `json:"teamB,omitempty"`
 	Archived    bool               `json:"archived,omitempty"`
+	RatingSpeed string             `json:"ratingSpeed,omitempty"` // absent: steady
 	Tournaments []ExportTournament `json:"tournaments,omitempty"`
 	Rounds      []ExportRound      `json:"rounds"`
 }
@@ -172,6 +175,9 @@ func (s *Store) Export(ctx context.Context, groupID string) (ExportedGroup, erro
 	}
 	for _, game := range games {
 		eg := ExportGame{Name: game.Name, TeamA: game.TeamA, TeamB: game.TeamB, Archived: game.Archived, Rounds: []ExportRound{}}
+		if game.RatingSpeed != rating.Steady {
+			eg.RatingSpeed = string(game.RatingSpeed)
+		}
 		tours, err := s.ListTournaments(ctx, game.ID, 1<<30)
 		if err != nil {
 			return out, err
@@ -244,9 +250,13 @@ func (s *Store) Import(ctx context.Context, in ExportedGroup, name string) (Crea
 			if err != nil {
 				return err
 			}
+			speed, ok := rating.ParseSpeed(g.RatingSpeed)
+			if !ok {
+				return BadRequest(fmt.Sprintf("game %q: unknown rating speed %q", g.Name, g.RatingSpeed))
+			}
 			gid := newID()
-			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, archived, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				gid, created.Group.ID, gname, g.TeamA, g.TeamB, b2i(g.Archived), now); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, archived, created_at, rating_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				gid, created.Group.ID, gname, g.TeamA, g.TeamB, b2i(g.Archived), now, string(speed)); err != nil {
 				return err
 			}
 			tours := map[string]string{}

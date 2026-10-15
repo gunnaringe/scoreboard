@@ -410,6 +410,12 @@ function deltaEl(n, cls = '') {
 
 const roundDelta = (p) => p.delta ?? 0;
 const playerName = (ctx, id) => ctx.playersById.get(id)?.name ?? '?';
+// Rating speeds (proto RatingSpeed) with their i18n keys, slowest first.
+const SPEEDS = {
+    RATING_SPEED_STEADY: { label: 'speedSteady', hint: 'speedSteadyHint' },
+    RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
+    RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
+};
 const teamName = (game, i) => (i === 0 ? game.teamA || t('teamBlue') : game.teamB || t('teamOrange'));
 
 // A dialog that labels itself, closes on Escape/backdrop and removes itself.
@@ -1296,8 +1302,28 @@ async function pageGroupSettings(gid, current) {
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdatePlayer', { playerId: p.id, archived: !p.archived }) },
                 p.archived ? t('unarchive') : t('archive')))));
 
+    // How quickly a game's ratings follow changes in form; changing it re-rates the game.
+    const speedDialog = (g) => {
+        let speed = g.ratingSpeed;
+        const hint = h('p', { class: 'muted small' });
+        const showHint = () => hint.replaceChildren(t(SPEEDS[speed].hint));
+        const dialog = sheet(t('ratingSpeedTitle', { game: g.name }),
+            h('p', null, t('ratingSpeedIntro')),
+            h('div', { class: 'setting stack-setting' },
+                segmented(Object.entries(SPEEDS).map(([v, s]) => [v, t(s.label)]), speed, (v) => { speed = v; showHint(); }),
+                hint),
+            h('p', { class: 'muted small' }, t('ratingSpeedNote')),
+            h('div', { class: 'sheet-actions' },
+                h('button', { type: 'button', class: 'btn', onclick: () => {
+                    dialog.close();
+                    if (speed !== g.ratingSpeed) act('UpdateGame', { gameId: g.id, ratingSpeed: speed }, t('ratingSpeedChanged'));
+                } }, t('save'))));
+        showHint();
+    };
+
     const gameRows = ctx.games.map((g) => h('li', { class: `list-row ${g.archived ? 'faded' : ''}` },
-        h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${teamName(g, 0)} / ${teamName(g, 1)}`)),
+        h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${teamName(g, 0)} / ${teamName(g, 1)}`,
+            g.ratingSpeed !== 'RATING_SPEED_STEADY' ? ` · ${t(SPEEDS[g.ratingSpeed]?.label ?? 'speedSteady')}` : '')),
         h('span', { class: 'row wrap-row' },
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
                 const name = prompt(t('rename'), g.name);
@@ -1311,6 +1337,7 @@ async function pageGroupSettings(gid, current) {
                 // Keeping the default names stores nothing, so they follow the language.
                 act('UpdateGame', { gameId: g.id, teamA: a === t('teamBlue') ? '' : a, teamB: b === t('teamOrange') ? '' : b });
             } }, t('teams')),
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => speedDialog(g) }, t('ratingSpeed')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdateGame', { gameId: g.id, archived: !g.archived }) },
                 g.archived ? t('unarchive') : t('archive')))));
 

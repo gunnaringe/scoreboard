@@ -1782,10 +1782,12 @@ func (*MergePlayersResponse) Descriptor() ([]byte, []int) {
 }
 
 type Game struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Archived      bool                   `protobuf:"varint,3,opt,name=archived,proto3" json:"archived,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Archived bool                   `protobuf:"varint,3,opt,name=archived,proto3" json:"archived,omitempty"`
+	// steady, medium or fast.
+	RatingSpeed   string `protobuf:"bytes,4,opt,name=rating_speed,json=ratingSpeed,proto3" json:"rating_speed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1839,6 +1841,13 @@ func (x *Game) GetArchived() bool {
 		return x.Archived
 	}
 	return false
+}
+
+func (x *Game) GetRatingSpeed() string {
+	if x != nil {
+		return x.RatingSpeed
+	}
+	return ""
 }
 
 type ListGamesRequest struct {
@@ -1933,9 +1942,11 @@ type UpdateGameRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Group string                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
 	// A game id or name; empty means the only game.
-	Game          string  `protobuf:"bytes,2,opt,name=game,proto3" json:"game,omitempty"`
-	Name          *string `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Archived      *bool   `protobuf:"varint,4,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	Game     string  `protobuf:"bytes,2,opt,name=game,proto3" json:"game,omitempty"`
+	Name     *string `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Archived *bool   `protobuf:"varint,4,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	// steady, medium or fast; a change re-rates the whole game.
+	RatingSpeed   *string `protobuf:"bytes,5,opt,name=rating_speed,json=ratingSpeed,proto3,oneof" json:"rating_speed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1996,6 +2007,13 @@ func (x *UpdateGameRequest) GetArchived() bool {
 		return *x.Archived
 	}
 	return false
+}
+
+func (x *UpdateGameRequest) GetRatingSpeed() string {
+	if x != nil && x.RatingSpeed != nil {
+		return *x.RatingSpeed
+	}
+	return ""
 }
 
 type UpdateGameResponse struct {
@@ -2412,22 +2430,25 @@ const file_scoreboard_admin_v1_admin_proto_rawDesc = "" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x12\x12\n" +
 	"\x04from\x18\x02 \x01(\tR\x04from\x12\x12\n" +
 	"\x04into\x18\x03 \x01(\tR\x04into\"\x16\n" +
-	"\x14MergePlayersResponse\"F\n" +
+	"\x14MergePlayersResponse\"i\n" +
 	"\x04Game\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\barchived\x18\x03 \x01(\bR\barchived\"(\n" +
+	"\barchived\x18\x03 \x01(\bR\barchived\x12!\n" +
+	"\frating_speed\x18\x04 \x01(\tR\vratingSpeed\"(\n" +
 	"\x10ListGamesRequest\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\"D\n" +
 	"\x11ListGamesResponse\x12/\n" +
-	"\x05games\x18\x01 \x03(\v2\x19.scoreboard.admin.v1.GameR\x05games\"\x8d\x01\n" +
+	"\x05games\x18\x01 \x03(\v2\x19.scoreboard.admin.v1.GameR\x05games\"\xc6\x01\n" +
 	"\x11UpdateGameRequest\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x12\x12\n" +
 	"\x04game\x18\x02 \x01(\tR\x04game\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1f\n" +
-	"\barchived\x18\x04 \x01(\bH\x01R\barchived\x88\x01\x01B\a\n" +
+	"\barchived\x18\x04 \x01(\bH\x01R\barchived\x88\x01\x01\x12&\n" +
+	"\frating_speed\x18\x05 \x01(\tH\x02R\vratingSpeed\x88\x01\x01B\a\n" +
 	"\x05_nameB\v\n" +
-	"\t_archived\"\x14\n" +
+	"\t_archivedB\x0f\n" +
+	"\r_rating_speed\"\x14\n" +
 	"\x12UpdateGameResponse\">\n" +
 	"\x12RecalculateRequest\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x12\x12\n" +

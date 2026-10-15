@@ -47,6 +47,9 @@ Commands (add --group <id or name> when the instance has several groups):
   games list
   games rename <game> <new name>
   games archive|unarchive <game>
+  games speed <game> steady|medium|fast
+                                     how quickly ratings follow changes in form
+                                     (re-rates the whole game; see README)
   games recalc [<game>]              recalculate all ratings from the rounds
   export [-o file]                   a group as JSON (to stdout without -o)
   import <file> [--name NAME]        make a new group from an export
@@ -417,9 +420,9 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 			}
 			show(r.Msg, func() {
 				tw := table()
-				fmt.Fprintln(tw, "ID\tNAME\tARCHIVED")
+				fmt.Fprintln(tw, "ID\tNAME\tSPEED\tARCHIVED")
 				for _, gm := range r.Msg.Games {
-					fmt.Fprintf(tw, "%s\t%s\t%v\n", gm.Id, gm.Name, gm.Archived)
+					fmt.Fprintf(tw, "%s\t%s\t%s\t%v\n", gm.Id, gm.Name, gm.RatingSpeed, gm.Archived)
 				}
 				tw.Flush()
 			})
@@ -443,6 +446,18 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 				return err
 			}
 			show(r.Msg, done(sub+"d"))
+		case "speed":
+			if err := c.need(3, "games speed <game> steady|medium|fast"); err != nil {
+				return err
+			}
+			// The speed is last so game names may contain spaces.
+			speed := a[len(a)-1]
+			game := strings.Join(a[2:len(a)-1], " ")
+			r, err := c.rpc.UpdateGame(ctx, connect.NewRequest(&pb.UpdateGameRequest{Group: g, Game: game, RatingSpeed: &speed}))
+			if err != nil {
+				return err
+			}
+			show(r.Msg, done("rating speed set to "+speed+", ratings recalculated"))
 		case "recalc":
 			game := ""
 			if len(a) > 2 {

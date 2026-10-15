@@ -176,7 +176,9 @@ func TestPlayersGamesAndDevices(t *testing.T) {
 	f.ok("games", "archive", "RL")
 	f.ok("games", "unarchive", "RL")
 	f.ok("games", "recalc")
-	if out := f.ok("games", "list"); !strings.Contains(out, "RL") {
+	f.ok("games", "speed", "RL", "fast")
+	f.fails("steady, medium or fast", "games", "speed", "RL", "ludicrous")
+	if out := f.ok("games", "list"); !strings.Contains(out, "RL") || !strings.Contains(out, "fast") {
 		t.Fatal(out)
 	}
 

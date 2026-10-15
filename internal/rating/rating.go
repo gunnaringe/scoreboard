@@ -13,6 +13,10 @@
 //     handicap, a pseudo-player on the bigger team updated by the same rule.
 //   - Starting sigma 6 and display mu - sigma, so the number tracks skill
 //     rather than how many rounds someone has played.
+//   - Each game has a rating speed (see Speed): how much uncertainty comes
+//     back before every round, which decides how fast ratings follow someone
+//     who gets better or worse. Steady, the default, is what the rest was
+//     tuned with.
 //
 // The browser keeps a small copy of WinProbability (web/rating.js) for the
 // odds shown while picking teams; testdata/golden.json is checked by both.
@@ -28,7 +32,7 @@ const (
 	Sigma  = 6.0
 	Beta   = 25.0 / 6.0
 	Kappa  = 0.0001
-	Tau    = Mu / 300 // keeps ratings from freezing (OpenSkill's default)
+	Tau    = Mu / 300 // keeps ratings from freezing (OpenSkill's default); the Steady speed
 	Scale  = 25.0     // display points per unit of mu
 	Offset = Mu - Sigma
 
@@ -39,6 +43,51 @@ const (
 	HandicapMu    = 6.0
 	HandicapSigma = 4.0
 )
+
+// Speed is how quickly a game's ratings follow changes in form. Before every
+// round each player's sigma grows by tau (added in quadrature), so a long
+// history never freezes a rating completely; a bigger tau keeps sigma, and so
+// the step per round, bigger. Simulated in a group of six playing 1v1, for
+// players with about 300 rounds each: a win between equals moves about 5, 10
+// and 18 points on Steady, Medium and Fast, and someone who suddenly gets 100
+// points better is caught up with after about 80, 30 and 15 of their own
+// rounds. The price is ratings that drift further around the true level
+// (typically ±20, ±30 and ±50 points) and a display about 20 (Medium) or 45
+// (Fast) points lower, since display is mu - sigma.
+type Speed string
+
+const (
+	Steady Speed = "steady" // tau Mu/300: best when skill hardly changes (or for team games)
+	Medium Speed = "medium" // tau Mu/100
+	Fast   Speed = "fast"   // tau Mu/50: for players who improve quickly, e.g. table tennis
+)
+
+// Speeds are the valid speeds, slowest first.
+var Speeds = []Speed{Steady, Medium, Fast}
+
+// ParseSpeed checks a stored or requested speed; "" is Steady.
+func ParseSpeed(s string) (Speed, bool) {
+	if s == "" {
+		return Steady, true
+	}
+	for _, v := range Speeds {
+		if string(v) == s {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// Tau is the speed's sigma growth per round.
+func (s Speed) Tau() float64 {
+	switch s {
+	case Medium:
+		return Mu / 100
+	case Fast:
+		return Mu / 50
+	}
+	return Tau
+}
 
 // Rating is a skill estimate.
 type Rating struct {
@@ -84,13 +133,13 @@ func teamStats(team []member) (mu, s2 float64) {
 }
 
 // rate returns the new ratings for teams ranked by ranks (lower is better,
-// equal ranks draw).
-func rate(teams [][]member, ranks []int) [][]Rating {
+// equal ranks draw); tau is added to every sigma first.
+func rate(teams [][]member, ranks []int, tau float64) [][]Rating {
 	decayed := make([][]member, len(teams))
 	for i, team := range teams {
 		decayed[i] = make([]member, len(team))
 		for j, p := range team {
-			decayed[i][j] = member{p.mu, math.Sqrt(p.sigma*p.sigma + Tau*Tau), p.base}
+			decayed[i][j] = member{p.mu, math.Sqrt(p.sigma*p.sigma + tau*tau), p.base}
 		}
 	}
 	mus := make([]float64, len(teams))
@@ -179,7 +228,7 @@ type Result struct {
 // Apply applies one two-team round in place: ratings (player id -> rating) and
 // handicaps (format -> rating) are updated, players not yet in ratings start
 // as New. teams holds the player ids of each team; winner is 0 or 1.
-func Apply(ratings, handicaps map[string]Rating, teams [2][]string, winner int) Result {
+func Apply(ratings, handicaps map[string]Rating, teams [2][]string, winner int, speed Speed) Result {
 	get := func(id string) Rating {
 		if r, ok := ratings[id]; ok {
 			return r
@@ -198,7 +247,7 @@ func Apply(ratings, handicaps map[string]Rating, teams [2][]string, winner int) 
 	withH, format, side := withHandicap(ms, handicaps)
 	ranks := []int{1, 1}
 	ranks[winner] = 0
-	after := rate(withH, ranks)
+	after := rate(withH, ranks, speed.Tau())
 
 	res := Result{Players: make(map[string]Change, len(teams[0])+len(teams[1])), Format: format}
 	for i, team := range teams {

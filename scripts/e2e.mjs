@@ -210,6 +210,28 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     check(settings.includes('Owner') && settings.includes('Devices') && settings.includes('Leave or delete'), 'an owner sees owner tools, devices and the danger zone');
     const gid = new URL(ada.url()).pathname.split('/')[2];
 
+    // Rating speed: the sheet explains the choice, saving re-rates the game.
+    const setSpeed = async (label) => {
+        await ada.click('button:has-text("Rating speed")');
+        await ada.waitForSelector('dialog[open]');
+        await ada.click(`dialog .segmented button:has-text("${label}")`);
+        return (await text(ada, 'dialog'));
+    };
+    const speedText = await setSpeed('Fast');
+    check(speedText.includes('table tennis') && speedText.includes('recalculates every rating'), 'the rating speed sheet explains the choice');
+    await shot(ada, 'multi-05b-rating-speed', false);
+    let updated = rpcDone(ada, 'UpdateGame');
+    await ada.click('dialog button:has-text("Save")');
+    await updated;
+    await ada.waitForSelector('text=Ratings recalculated');
+    await ada.waitForSelector('.list-row:has-text("· Fast")');
+    check(true, 'a game shows its non-default rating speed');
+    updated = rpcDone(ada, 'UpdateGame');
+    await setSpeed('Steady');
+    await ada.click('dialog button:has-text("Save")');
+    await updated;
+    await ada.waitForFunction(() => !document.body.innerText.includes('· Fast'));
+
     // A second phone joins with the office code
     const code = (await text(ada, '.code')).trim();
     const bob = await newPage({ name: 'bob', theme: 'light' });

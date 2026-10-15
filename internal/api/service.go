@@ -95,7 +95,29 @@ func playersPB(ps []store.Player) []*pb.Player {
 }
 
 func gamePB(g store.Game) *pb.Game {
-	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: g.TeamA, TeamB: g.TeamB, Archived: g.Archived, CreatedAtMs: g.CreatedAt}
+	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: g.TeamA, TeamB: g.TeamB, Archived: g.Archived, CreatedAtMs: g.CreatedAt,
+		RatingSpeed: speedPB[g.RatingSpeed]}
+}
+
+var speedPB = map[rating.Speed]pb.RatingSpeed{
+	rating.Steady: pb.RatingSpeed_RATING_SPEED_STEADY,
+	rating.Medium: pb.RatingSpeed_RATING_SPEED_MEDIUM,
+	rating.Fast:   pb.RatingSpeed_RATING_SPEED_FAST,
+}
+
+// speedPatch is the store value of an optional speed; UNSPECIFIED becomes ""
+// (refused by the store).
+func speedPatch(v *pb.RatingSpeed) *string {
+	if v == nil {
+		return nil
+	}
+	s := ""
+	for k, p := range speedPB {
+		if p == *v {
+			s = string(k)
+		}
+	}
+	return &s
 }
 
 func gamesPB(gs []store.Game) []*pb.Game {
@@ -454,6 +476,7 @@ func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (
 	m := r.Msg
 	err = v.s.Store.UpdateGame(ctx, dev.GroupID, m.GameId, store.GamePatch{
 		Name: m.Name, TeamA: nullableName(m.TeamA), TeamB: nullableName(m.TeamB), Archived: m.Archived,
+		RatingSpeed: speedPatch(m.RatingSpeed),
 	})
 	if err != nil {
 		return nil, rpcErr(err)

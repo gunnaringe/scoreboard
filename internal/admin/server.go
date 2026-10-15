@@ -396,7 +396,7 @@ func (v *service) ListGames(ctx context.Context, r *connect.Request[pb.ListGames
 	}
 	out := &pb.ListGamesResponse{}
 	for _, game := range games {
-		out.Games = append(out.Games, &pb.Game{Id: game.ID, Name: game.Name, Archived: game.Archived})
+		out.Games = append(out.Games, &pb.Game{Id: game.ID, Name: game.Name, Archived: game.Archived, RatingSpeed: string(game.RatingSpeed)})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -410,7 +410,7 @@ func (v *service) UpdateGame(ctx context.Context, r *connect.Request[pb.UpdateGa
 	if err != nil {
 		return nil, err
 	}
-	if err := v.s.Store.UpdateGame(ctx, g.ID, game.ID, store.GamePatch{Name: r.Msg.Name, Archived: r.Msg.Archived}); err != nil {
+	if err := v.s.Store.UpdateGame(ctx, g.ID, game.ID, store.GamePatch{Name: r.Msg.Name, Archived: r.Msg.Archived, RatingSpeed: r.Msg.RatingSpeed}); err != nil {
 		return nil, rpcErr(err)
 	}
 	return connect.NewResponse(&pb.UpdateGameResponse{}), nil

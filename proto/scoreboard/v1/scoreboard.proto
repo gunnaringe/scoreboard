@@ -114,6 +114,21 @@ message Game {
   optional string team_b = 4;
   bool archived = 5;
   int64 created_at_ms = 6;
+  // Always set (never UNSPECIFIED).
+  RatingSpeed rating_speed = 7;
+}
+
+// How quickly a game's ratings follow a player getting better or worse.
+// Faster means newer results count for more: improvement shows sooner, but
+// ratings wobble more and long-time players show a little lower (the display
+// is skill minus uncertainty). Changing it re-rates the game's whole history.
+enum RatingSpeed {
+  RATING_SPEED_UNSPECIFIED = 0;
+  // The default: for games where skill hardly changes, and team games.
+  RATING_SPEED_STEADY = 1;
+  RATING_SPEED_MEDIUM = 2;
+  // For players who improve quickly (table tennis, foosball…).
+  RATING_SPEED_FAST = 3;
 }
 
 message Tournament {
@@ -378,6 +393,8 @@ message UpdateGameRequest {
   optional string team_a = 3;
   optional string team_b = 4;
   optional bool archived = 5;
+  // Re-rates the whole game when it changes. UNSPECIFIED is refused.
+  optional RatingSpeed rating_speed = 6;
 }
 
 message UpdateGameResponse {}

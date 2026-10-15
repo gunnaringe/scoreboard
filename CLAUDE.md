@@ -51,9 +51,12 @@ All maths is Go. The browser shows server-computed numbers: `display`,
 (`PreviewRound`) and team suggestions (`SuggestTeams`, ≤ 14 players).
 Model: Weng-Lin BT-full, sigma0 6, display `1000 + 25·(mu − sigma − 19)`, team
 strength Σ(mu − 25) plus a **learned handicap per uneven format** ("2v1"…)
-(see `internal/rating/rating.go`). `internal/rating/testdata/golden.json` is
+(see `internal/rating/rating.go`). Per game **rating speed** (`games.rating_speed`,
+`rating.Speed`: steady/medium/fast = tau Mu/300, /100, /50): changing it replays
+the game (`UpdateGame`). `internal/rating/testdata/golden.json` is
 generated from the JS reference (`npm run golden`) and the Go package must
-reproduce it exactly.
+reproduce it exactly; the reference only knows Steady (the default), so other
+speeds are covered by Go tests only.
 
 Every change to a round (create, edit teams/winner, delete, restore) goes
 through `store` in one write transaction: new rounds apply incrementally, the

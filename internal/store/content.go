@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+
+	"github.com/gunnaringe/scoreboard/internal/rating"
 )
 
 // Player is someone who plays in a group.
@@ -22,7 +24,9 @@ type Game struct {
 	TeamB     *string `json:"teamB"`
 	Archived  bool    `json:"archived"`
 	CreatedAt int64   `json:"createdAt"`
-	Version   int64   `json:"-"`
+	// RatingSpeed is how quickly ratings follow changes in form.
+	RatingSpeed rating.Speed `json:"ratingSpeed"`
+	Version     int64        `json:"-"`
 }
 
 // Tournament groups rounds of one game.
@@ -141,15 +145,17 @@ func (s *Store) UpdatePlayer(ctx context.Context, groupID, playerID string, patc
 
 // ---- games ----------------------------------------------------------------------------
 
-const gameCols = `id, name, team_a, team_b, archived, created_at, version`
+const gameCols = `id, name, team_a, team_b, archived, created_at, version, rating_speed`
 
 func scanGame(row interface{ Scan(...any) error }) (Game, error) {
 	var g Game
 	var a, b sql.NullString
 	var archived int
-	if err := row.Scan(&g.ID, &g.Name, &a, &b, &archived, &g.CreatedAt, &g.Version); err != nil {
+	var speed string
+	if err := row.Scan(&g.ID, &g.Name, &a, &b, &archived, &g.CreatedAt, &g.Version, &speed); err != nil {
 		return Game{}, notFoundIf(err)
 	}
+	g.RatingSpeed, _ = rating.ParseSpeed(speed)
 	g.Archived = archived == 1
 	if a.Valid {
 		g.TeamA = &a.String
@@ -197,7 +203,7 @@ func (s *Store) CreateGame(ctx context.Context, groupID, name string, teamA, tea
 	if err != nil {
 		return Game{}, err
 	}
-	g := Game{ID: newID(), Name: name, TeamA: a, TeamB: b, CreatedAt: s.nowMs()}
+	g := Game{ID: newID(), Name: name, TeamA: a, TeamB: b, CreatedAt: s.nowMs(), RatingSpeed: rating.Steady}
 	err = s.write(ctx, func(tx *sql.Tx) error {
 		n, err := count(ctx, tx, `SELECT COUNT(*) FROM games WHERE group_id = ?`, groupID)
 		if err != nil {
@@ -219,6 +225,8 @@ type GamePatch struct {
 	Name         *string
 	TeamA, TeamB Nullable[string]
 	Archived     *bool
+	// RatingSpeed: a change re-rates the whole game.
+	RatingSpeed *string
 }
 
 // UpdateGame applies a patch.
@@ -251,11 +259,47 @@ func (s *Store) UpdateGame(ctx context.Context, groupID, gameID string, p GamePa
 	if p.Archived != nil {
 		sets, args = append(sets, "archived = ?"), append(args, b2i(*p.Archived))
 	}
+	var speed rating.Speed
+	if p.RatingSpeed != nil {
+		var ok bool
+		if speed, ok = rating.ParseSpeed(*p.RatingSpeed); !ok || *p.RatingSpeed == "" {
+			return BadRequest("rating speed must be steady, medium or fast")
+		}
+		sets, args = append(sets, "rating_speed = ?"), append(args, string(speed))
+	}
 	if len(sets) == 0 {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE games SET `+strings.Join(sets, ", ")+` WHERE id = ?`, append(args, gameID)...)
-	return err
+	return s.write(ctx, func(tx *sql.Tx) error {
+		rerate := false
+		if speed != "" {
+			current, err := gameSpeed(ctx, tx, gameID)
+			if err != nil {
+				return err
+			}
+			rerate = speed != current
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE games SET `+strings.Join(sets, ", ")+` WHERE id = ?`, append(args, gameID)...); err != nil {
+			return err
+		}
+		if !rerate {
+			return nil
+		}
+		if err := s.replayGame(ctx, tx, gameID); err != nil {
+			return err
+		}
+		return bumpVersion(ctx, tx, gameID)
+	})
+}
+
+// gameSpeed is the rating speed a game's rounds are rated with.
+func gameSpeed(ctx context.Context, q queryer, gameID string) (rating.Speed, error) {
+	var v string
+	if err := q.QueryRowContext(ctx, `SELECT rating_speed FROM games WHERE id = ?`, gameID).Scan(&v); err != nil {
+		return "", notFoundIf(err)
+	}
+	speed, _ := rating.ParseSpeed(v)
+	return speed, nil
 }
 
 // GameVersion is the cheap change counter polling screens ask for.

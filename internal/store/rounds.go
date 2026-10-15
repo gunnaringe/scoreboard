@@ -194,7 +194,11 @@ func (s *Store) CreateRound(ctx context.Context, groupID, gameID, deviceID strin
 		if err != nil {
 			return err
 		}
-		res := rating.Apply(ratings, handicaps, teams, in.Winner)
+		speed, err := gameSpeed(ctx, tx, gameID)
+		if err != nil {
+			return err
+		}
+		res := rating.Apply(ratings, handicaps, teams, in.Winner, speed)
 
 		if _, err := tx.ExecContext(ctx, `INSERT INTO rounds (id, game_id, tournament_id, played_at, winner, score_a, score_b, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, gameID, in.TournamentID, playedAt, in.Winner, in.ScoreA, in.ScoreB, nullIfEmpty(deviceID)); err != nil {
@@ -308,6 +312,10 @@ func differs(stored sql.NullFloat64, v float64) bool {
 // replayGame recalculates a game's ratings from its first round: every
 // non-deleted round in order. It rewrites only what changed.
 func (s *Store) replayGame(ctx context.Context, tx *sql.Tx, gameID string) error {
+	speed, err := gameSpeed(ctx, tx, gameID)
+	if err != nil {
+		return err
+	}
 	rows, err := tx.QueryContext(ctx, `
 		SELECT r.id, r.winner, r.format, r.h_mu_before, r.h_sigma_before, r.h_mu_after, r.h_sigma_after,
 		       rp.player_id, rp.team, rp.mu_before, rp.sigma_before, rp.mu_after, rp.sigma_after
@@ -348,7 +356,7 @@ func (s *Store) replayGame(ctx context.Context, tx *sql.Tx, gameID string) error
 	handicaps := map[string]rating.Rating{}
 	tally := map[string]counts{}
 	for _, r := range rounds {
-		res := rating.Apply(ratings, handicaps, r.teams, r.winner)
+		res := rating.Apply(ratings, handicaps, r.teams, r.winner, speed)
 		for pid, c := range res.Players {
 			sp := r.stored[pid]
 			k := tally[pid]
