@@ -189,6 +189,13 @@ await shot(await open(game), 'leaderboard');
     await shot(p, 'round');
 }
 await shot(await open(`${game}/p/${ada.id}`), 'player');
+{
+    const p = await open(`/g/${gid}/settings`);
+    await p.locator('.list-row', { hasText: rl.name }).locator('button:has-text("Teams")').click();
+    await p.waitForSelector('dialog[open]');
+    await p.waitForTimeout(300);
+    await shot(p, 'team-names');
+}
 await shot(await open(`${game}/t/${cupId}`), 'tournament');
 await shot(await open(`${new URL(group.links.dashboard).pathname}?game=${gameId}`, { device: DESKTOP }), 'dashboard');
 for (const theme of ['light', 'dark', 'hacker', 'gamer']) await shot(await open(game, { theme }), `theme-${theme}`);
