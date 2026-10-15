@@ -711,7 +711,9 @@ function leaderboard(ctx, _todayRounds, hrefFor, { big = false } = {}) {
 }
 
 function roundItem(ctx, round, { showDay = false, onEdit } = {}) {
-    const team = (i) => round.players.filter((p) => p.team === i);
+    // Teammates alphabetically: the server's order (by id) means nothing to people.
+    const team = (i) => round.players.filter((p) => p.team === i)
+        .sort((a, b) => playerName(ctx, a.playerId).localeCompare(playerName(ctx, b.playerId), locale()));
     const names = (i) => team(i).map((p) => playerName(ctx, p.playerId)).join(', ');
     const side = (i) => h('div', { class: `side side-${i} ${round.winner === i ? 'won' : ''}` },
         round.winner === i && h('span', { class: 'win-mark' }, icon('trophy'), t('win')),
