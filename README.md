@@ -19,9 +19,14 @@ inside, SQLite for storage, no accounts.
   extra player is worth. 1-against-1 games work too, and each game can choose
   how quickly ratings follow improvement. New players are listed apart until
   they have played 10 rounds. [How the ratings work](docs/rating.md).
-- **Fast on a phone.** The round sheet opens with the last line-up, tapping
-  who won saves it, Undo fixes mistakes. Win odds and "balance teams" are
-  built in. Editing or deleting an old round recalculates everything exactly.
+- **Fast on a phone.** The round sheet opens with the last line-up; drag
+  players between the teams and the bench, or use their + buttons, with
+  everyone's rating in sight. Tapping who won saves it, Undo fixes mistakes.
+  Win odds and "balance teams" are built in. Editing or deleting an old round
+  recalculates everything exactly.
+- **Made for a shared screen.** Nobody signs in or says who they are: one
+  tablet or phone by the table can log every round. The leaderboard shows
+  each player's points today and this week.
 - **Wall screen.** A read-only dashboard for a TV that follows new rounds.
 - **Groups, games, tournaments.** Several games per group, optional scores and
   tournaments, a page per player with history, best teammate and nemesis.
@@ -71,8 +76,8 @@ with install steps in its header.
 
 ### First steps
 
-1. Open the address and say who you are.
-2. Add a game, add the players as you log the first rounds.
+1. Open the address.
+2. Add a game, and add the players as you log the first rounds.
 3. Put the dashboard (`/d` in single mode) on a TV.
 
 The database schema is created and migrated when the server starts; there is

@@ -41,7 +41,7 @@ func newFixture(t *testing.T, nPlayers int) *fixture {
 	f.group, f.gameID = cg.Group, cg.GameID
 	for i := 0; i < nPlayers; i++ {
 		name := fmt.Sprintf("P%d", i)
-		p, err := s.CreatePlayer(ctx, f.group.ID, name, "")
+		p, err := s.CreatePlayer(ctx, f.group.ID, name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func (f *fixture) verify() {
 			tally[p.ID] = k
 		}
 	}
-	v, err := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+	v, err := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
 	if err != nil {
 		f.t.Fatal(err)
 	}
@@ -149,11 +149,11 @@ func TestIncrementalEqualsReplay(t *testing.T) {
 	f.round(p[0:2], p[2:3], 0) // 2v1
 	f.round(p[3:4], p[4:6], 1) // 1v2
 	f.verify()
-	before, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+	before, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
 	if err := f.s.Recalculate(ctx, f.group.ID, f.gameID); err != nil {
 		t.Fatal(err)
 	}
-	after, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+	after, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
 	for i := range before.Ratings {
 		for _, r := range after.Ratings {
 			if r.PlayerID == before.Ratings[i].PlayerID && !near(r.Mu, before.Ratings[i].Mu) {
@@ -177,7 +177,7 @@ func TestRatingSpeedReratesTheGame(t *testing.T) {
 		return g.RatingSpeed
 	}
 	sigma := func() float64 {
-		v, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+		v, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
 		return v.Ratings[0].Sigma
 	}
 	if speedOf() != rating.Steady {
@@ -341,7 +341,7 @@ func TestRoundsNeverShareATimestamp(t *testing.T) {
 func TestNamesAreUniqueIgnoringCaseAndInvisibleCharacters(t *testing.T) {
 	f := newFixture(t, 1)
 	for _, name := range []string{"p0", " P0 ", "P​0", "Ｐ０"} { // fullwidth letters normalise to P0
-		_, err := f.s.CreatePlayer(ctx, f.group.ID, name, "")
+		_, err := f.s.CreatePlayer(ctx, f.group.ID, name)
 		var taken *NameTakenError
 		if !errors.As(err, &taken) {
 			t.Fatalf("%q: got %v, want name taken", name, err)
@@ -350,7 +350,7 @@ func TestNamesAreUniqueIgnoringCaseAndInvisibleCharacters(t *testing.T) {
 			t.Fatalf("%q: wrong existing player", name)
 		}
 	}
-	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "   ", ""); err == nil {
+	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "   "); err == nil {
 		t.Fatal("blank name accepted")
 	}
 }
@@ -358,10 +358,10 @@ func TestNamesAreUniqueIgnoringCaseAndInvisibleCharacters(t *testing.T) {
 func TestLimits(t *testing.T) {
 	f := newFixture(t, 2)
 	f.s.Limits = Limits{Players: 3, RoundsPerDay: 2, Games: 1, Tournaments: 1}.withDefaults()
-	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Third", ""); err != nil {
+	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Third"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Fourth", ""); !errors.Is(err, ErrLimit) {
+	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Fourth"); !errors.Is(err, ErrLimit) {
 		t.Fatalf("got %v", err)
 	}
 	if _, err := f.s.CreateGame(ctx, f.group.ID, "Another", nil, nil); !errors.Is(err, ErrLimit) {
@@ -417,7 +417,7 @@ func TestGroupsAreIsolated(t *testing.T) {
 	if _, err := f.s.UpdateRound(ctx, other.Group.ID, r.ID, RoundPatch{Winner: ptr(1)}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("got %v", err)
 	}
-	if _, err := f.s.GetGameView(ctx, other.Group.ID, f.gameID, 0); !errors.Is(err, ErrNotFound) {
+	if _, err := f.s.GetGameView(ctx, other.Group.ID, f.gameID, 0, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -433,7 +433,7 @@ func TestLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner, err := s.Authenticate(ctx, cg.DeviceToken)
-	if err != nil || !owner.Owner || owner.PlayerID == nil || owner.Label != "iPhone · Safari" {
+	if err != nil || !owner.Owner || owner.Label != "iPhone · Safari" {
 		t.Fatalf("creator device: %+v %v", owner, err)
 	}
 
@@ -498,15 +498,16 @@ func TestLinks(t *testing.T) {
 	}
 }
 
-func TestTodayAndDisplay(t *testing.T) {
+func TestTodayWeekAndDisplay(t *testing.T) {
 	f := newFixture(t, 3)
 	p := f.players
-	f.round(p[0:1], p[1:2], 0) // yesterday
+	weekSince := f.clock.UnixMilli()
+	f.round(p[0:1], p[1:2], 0) // yesterday: counts for the week, not today
 	f.clock = f.clock.Add(24 * time.Hour)
 	since := f.clock.UnixMilli()
 	f.round(p[0:1], p[2:3], 0)
 	f.round(p[0:1], p[1:2], 1)
-	v, err := f.s.GetGameView(ctx, f.group.ID, f.gameID, since)
+	v, err := f.s.GetGameView(ctx, f.group.ID, f.gameID, since, weekSince)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,10 +525,15 @@ func TestTodayAndDisplay(t *testing.T) {
 	if *byID[p[2]].Today >= 0 {
 		t.Fatalf("p2 today = %d", *byID[p[2]].Today)
 	}
-	one, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, since+365*86400000) // nothing "today"
+	// The week starts before yesterday's round, so it differs from today for
+	// the two who played it, and equals today for p[2] (who only played today).
+	if byID[p[0]].Week == nil || *byID[p[0]].Week == *byID[p[0]].Today || *byID[p[2]].Week != *byID[p[2]].Today {
+		t.Fatalf("week: %+v", byID)
+	}
+	one, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, since+365*86400000, since+365*86400000) // nothing since then
 	for _, r := range one.Ratings {
-		if r.Today != nil {
-			t.Fatal("today set for a day without rounds")
+		if r.Today != nil || r.Week != nil {
+			t.Fatal("today/week set for a period without rounds")
 		}
 	}
 }
@@ -546,7 +552,7 @@ func TestMergePlayers(t *testing.T) {
 	if len(ps) != 3 {
 		t.Fatalf("%d players left", len(ps))
 	}
-	v, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
+	v, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
 	for _, r := range v.Ratings {
 		if r.PlayerID == p[2] && r.Rounds != 3 {
 			t.Fatalf("merged player has %d rounds", r.Rounds)
@@ -595,8 +601,8 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if len(games) != 1 || games[0].RatingSpeed != rating.Medium {
 		t.Fatalf("game not imported: %+v", games)
 	}
-	orig, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0)
-	copy, err := f.s.GetGameView(ctx, created.Group.ID, games[0].ID, 0)
+	orig, _ := f.s.GetGameView(ctx, f.group.ID, f.gameID, 0, 0)
+	copy, err := f.s.GetGameView(ctx, created.Group.ID, games[0].ID, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

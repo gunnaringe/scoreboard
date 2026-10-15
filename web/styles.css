@@ -145,7 +145,7 @@
 [data-theme="hacker"] .qr { filter: none; }
 /* Square corners: terminal windows, not bubbles. */
 [data-theme="hacker"] :is(.card, .icon-btn, .btn, .segmented, .segmented button, .input, .chip, .pchip, .toast, .switch span,
-    .sheet, .round, .win-btn, .fab, .list-link, .invite-qr, .code, .team-box, .stat, .chip-main, .chip-x) { border-radius: 2px; }
+    .sheet, .round, .win-btn, .fab, .list-link, .invite-qr, .code, .team-box, .stat, .chip-add, .chip-move, .chip-x, .drop-zone) { border-radius: 2px; }
 [data-theme="hacker"] .switch span::after { border-radius: 1px; }
 
 /* Gamer: esports red against blue on near-black, sharp corners, bold italic caps. */
@@ -574,7 +574,7 @@ button.round:hover { border-color: var(--accent); }
 .sheet-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .tools { gap: 6px; }
 
-.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.teams { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .team-box {
     display: grid;
     gap: 8px;
@@ -590,11 +590,41 @@ button.round:hover { border-color: var(--accent); }
 .team-box-0 strong { color: var(--team-0); }
 .team-box-1 strong { color: var(--team-1); }
 .odds { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.team-box .pchip { padding: 0; gap: 0; background: var(--card-strong); }
-.chip-main { border: 0; background: none; color: inherit; font: inherit; padding: 8px 4px 8px 12px; min-height: 40px; cursor: pointer; border-radius: 999px 0 0 999px; }
-.chip-x { border: 0; background: none; color: var(--muted); padding: 0 10px 0 6px; min-height: 40px; cursor: pointer; display: grid; place-items: center; border-radius: 0 999px 999px 0; }
-.chip-x svg { width: 14px; height: 14px; }
+/* Round sheet chips: name + rating, then buttons. The chip itself is the drag
+   handle; the buttons do the same moves for those who don't drag. */
+.round-sheet .pchip { padding: 0 4px 0 12px; gap: 2px; cursor: grab; -webkit-touch-callout: none; touch-action: manipulation; }
+.team-box .pchip { background: var(--card-strong); display: flex; min-width: 0; padding-left: 10px; gap: 0; }
+/* Half a phone is narrow: in a team the rating goes under the name, which
+   shortens with an ellipsis before anything is pushed out. */
+.team-box .chip-label { flex-direction: column; align-items: flex-start; gap: 0; flex: 1; min-width: 0; padding: 4px 2px 4px 0; line-height: 1.15; }
+.team-box .chip-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-box .chip-rating { font-size: 0.72rem; }
+.team-box :is(.chip-move, .chip-x) { width: 30px; height: 36px; }
+.chip-label { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 4px 8px 0; }
+.chip-rating { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.chip-add, .chip-move, .chip-x {
+    border: 0; background: none; color: var(--muted); padding: 0; width: 32px; height: 32px; flex: none;
+    cursor: pointer; display: grid; place-items: center; border-radius: 999px;
+}
+.chip-add svg, .chip-move svg, .chip-x svg { width: 15px; height: 15px; }
+.chip-add.add-0, .chip-move.to-0 { color: var(--team-0); }
+.chip-add.add-1, .chip-move.to-1 { color: var(--team-1); }
+.chip-add.add-0:hover, .chip-move.to-0:hover { background: var(--team-0-bg); }
+.chip-add.add-1:hover, .chip-move.to-1:hover { background: var(--team-1-bg); }
+.chip-add { border: 1.5px solid currentColor; width: 28px; height: 28px; margin-left: 2px; }
 .chip-x:hover { color: var(--danger); }
+.pchip.dragging { opacity: 0.35; }
+.pchip.lifted { transform: scale(1.06); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5); }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; opacity: 0.92;
+    box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.6); }
+.drop-zone { border-radius: 14px; transition: outline-color .12s; outline: 2px dashed transparent; outline-offset: 2px; }
+.drop-zone.drop-over { outline-color: var(--accent); }
+.drop-zone[data-drop="0"].drop-over { outline-color: var(--team-0); }
+.drop-zone[data-drop="1"].drop-over { outline-color: var(--team-1); }
+.bench-chips { min-height: 44px; }
+.team-names { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.team-name-field { display: grid; gap: 8px; }
+@media (max-width: 420px) { .team-names { grid-template-columns: 1fr; } }
 .bench { display: grid; gap: 8px; }
 .bench h3 { margin: 0; }
 .more { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }

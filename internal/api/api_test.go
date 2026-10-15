@@ -97,8 +97,9 @@ type office struct {
 
 func (e *env) office() office {
 	e.t.Helper()
-	r := must(e, e.c.CreateGroup, "", &pb.CreateGroupRequest{Name: "Office", PlayerName: "Ada", GameName: "Rocket League"})
+	r := must(e, e.c.CreateGroup, "", &pb.CreateGroupRequest{Name: "Office", GameName: "Rocket League"})
 	o := office{gid: r.GroupId, game: r.GameId, owner: r.DeviceToken, ownerLink: r.OwnerToken}
+	e.player(o.owner, "Ada")
 	g := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{})
 	o.code, o.dash = g.Group.OfficeCode, g.Group.DashboardToken
 	return o
@@ -368,7 +369,7 @@ func TestPreviewAndSuggest(t *testing.T) {
 	for _, n := range []string{"Bob", "Cy", "Dee", "Eve"} {
 		ids = append(ids, e.player(o.owner, n))
 	}
-	ada := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Me.GetPlayerId()
+	ada := e.player(o.owner, "Ada") // already exists: returns her id
 	// Ada beats everyone, repeatedly: she becomes the favourite.
 	for i := 0; i < 12; i++ {
 		if _, err := e.round(o, o.owner, []string{ada}, []string{ids[i%4]}, 0); err != nil {
@@ -449,9 +450,8 @@ func TestRateLimits(t *testing.T) {
 	}
 
 	e2 := newEnv(t, func(c *config.Config) { c.WriteLimit = 2 }, nil)
-	o := e2.office()
+	o := e2.office() // adds Ada: one write
 	e2.player(o.owner, "A")
-	e2.player(o.owner, "B")
 	_, err = call(e2, e2.c.CreatePlayer, o.owner, &pb.CreatePlayerRequest{Name: "C"})
 	wantCode(t, err, connect.CodeResourceExhausted)
 	if !strings.Contains(err.Error(), msgRateLimited) {
@@ -497,12 +497,9 @@ func TestSingleMode(t *testing.T) {
 	}
 	// Members manage players and games; nobody is an owner (the CLI administers).
 	game := must(e, e.c.CreateGame, tok, &pb.CreateGameRequest{Name: "Table tennis"}).Game.Id
-	a := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Ada", MakeMe: true}).Player.Id
+	a := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Ada"}).Player.Id
 	b := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Bob"}).Player.Id
 	must(e, e.c.CreateRound, tok, &pb.CreateRoundRequest{GameId: game, TeamA: []string{a}, TeamB: []string{b}})
-	if must(e, e.c.GetGroup, tok, &pb.GetGroupRequest{}).Me.GetPlayerId() != a {
-		t.Fatal("make_me lost")
-	}
 	_, err = call(e, e.c.UpdateGroup, tok, &pb.UpdateGroupRequest{Name: ptr("x")})
 	wantCode(t, err, connect.CodePermissionDenied)
 	_, err = call(e, e.c.DeleteGroup, tok, &pb.DeleteGroupRequest{})
@@ -551,7 +548,7 @@ func TestJSONWireFormat(t *testing.T) {
 		}
 		return res.StatusCode, m
 	}
-	status, g := post("CreateGroup", "", `{"name":"Wire","playerName":"Ada","gameName":"RL"}`)
+	status, g := post("CreateGroup", "", `{"name":"Wire","gameName":"RL"}`)
 	if status != 200 {
 		t.Fatalf("%d %v", status, g)
 	}
@@ -564,11 +561,8 @@ func TestJSONWireFormat(t *testing.T) {
 	if p["player"].(map[string]any)["archived"] != false {
 		t.Fatalf("archived:false must be sent explicitly: %v", p)
 	}
-	me := func() string {
-		_, grp := post("GetGroup", token, `{}`)
-		return grp["me"].(map[string]any)["playerId"].(string)
-	}
-	ada := me()
+	_, a := post("CreatePlayer", token, `{"name":"Ada"}`)
+	ada := a["player"].(map[string]any)["id"].(string)
 	status, r := post("CreateRound", token, fmt.Sprintf(`{"gameId":%q,"teamA":[%q],"teamB":[%q],"winner":0}`, game, ada, bob))
 	if status != 200 {
 		t.Fatalf("%d %v", status, r)

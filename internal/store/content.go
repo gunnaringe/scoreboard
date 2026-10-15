@@ -62,9 +62,8 @@ func (s *Store) ListPlayers(ctx context.Context, groupID string) ([]Player, erro
 
 // CreatePlayer adds a player. A name that is already taken (ignoring case and
 // invisible characters) returns *NameTakenError with the existing player, so
-// callers can use that one instead. forDevice, if set, also becomes the
-// device's "who are you".
-func (s *Store) CreatePlayer(ctx context.Context, groupID, name, forDevice string) (Player, error) {
+// callers can use that one instead.
+func (s *Store) CreatePlayer(ctx context.Context, groupID, name string) (Player, error) {
 	name, err := CleanName(name, "player name")
 	if err != nil {
 		return Player{}, err
@@ -89,13 +88,8 @@ func (s *Store) CreatePlayer(ctx context.Context, groupID, name, forDevice strin
 		if n >= s.Limits.Players {
 			return ErrLimit
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO players (id, group_id, name, name_key, created_at) VALUES (?, ?, ?, ?, ?)`,
-			p.ID, groupID, name, nameKey(name), s.nowMs()); err != nil {
-			return err
-		}
-		if forDevice != "" {
-			_, err = tx.ExecContext(ctx, `UPDATE devices SET player_id = ? WHERE id = ? AND group_id = ?`, p.ID, forDevice, groupID)
-		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO players (id, group_id, name, name_key, created_at) VALUES (?, ?, ?, ?, ?)`,
+			p.ID, groupID, name, nameKey(name), s.nowMs())
 		return err
 	})
 	return p, err

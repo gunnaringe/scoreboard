@@ -39,7 +39,7 @@ const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
 const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
 
 // ---- groups, joining ------------------------------------------------------------
-const created = await ok('CreateGroup', { name: 'Office', playerName: 'Ada', gameName: 'Rocket League' });
+const created = await ok('CreateGroup', { name: 'Office', gameName: 'Rocket League' });
 assert.ok(created.ownerToken && created.gameId && created.deviceToken);
 const owner = created.deviceToken;
 const game = created.gameId;
@@ -57,7 +57,7 @@ await fails('GetGroup', {}, undefined, 'unauthenticated');
 await fails('Join', { code: 'AAAA-AAAA' }, undefined, 'not_found');
 
 // ---- players -----------------------------------------------------------------------
-const names = ['Bob', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus'];
+const names = ['Ada', 'Bob', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus'];
 for (const name of names) assert.equal((await ok('CreatePlayer', { name }, member)).existed, false);
 const dup = await ok('CreatePlayer', { name: ' bob​ ' }, member);
 assert.equal(dup.existed, true, 'invisible characters and case do not make a new name');

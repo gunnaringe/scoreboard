@@ -334,13 +334,13 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 			}
 			show(r.Msg, func() {
 				tw := table()
-				fmt.Fprintln(tw, "ID\tPLAYER\tOWNER\tDEVICE\tJOINED\tLAST SEEN")
+				fmt.Fprintln(tw, "ID\tOWNER\tDEVICE\tJOINED\tLAST SEEN")
 				for _, d := range r.Msg.Devices {
 					seen := "-"
 					if d.LastSeenAt != nil {
 						seen = date(d.LastSeenAt)
 					}
-					fmt.Fprintf(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", d.Id, d.Player, d.Owner, d.Label, date(d.CreatedAt), seen)
+					fmt.Fprintf(tw, "%s\t%v\t%s\t%s\t%s\n", d.Id, d.Owner, d.Label, date(d.CreatedAt), seen)
 				}
 				tw.Flush()
 			})

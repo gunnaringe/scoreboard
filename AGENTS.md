@@ -79,7 +79,8 @@ JSON quirks the frontend relies on (`TestJSONWireFormat` pins them):
 ## Rating
 
 All maths is Go. The browser shows server-computed numbers: `display`,
-`delta`, `today`, `provisional` (< 10 rounds = "new", unranked), win odds
+`delta`, `today` and `week` (change since the `since` / `week_since` the client
+sends: its midnight and Monday), `provisional` (< 10 rounds = "new", unranked), win odds
 (`PreviewRound`) and team suggestions (`SuggestTeams`, ≤ 14 players).
 Model: Weng-Lin BT-full, sigma0 6, display `1000 + 25·(mu − sigma − 19)`, team
 strength Σ(mu − 25) plus a **learned handicap per uneven format** ("2v1"…)
@@ -125,6 +126,18 @@ browser silently gets a device (`Join` ignores the code), the dashboard is
 `/d` (token `main`), no owner actions at all — administration is the CLI. The
 frontend adapts from `/config.json` (same message as `GetInstance`).
 `--mode multi`: office / dashboard / owner links (see README).
+
+Devices are not people: screens are shared, so there is no "who are you" (no
+device↔player link in the API or schema since migration 0003). Owners and
+devices are shown by their label (from the User-Agent at join).
+
+## Round sheet
+
+`roundSheet` in `app.js`: chips carry name + rating; the bench has + buttons per
+team, a team chip has "move to the other team" and "bench" buttons, and every
+chip drags (pointer events; on touch after a 180 ms hold so swiping still
+scrolls) onto `[data-drop]` zones (`0`, `1`, `bench`). e2e covers both the
+buttons (`place()`) and dragging (`drag()`).
 
 ## Admin
 

@@ -35,7 +35,6 @@ func (s *Store) MergePlayers(ctx context.Context, groupID, from, into string) er
 		}
 		for _, q := range []string{
 			`UPDATE round_players SET player_id = ?2 WHERE player_id = ?1`,
-			`UPDATE devices SET player_id = ?2 WHERE player_id = ?1`,
 			`DELETE FROM players WHERE id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {

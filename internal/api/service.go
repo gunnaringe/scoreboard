@@ -181,6 +181,10 @@ func gameViewPB(v store.GameView) *pb.GameView {
 			t := int32(*r.Today)
 			pr.Today = &t
 		}
+		if r.Week != nil {
+			w := int32(*r.Week)
+			pr.Week = &w
+		}
 		out.Ratings = append(out.Ratings, pr)
 	}
 	for _, h := range v.Handicaps {
@@ -235,7 +239,7 @@ func (v *service) CreateGroup(ctx context.Context, r req[pb.CreateGroupRequest])
 		return nil, err
 	}
 	m := r.Msg
-	created, err := v.s.Store.CreateGroup(ctx, m.Name, m.PlayerName, m.GameName, true, r.Header().Get("User-Agent"))
+	created, err := v.s.Store.CreateGroup(ctx, m.Name, "", m.GameName, true, r.Header().Get("User-Agent"))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -302,12 +306,12 @@ func (v *service) GetGroup(ctx context.Context, r req[pb.GetGroupRequest]) (res[
 	}
 	out := &pb.GetGroupResponse{
 		Group:   groupPB(g, v.s.single()),
-		Me:      &pb.Me{DeviceId: dev.ID, PlayerId: dev.PlayerID, Owner: dev.Owner},
+		Me:      &pb.Me{DeviceId: dev.ID, Owner: dev.Owner},
 		Players: playersPB(players),
 		Games:   gamesPB(games),
 	}
 	for _, o := range owners {
-		out.Owners = append(out.Owners, &pb.Owner{PlayerId: o.PlayerID, Label: o.Label})
+		out.Owners = append(out.Owners, &pb.Owner{Label: o.Label})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -361,21 +365,6 @@ func (v *service) RotateLink(ctx context.Context, r req[pb.RotateLinkRequest]) (
 	return connect.NewResponse(out), nil
 }
 
-func (v *service) SetMe(ctx context.Context, r req[pb.SetMeRequest]) (res[pb.SetMeResponse], error) {
-	dev, err := v.device(ctx, r.Header(), true)
-	if err != nil {
-		return nil, err
-	}
-	id := r.Msg.PlayerId
-	if id != nil && *id == "" {
-		id = nil
-	}
-	if err := v.s.Store.SetDevicePlayer(ctx, dev.GroupID, dev.ID, id); err != nil {
-		return nil, rpcErr(err)
-	}
-	return connect.NewResponse(&pb.SetMeResponse{}), nil
-}
-
 func (v *service) ListDevices(ctx context.Context, r req[pb.ListDevicesRequest]) (res[pb.ListDevicesResponse], error) {
 	dev, err := v.device(ctx, r.Header(), false)
 	if err != nil {
@@ -391,7 +380,7 @@ func (v *service) ListDevices(ctx context.Context, r req[pb.ListDevicesRequest])
 	out := &pb.ListDevicesResponse{}
 	for _, d := range devices {
 		out.Devices = append(out.Devices, &pb.Device{
-			Id: d.ID, PlayerId: d.PlayerID, Owner: d.Owner, Label: d.Label, CreatedAt: ts(d.CreatedAt), LastSeenAt: tsOpt(d.LastSeen), IsMe: d.ID == dev.ID,
+			Id: d.ID, Owner: d.Owner, Label: d.Label, CreatedAt: ts(d.CreatedAt), LastSeenAt: tsOpt(d.LastSeen), IsMe: d.ID == dev.ID,
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -419,11 +408,7 @@ func (v *service) CreatePlayer(ctx context.Context, r req[pb.CreatePlayerRequest
 	if err != nil {
 		return nil, err
 	}
-	forDevice := ""
-	if r.Msg.MakeMe {
-		forDevice = dev.ID
-	}
-	p, err := v.s.Store.CreatePlayer(ctx, dev.GroupID, r.Msg.Name, forDevice)
+	p, err := v.s.Store.CreatePlayer(ctx, dev.GroupID, r.Msg.Name)
 	var taken *store.NameTakenError
 	if errors.As(err, &taken) && taken.Existing.ID != "" {
 		return connect.NewResponse(&pb.CreatePlayerResponse{Player: playerPB(taken.Existing), Existed: true}), nil
@@ -486,10 +471,10 @@ func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (
 	return connect.NewResponse(&pb.UpdateGameResponse{}), nil
 }
 
-// sinceOrDefault is the start of the viewer's day, or 24 hours ago, in Unix ms.
-func (v *service) sinceOrDefault(since *timestamppb.Timestamp) int64 {
+// sinceOrDefault is `since` in Unix ms, or `days` days ago when it is unset.
+func (v *service) sinceOrDefault(since *timestamppb.Timestamp, days int64) int64 {
 	if since == nil || since.AsTime().UnixMilli() <= 0 {
-		return v.s.Store.Now().UnixMilli() - 86400000
+		return v.s.Store.Now().UnixMilli() - days*86400000
 	}
 	return since.AsTime().UnixMilli()
 }
@@ -510,7 +495,7 @@ func (v *service) GetGame(ctx context.Context, r req[pb.GetGameRequest]) (res[pb
 	if err != nil {
 		return nil, err
 	}
-	view, err := v.s.Store.GetGameView(ctx, dev.GroupID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since))
+	view, err := v.s.Store.GetGameView(ctx, dev.GroupID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since, 1), v.sinceOrDefault(r.Msg.WeekSince, 7))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -743,7 +728,7 @@ func (v *service) GetDashboardGame(ctx context.Context, r req[pb.GetDashboardGam
 	if err != nil {
 		return nil, err
 	}
-	view, err := v.s.Store.GetGameView(ctx, g.ID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since))
+	view, err := v.s.Store.GetGameView(ctx, g.ID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since, 1), v.sinceOrDefault(r.Msg.WeekSince, 7))
 	if err != nil {
 		return nil, rpcErr(err)
 	}

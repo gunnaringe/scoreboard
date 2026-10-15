@@ -68,21 +68,33 @@ const shot = (p, name, full = true) => p.screenshot({ path: join(SHOTS, `${name}
 const text = async (p, sel = '#app') => (await p.locator(sel).first().innerText()).replace(/\s+/g, ' ');
 const rpcDone = (p, method) => p.waitForResponse((r) => r.url().endsWith(`.ScoreboardService/${method}`) && r.request().method() === 'POST');
 
-// Puts a player on a team in the open round sheet (adding them first if unknown).
+// The chip of a player in the open round sheet.
+const chipOf = (p, name) => p.locator('dialog .pchip', { has: p.locator(`.chip-name:text-is("${name}")`) }).first();
+// Puts a player on a team in the open round sheet (adding them first if unknown),
+// with the chip's buttons: + team on the bench, "move" in the other team.
 async function place(p, name, team) {
-    const chip = () => p.locator('dialog .pchip', { has: p.locator(`:scope >> text="${name}"`) }).first();
-    if (!(await p.locator('dialog .pchip', { hasText: name }).count())) {
+    if (!(await chipOf(p, name).count())) {
         await p.fill('dialog input[placeholder="New player"]', name);
         await p.click('dialog form button');
-        await p.locator('dialog .pchip', { hasText: name }).first().waitFor();
+        await chipOf(p, name).waitFor();
     }
     for (let i = 0; i < 3; i++) {
-        const c = p.locator('dialog .pchip', { hasText: name }).first();
+        const c = chipOf(p, name);
         const cls = (await c.getAttribute('class')) || '';
         if (cls.includes(`team-${team}`)) return;
-        await (cls.includes('team-') ? c.locator('.chip-main') : c).click();
+        await c.locator(cls.includes('team-') ? '.chip-move' : `.add-${team}`).click();
     }
     throw new Error(`could not put ${name} on team ${team}`);
+}
+// Drags a chip onto a drop zone ('0', '1' or 'bench') with the mouse.
+async function drag(p, name, zone) {
+    const from = await chipOf(p, name).locator('.chip-name').boundingBox();
+    const to = await p.locator(`dialog [data-drop="${zone}"]`).boundingBox();
+    await p.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await p.mouse.down();
+    await p.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 + 10, { steps: 3 });
+    await p.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await p.mouse.up();
 }
 // Logs a round: a/b are lists of names; winner 0 or 1. Resolves when the page has refreshed.
 async function logRound(p, a, b, winner) {
@@ -117,7 +129,6 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await shot(ada, 'multi-01-home');
 
     await ada.fill('input[placeholder="e.g. Oslo office"]', 'Oslo office');
-    await ada.fill('input[placeholder="Your name"]', 'Ada');
     await ada.click('text=Create group');
     await ada.waitForSelector('dialog[open] input.mono');
     const ownerLink = await ada.inputValue('dialog input.mono');
@@ -131,6 +142,9 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     // Rounds: 1v1, 2v2, 2v1 (teaches a handicap), balance, same-as-last
     await logRound(ada, ['Ada'], ['Bob'], 0);
     eq([await ratingOf(ada, 'Ada') > 1000, await ratingOf(ada, 'Bob') < 1000], [true, true], 'the winner goes up, the loser down');
+    // Today and this week: both cells filled for someone who played today.
+    eq(await ada.locator('.board tr', { hasText: 'Ada' }).first().locator('.delta-cell').allInnerTexts().then((c) => c.map((x) => x.trim() !== '')), [true, true],
+        'the leaderboard shows today and this week');
     await logRound(ada, ['Ada', 'Cy'], ['Bob', 'Dee'], 1);
     await logRound(ada, ['Ada', 'Bob'], ['Cy'], 0);
     await ada.locator('.fab').click();
@@ -141,6 +155,13 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await ada.waitForSelector('dialog .odds');
     const odds = (await ada.locator('dialog .odds').allInnerTexts()).map((x) => parseInt(x));
     check(odds.length === 2 && odds[0] + odds[1] >= 99 && odds[0] + odds[1] <= 101, `win odds come from the server (${odds.join(' / ')})`);
+    // Chips show the rating; drag and drop moves players like the buttons do.
+    check(/Ada\s*\d{3,4}/.test(await chipOf(ada, 'Ada').innerText()), 'player chips show the rating');
+    await drag(ada, 'Cy', '0');
+    check((await chipOf(ada, 'Cy').getAttribute('class')).includes('team-0'), 'dragging a player onto the other team moves them');
+    await drag(ada, 'Cy', 'bench');
+    check(!(await chipOf(ada, 'Cy').getAttribute('class')).includes('team-'), 'dragging onto the bench benches them');
+    await place(ada, 'Cy', 1);
     // Balance
     await place(ada, 'Dee', 1);
     const balanced = rpcDone(ada, 'SuggestTeams');
@@ -228,6 +249,24 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     check(settings.includes('Owner') && settings.includes('Devices') && settings.includes('Leave or delete'), 'an owner sees owner tools, devices and the danger zone');
     const gid = new URL(ada.url()).pathname.split('/')[2];
 
+    // Team names: one sheet with both names; empty means the default.
+    await ada.click('button:has-text("Teams")');
+    await ada.waitForSelector('dialog[open]');
+    await shot(ada, 'multi-05a-team-names', false);
+    const named = rpcDone(ada, 'UpdateGame');
+    await ada.locator('dialog input').nth(0).fill('Lions');
+    await ada.locator('dialog input').nth(1).fill('');
+    await ada.click('dialog button:has-text("Save")');
+    await named;
+    await ada.waitForSelector('text=Lions / Orange');
+    check(true, 'team names are set in one sheet, empty keeps the default');
+    const reset = rpcDone(ada, 'UpdateGame');
+    await ada.click('button:has-text("Teams")');
+    await ada.locator('dialog input').nth(0).fill('');
+    await ada.click('dialog button:has-text("Save")');
+    await reset;
+    await ada.waitForSelector('text=Blue / Orange');
+
     // Rating speed: the sheet explains the choice, saving re-rates the game.
     const setSpeed = async (label) => {
         await ada.click('button:has-text("Rating speed")');
@@ -254,11 +293,10 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     const code = (await text(ada, '.code')).trim();
     const bob = await newPage({ name: 'bob', theme: 'light' });
     await bob.goto(`${multi.url}/j/${code}`);
-    await bob.waitForSelector('dialog[open]');
-    check((await text(bob, 'dialog')).includes('Who are you'), 'joining by link asks who you are');
-    await shot(bob, 'multi-06-who-are-you', false);
-    await bob.click('dialog button:has-text("Skip")');
-    await bob.waitForSelector('.card');
+    await bob.waitForSelector('.board');
+    check(new URL(bob.url()).pathname.includes('/game/') && (await bob.locator('dialog[open]').count()) === 0,
+        'joining by link opens the only game, without asking who you are');
+    await shot(bob, 'multi-06-joined', false);
     await bob.goto(`${multi.url}/g/${gid}/settings`);
     await bob.waitForSelector('text=Players');
     const bobSettings = await text(bob);
@@ -323,9 +361,6 @@ const closed = await startServer('closed', ['--allow-group-creation=false']);
     check(!(await text(p)).includes('Ny gruppe'), 'no "new group" card when creation is off');
     check((await text(p)).includes('Bli med i en gruppe'), 'the start page is in Norwegian');
     await p.goto(office);
-    await p.waitForSelector('dialog[open]');
-    check((await text(p, 'dialog')).includes('Hvem er du?'), 'the who-are-you dialog is Norwegian');
-    await p.click('dialog .pchip:has-text("Kari")');
     await p.waitForSelector('.fab');
     check((await text(p)).includes('Tabell') && (await text(p)).includes('Ny runde'), 'the game page is Norwegian');
     check((await text(p)).includes('Blå') || (await text(p)).includes('Blue') === false, 'default team names follow the language');
@@ -345,16 +380,11 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
 {
     const a = await newPage({ name: 'single-a' });
     await a.goto(single.url);
-    await a.waitForSelector('dialog[open]');
-    check(new URL(a.url()).pathname === '/g/main', 'opening the address joins silently and asks who you are');
-    check(!(await text(a)).includes('Join a group'), 'there is no start page');
-    await a.fill('dialog input', 'Ada');
-    await a.click('dialog button:has-text("Add")');
-    // "No games yet." is already behind the dialog; the page re-renders after it
-    // closes, so wait for that or the typed game name is lost.
-    await a.waitForSelector('dialog[open]', { state: 'detached' });
-    await settle(a);
     await a.waitForSelector('text=No games yet.');
+    await settle(a);
+    check(new URL(a.url()).pathname === '/g/main' && (await a.locator('dialog[open]').count()) === 0, 'opening the address joins silently');
+    check(!(await text(a)).includes('Join a group'), 'there is no start page');
+    check(!(await text(a)).includes("You're") && !(await text(a)).includes('Who are you'), 'nobody is asked who they are');
     await a.fill('input[placeholder="Game name"]', 'Table tennis');
     await a.click('button:has-text("Add")');
     await a.waitForURL(/\/game\//);
@@ -375,8 +405,6 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
 
     const b = await newPage({ name: 'single-b', theme: 'light' });
     await b.goto(single.url);
-    await b.waitForSelector('dialog[open]');
-    await b.click('dialog button:has-text("Skip")');
     await b.waitForSelector('.board');
     check(new URL(b.url()).pathname.includes('/game/'), 'a second phone lands on the only game');
     await b.goto(`${single.url}/j/ABCD-EFGH`);
@@ -393,6 +421,12 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
     await b.goto(`${single.url}/g/main`);
     await b.waitForSelector('text=Table tennis');
     check((await b.title()).includes('Oslo HQ'), 'a rename through the admin CLI shows up');
+    // Named like the instance: the top bar doesn't say it twice.
+    single.cli('groups', 'rename', 'Scoreboard');
+    await b.reload();
+    await b.waitForSelector('text=Table tennis');
+    eq((await text(b, '.topbar')).match(/Scoreboard/g)?.length, 1, 'the group name is not shown twice in the top bar');
+    eq(await b.title(), 'Scoreboard', 'nor in the page title');
 }
 single.stop();
 

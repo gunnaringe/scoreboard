@@ -121,7 +121,6 @@ const token = join_.deviceToken;
 const gid = join_.groupId;
 const { players, games } = await rpc('GetGroup', {}, token);
 const ada = players.find((p) => p.name === 'Ada');
-await rpc('SetMe', { playerId: ada.id }, token);
 const gameId = games.find((g) => g.name === rl.name).id;
 const { tournaments } = (await rpc('GetGame', { gameId }, token)).view;
 const cupId = tournaments.find((t) => t.name === 'Friday cup').id;
