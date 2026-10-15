@@ -1,10 +1,25 @@
 # scoreboard
 
-Game scores with fair team ratings, for an office. One Go binary: web server
-with the frontend embedded, Connect API, SQLite, admin port and CLI. See
-`README.md` for what it does and how to run it; this file is only what is easy
-to get wrong. The earlier Cloudflare Workers + D1 version is the tag
-`worker-final` (never deployed to production).
+Self-hosted game scores with fair team ratings, for offices, clubs and
+friends. One Go binary: web server with the frontend embedded, Connect API,
+SQLite, admin port and CLI. Apache-2.0. See `README.md` for what it does and
+how to run it; this file is only what is easy to get wrong. The earlier
+Cloudflare Workers + D1 version is the tag `worker-final` (never deployed to
+production). `CLAUDE.md` only points here; edit this file.
+
+## Workflow
+
+- `main` is the only long-lived branch; work on a branch and open a PR. CI
+  (`.github/workflows/ci.yml`) runs `make check`, smoke and e2e on every PR.
+- A `v*` tag publishes binaries and the `ghcr.io/gunnaringe/scoreboard` image
+  (`release.yml`). Nothing deploys from `main`.
+- **Visible changes need screenshots**: run `make screenshots`, commit the
+  changed `docs/screenshots/*.png` in the same PR, and put the affected
+  images in the PR description (the template asks for them). The README
+  embeds these files, so it stays current only this way. Add a shot to
+  `scripts/screenshots.mjs` when a new screen is worth showing.
+- Keep the README about using and running the app; architecture and
+  gotchas belong here, the rating explanation in `docs/rating.md`.
 
 ## Layout
 
@@ -23,6 +38,10 @@ to get wrong. The earlier Cloudflare Workers + D1 version is the tag
   (`web/assets.go`). Editing it needs a rebuild + restart to show up.
 - `test/reference/rating.js` — the old JS rating model, kept only as an
   independent oracle (golden vectors, `scripts/smoke.js`). Not shipped.
+- `scripts/` — `smoke.js`, `e2e.mjs`, `screenshots.mjs` (README images),
+  `gen-golden.mjs`, `build-qr.sh`.
+- `deploy/` — systemd unit and `docker-compose.yml`; `docs/` — screenshots
+  and `rating.md`.
 
 ## The API is the app
 
@@ -108,6 +127,7 @@ go test -race ./...     # rating golden vectors, store (random edits vs replay),
 npm test                # i18n keys, no rating code in the frontend, RPC coverage
 make smoke              # black-box run of scripts/smoke.js against a real server
 make e2e                # browser tests, both modes (needs Chromium)
+make screenshots        # regenerate docs/screenshots/ (needs Chromium)
 ```
 
 `scripts/smoke.js` speaks Connect JSON and checks every stored rating, handicap
@@ -121,7 +141,24 @@ creation in Norwegian, single mode and single mode with the dashboard off. Any
 console error fails it; screenshots go to `/tmp/scoreboard-e2e`. **Frontend
 changes need it** (or a manual look): the Go tests can't see rendering bugs.
 Gotcha when writing selectors: `innerText` is affected by CSS
-`text-transform` (headings come back upper-case).
+`text-transform` (headings come back upper-case; in the gamer theme buttons too).
+
+`make screenshots` (`scripts/screenshots.mjs`) imports a made-up office with a
+fixed seed through `scoreboard admin import` (so rounds span six weeks and
+today has a session) and captures phone shots of the main pages, the desktop
+dashboard and the leaderboard in every theme into `docs/screenshots/`. Round
+times are relative to now, so the numbers are stable but times of day move.
+
+## Themes
+
+`[data-theme]` blocks of CSS variables in `web/styles.css`: light, dark,
+hacker (green terminal, VT323) and gamer (red against blue). A new theme needs
+its block, the picker in `pageAppSettings` + `theme*` strings in `i18n.js`,
+`branding.go` (`defaultTheme` validation), the README, the screenshot loop and
+an e2e check. Branding's accent only recolours light and dark. Team colours
+are `--team-0`/`--team-1`; unnamed teams are called Blue/Orange, or Blue/Red
+in the gamer theme (`defaultTeamName` in `app.js`), so keep names and colours
+matching.
 
 ## Gotchas
 
