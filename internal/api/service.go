@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/gunnaringe/scoreboard/gen/scoreboard/v1"
 	"github.com/gunnaringe/scoreboard/internal/config"
@@ -75,7 +77,7 @@ func ptrIf[T any](set bool, v T) *T {
 }
 
 func groupPB(g store.Group, single bool) *pb.Group {
-	out := &pb.Group{Id: g.ID, Name: g.Name, OfficeCode: store.FormatCode(g.InviteCode), DashboardToken: g.DashboardToken, CreatedAtMs: g.CreatedAt}
+	out := &pb.Group{Id: g.ID, Name: g.Name, OfficeCode: store.FormatCode(g.InviteCode), DashboardToken: g.DashboardToken, CreatedAt: ts(g.CreatedAt)}
 	if single { // no secret links: the dashboard is /d, there is no code
 		out.OfficeCode, out.DashboardToken = "", config.SingleGroupID
 	}
@@ -95,7 +97,7 @@ func playersPB(ps []store.Player) []*pb.Player {
 }
 
 func gamePB(g store.Game) *pb.Game {
-	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: g.TeamA, TeamB: g.TeamB, Archived: g.Archived, CreatedAtMs: g.CreatedAt,
+	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: g.TeamA, TeamB: g.TeamB, Archived: g.Archived, CreatedAt: ts(g.CreatedAt),
 		RatingSpeed: speedPB[g.RatingSpeed]}
 }
 
@@ -129,7 +131,7 @@ func gamesPB(gs []store.Game) []*pb.Game {
 }
 
 func tournamentPB(t store.Tournament) *pb.Tournament {
-	return &pb.Tournament{Id: t.ID, GameId: t.GameID, Name: t.Name, CreatedAtMs: t.CreatedAt, EndedAtMs: t.EndedAt}
+	return &pb.Tournament{Id: t.ID, GameId: t.GameID, Name: t.Name, CreatedAt: ts(t.CreatedAt), EndedAt: tsOpt(t.EndedAt)}
 }
 
 func ratingPB(r *rating.Rating) *pb.Rating {
@@ -141,7 +143,7 @@ func ratingPB(r *rating.Rating) *pb.Rating {
 
 func roundPB(r store.Round) *pb.Round {
 	out := &pb.Round{
-		Id: r.ID, GameId: r.GameID, TournamentId: r.TournamentID, PlayedAtMs: r.PlayedAt, Winner: int32(r.Winner),
+		Id: r.ID, GameId: r.GameID, TournamentId: r.TournamentID, PlayedAt: ts(r.PlayedAt), Winner: int32(r.Winner),
 		CreatedBy: r.CreatedBy, Deleted: r.Deleted,
 	}
 	if r.ScoreA != nil {
@@ -389,7 +391,7 @@ func (v *service) ListDevices(ctx context.Context, r req[pb.ListDevicesRequest])
 	out := &pb.ListDevicesResponse{}
 	for _, d := range devices {
 		out.Devices = append(out.Devices, &pb.Device{
-			Id: d.ID, PlayerId: d.PlayerID, Owner: d.Owner, Label: d.Label, CreatedAtMs: d.CreatedAt, LastSeenMs: d.LastSeen, IsMe: d.ID == dev.ID,
+			Id: d.ID, PlayerId: d.PlayerID, Owner: d.Owner, Label: d.Label, CreatedAt: ts(d.CreatedAt), LastSeenAt: tsOpt(d.LastSeen), IsMe: d.ID == dev.ID,
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -484,12 +486,23 @@ func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (
 	return connect.NewResponse(&pb.UpdateGameResponse{}), nil
 }
 
-// sinceOrDefault is the start of the viewer's day, or 24 hours ago.
-func (v *service) sinceOrDefault(ms int64) int64 {
-	if ms <= 0 {
+// sinceOrDefault is the start of the viewer's day, or 24 hours ago, in Unix ms.
+func (v *service) sinceOrDefault(since *timestamppb.Timestamp) int64 {
+	if since == nil || since.AsTime().UnixMilli() <= 0 {
 		return v.s.Store.Now().UnixMilli() - 86400000
 	}
-	return ms
+	return since.AsTime().UnixMilli()
+}
+
+// ts and tsOpt turn the store's Unix milliseconds into API timestamps; nil
+// (never) stays unset.
+func ts(ms int64) *timestamppb.Timestamp { return timestamppb.New(time.UnixMilli(ms)) }
+
+func tsOpt(ms *int64) *timestamppb.Timestamp {
+	if ms == nil {
+		return nil
+	}
+	return ts(*ms)
 }
 
 func (v *service) GetGame(ctx context.Context, r req[pb.GetGameRequest]) (res[pb.GetGameResponse], error) {
@@ -497,7 +510,7 @@ func (v *service) GetGame(ctx context.Context, r req[pb.GetGameRequest]) (res[pb
 	if err != nil {
 		return nil, err
 	}
-	view, err := v.s.Store.GetGameView(ctx, dev.GroupID, r.Msg.GameId, v.sinceOrDefault(r.Msg.SinceMs))
+	view, err := v.s.Store.GetGameView(ctx, dev.GroupID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -650,7 +663,7 @@ func (v *service) GetPlayerStats(ctx context.Context, r req[pb.GetPlayerStatsReq
 	}
 	out := &pb.GetPlayerStatsResponse{}
 	for _, h := range st.History {
-		out.History = append(out.History, &pb.HistoryPoint{PlayedAtMs: h[0], Display: int32(h[1]), Won: h[2] == 1})
+		out.History = append(out.History, &pb.HistoryPoint{PlayedAt: ts(h[0]), Display: int32(h[1]), Won: h[2] == 1})
 	}
 	pairs := func(in []store.PairStat) (out []*pb.PairStat) {
 		for _, p := range in {
@@ -730,7 +743,7 @@ func (v *service) GetDashboardGame(ctx context.Context, r req[pb.GetDashboardGam
 	if err != nil {
 		return nil, err
 	}
-	view, err := v.s.Store.GetGameView(ctx, g.ID, r.Msg.GameId, v.sinceOrDefault(r.Msg.SinceMs))
+	view, err := v.s.Store.GetGameView(ctx, g.ID, r.Msg.GameId, v.sinceOrDefault(r.Msg.Since))
 	if err != nil {
 		return nil, rpcErr(err)
 	}

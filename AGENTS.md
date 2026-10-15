@@ -63,8 +63,13 @@ method, test through the generated client, then the UI.
 JSON quirks the frontend relies on (`TestJSONWireFormat` pins them):
 - our `jsonCodec` emits default values (`archived:false`, `winner:0`, `[]`);
   **unset `optional` fields are omitted** — that is how "no score" differs from 0;
-- int64 is a JSON string: times are `*Ms`, plus `version`; `normalize()` in
-  `web/app.js` turns those keys into numbers;
+- times are `google.protobuf.Timestamp` (RFC 3339 in JSON; unset = absent,
+  e.g. `endedAt`, `lastSeenAt`). `normalize()` in `web/app.js` turns the keys in
+  `TIME_KEYS` into Unix ms, so the UI works in ms; requests send `asIso(ms)`.
+  A new time field needs its key in `TIME_KEYS`. The store keeps Unix ms
+  (`ts`/`tsOpt` convert at the API edge), and so does the `admin export` file;
+- int64 is a JSON string: `version` is the one the frontend reads, and
+  `normalize()` turns it into a number;
 - patches: proto3 `optional` = absent leaves unchanged; nested messages
   (`RoundScore`, `RoundTournament`) set when present and clear when empty;
   an empty team name resets to the localised default;

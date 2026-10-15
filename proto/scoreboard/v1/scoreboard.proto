@@ -5,7 +5,9 @@ syntax = "proto3";
 // so any other client can too — send `Authorization: Bearer <device token>`.
 //
 // Conventions
-//   - Times are Unix milliseconds (`*_ms`, int64: JSON renders them as strings).
+//   - Times are google.protobuf.Timestamp: RFC 3339 strings in JSON
+//     ("2026-10-15T10:00:00Z"). An unset one means "never" (e.g. a tournament
+//     that has not ended).
 //   - A device token identifies the group, so requests never name one.
 //   - Patches use proto3 `optional` (absent = leave unchanged) or a nested
 //     message whose presence means "set" (an empty one clears).
@@ -14,6 +16,8 @@ syntax = "proto3";
 package scoreboard.v1;
 
 option go_package = "github.com/gunnaringe/scoreboard/gen/scoreboard/v1;scoreboardv1";
+
+import "google/protobuf/timestamp.proto";
 
 service ScoreboardService {
   // ---- instance and access (no device needed) ----------------------------
@@ -97,7 +101,7 @@ message Group {
   string office_code = 3;
   // Token of the read-only dashboard link (/d/<token>).
   string dashboard_token = 4;
-  int64 created_at_ms = 5;
+  google.protobuf.Timestamp created_at = 5;
 }
 
 message Player {
@@ -113,7 +117,7 @@ message Game {
   optional string team_a = 3;
   optional string team_b = 4;
   bool archived = 5;
-  int64 created_at_ms = 6;
+  google.protobuf.Timestamp created_at = 6;
   // Always set (never UNSPECIFIED).
   RatingSpeed rating_speed = 7;
 }
@@ -135,8 +139,9 @@ message Tournament {
   string id = 1;
   string game_id = 2;
   string name = 3;
-  int64 created_at_ms = 4;
-  optional int64 ended_at_ms = 5;
+  google.protobuf.Timestamp created_at = 4;
+  // Unset while the tournament is running.
+  google.protobuf.Timestamp ended_at = 5;
 }
 
 // Rating is a skill estimate (Weng-Lin mu and sigma).
@@ -161,7 +166,7 @@ message Round {
   string id = 1;
   string game_id = 2;
   optional string tournament_id = 3;
-  int64 played_at_ms = 4;
+  google.protobuf.Timestamp played_at = 4;
   // 0 = team A, 1 = team B.
   int32 winner = 5;
   optional int32 score_a = 6;
@@ -182,7 +187,7 @@ message PlayerRating {
   int32 display = 6;
   // True until the player has played enough rounds to be ranked.
   bool provisional = 7;
-  // Display points gained or lost since `since_ms`; absent if they did not play.
+  // Display points gained or lost since `since`; absent if they did not play.
   optional int32 today = 8;
 }
 
@@ -207,8 +212,8 @@ message Device {
   optional string player_id = 2;
   bool owner = 3;
   string label = 4;
-  int64 created_at_ms = 5;
-  optional int64 last_seen_ms = 6;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_seen_at = 6;
   // True for the device making the request.
   bool is_me = 7;
 }
@@ -403,7 +408,7 @@ message GetGameRequest {
   string game_id = 1;
   // The start of the viewer's day; rounds since then are always included and
   // PlayerRating.today counts from it. Defaults to 24 hours ago.
-  int64 since_ms = 2;
+  google.protobuf.Timestamp since = 2;
 }
 
 message GetGameResponse {
@@ -514,7 +519,7 @@ message RestoreRoundRequest {
 message RestoreRoundResponse {}
 
 message HistoryPoint {
-  int64 played_at_ms = 1;
+  google.protobuf.Timestamp played_at = 1;
   // The player's display rating after the round.
   int32 display = 2;
   bool won = 3;
@@ -582,7 +587,8 @@ message GetDashboardResponse {
 message GetDashboardGameRequest {
   string token = 1;
   string game_id = 2;
-  int64 since_ms = 3;
+  // As GetGameRequest.since.
+  google.protobuf.Timestamp since = 3;
 }
 
 message GetDashboardGameResponse {

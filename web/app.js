@@ -104,12 +104,19 @@ class ApiError extends Error {
 // Server messages that have a translation.
 const ERRORS = { 'too many requests, wait a minute': 'errRateLimit', 'too many attempts, wait a minute': 'errJoinLimit', 'limit reached': 'errLimit' };
 
-// protojson renders int64 as strings: times (*Ms) and versions are numbers here.
+// Times arrive as RFC 3339 strings (google.protobuf.Timestamp) and become Unix
+// milliseconds here; int64 versions arrive as strings and become numbers.
+const TIME_KEYS = new Set(['createdAt', 'endedAt', 'playedAt', 'lastSeenAt']);
+const asIso = (ms) => new Date(ms).toISOString();
 function normalize(v) {
     if (Array.isArray(v)) return v.map(normalize);
     if (v && typeof v === 'object') {
         const out = {};
-        for (const [k, x] of Object.entries(v)) out[k] = (k.endsWith('Ms') || k === 'version') && typeof x === 'string' ? Number(x) : normalize(x);
+        for (const [k, x] of Object.entries(v)) {
+            out[k] = typeof x !== 'string' ? normalize(x)
+                : TIME_KEYS.has(k) ? Date.parse(x)
+                    : k === 'version' ? Number(x) : x;
+        }
         return out;
     }
     return v;
@@ -720,7 +727,7 @@ function roundItem(ctx, round, { showDay = false, onEdit } = {}) {
         team(i).map((p) => h('span', { class: 'who' }, h('span', { class: 'pname' }, playerName(ctx, p.playerId)), deltaEl(roundDelta(p), 'small'))));
     const hasScore = round.scoreA != null && round.scoreB != null;
     const tour = round.tournamentId && ctx.tournaments?.find((x) => x.id === round.tournamentId);
-    const when = showDay ? `${fmtDay(round.playedAtMs)} ${fmtTime(round.playedAtMs)}` : fmtTime(round.playedAtMs);
+    const when = showDay ? `${fmtDay(round.playedAt)} ${fmtTime(round.playedAt)}` : fmtTime(round.playedAt);
     const label = t('roundAria', { winners: names(round.winner), losers: names(1 - round.winner), when })
         + (hasScore ? `, ${round.scoreA}–${round.scoreB}` : '');
     return h('li', null, h(onEdit ? 'button' : 'div', {
@@ -741,7 +748,7 @@ function roundList(ctx, rounds, opts = {}) {
     let lastDay = null;
     for (const r of rounds) {
         if (opts.groupByDay) {
-            const day = fmtDay(r.playedAtMs);
+            const day = fmtDay(r.playedAt);
             if (day !== lastDay) items.push(h('li', { class: 'day' }, day));
             lastDay = day;
         }
@@ -764,7 +771,7 @@ function ratingInfoButton() {
 async function loadGame(gid, gameId) {
     const [ctx, data] = await Promise.all([
         loadGroup(gid),
-        grpc(gid, 'GetGame', { gameId, sinceMs: startOfToday() }),
+        grpc(gid, 'GetGame', { gameId, since: asIso(startOfToday()) }),
     ]);
     return withGameData(ctx, data.view);
 }
@@ -794,7 +801,7 @@ async function pageGame(gid, gameId, current) {
     const ctx = await loadGame(gid, gameId);
     if (!current() || seq !== loadSeq) return;
     document.title = `${ctx.game.name} · ${ctx.group.name}`;
-    const today = ctx.rounds.filter((r) => r.playedAtMs >= startOfToday());
+    const today = ctx.rounds.filter((r) => r.playedAt >= startOfToday());
     const recent = today.length ? today : ctx.rounds.slice(0, 5);
     const refresh = () => pageGame(gid, gameId, current);
     const tourName = h('input', { class: 'input', placeholder: t('tournamentPlaceholder'), maxlength: 40, 'aria-label': t('tournamentPlaceholder') });
@@ -816,7 +823,7 @@ async function pageGame(gid, gameId, current) {
                     h('h2', null, t('tournaments')),
                     ctx.tournaments.length > 0 && h('ul', { class: 'list' }, ctx.tournaments.slice(0, 8).map((x) => h('li', null,
                         h('a', { class: 'list-link', href: `/g/${gid}/game/${gameId}/t/${x.id}` },
-                            h('span', null, icon('trophy'), ' ', x.name), h('span', { class: 'chip' }, x.endedAtMs != null ? t('ended') : t('active')))))),
+                            h('span', null, icon('trophy'), ' ', x.name), h('span', { class: 'chip' }, x.endedAt != null ? t('ended') : t('active')))))),
                     h('form', { class: 'row', onsubmit: async (e) => {
                         e.preventDefault();
                         try {
@@ -897,14 +904,14 @@ async function pageTournament(gid, gameId, tid, current) {
         try { await grpc(gid, 'UpdateTournament', { tournamentId: tid, name }); refresh(); } catch (err) { errorToast(err); }
     };
     const toggleEnded = async () => {
-        try { await grpc(gid, 'UpdateTournament', { tournamentId: tid, ended: tour.endedAtMs == null }); refresh(); } catch (err) { errorToast(err); }
+        try { await grpc(gid, 'UpdateTournament', { tournamentId: tid, ended: tour.endedAt == null }); refresh(); } catch (err) { errorToast(err); }
     };
     (pollTimer ? rerender : render)(
         topbar({ back: `/g/${gid}/game/${gameId}`, title: tour.name }),
         h('main', { class: 'wrap game-grid' },
             h('section', { class: 'card pad board-card' },
                 h('div', { class: 'section-head' }, h('h2', null, icon('trophy'), ' ', t('standings')),
-                    h('span', { class: 'chip' }, tour.endedAtMs != null ? t('ended') : t('active'))),
+                    h('span', { class: 'chip' }, tour.endedAt != null ? t('ended') : t('active'))),
                 rows.length ? h('table', { class: 'board' },
                     h('thead', null, h('tr', null, h('th', { class: 'num' }, '#'), h('th', null, t('player')),
                         h('th', { class: 'num' }, t('winsShort')), h('th', { class: 'num' }, t('lossesShort')), h('th', { class: 'num' }, t('ratingChange')))),
@@ -916,11 +923,11 @@ async function pageTournament(gid, gameId, tid, current) {
                 h('p', { class: 'muted small' }, t('tournamentHint')),
                 h('div', { class: 'row wrap-row' },
                     h('button', { class: 'btn ghost small', type: 'button', onclick: rename }, t('rename')),
-                    h('button', { class: 'btn ghost small', type: 'button', onclick: toggleEnded }, tour.endedAtMs != null ? t('reopen') : t('endTournament')))),
+                    h('button', { class: 'btn ghost small', type: 'button', onclick: toggleEnded }, tour.endedAt != null ? t('reopen') : t('endTournament')))),
             h('div', { class: 'side-col' },
                 h('section', { class: 'card pad' }, h('h2', null, t('rounds')),
                     roundList(ctx, rounds, { groupByDay: true, empty: t('noRoundsYet'), onEdit: (round) => roundSheet(gid, ctx, { round, onSaved: refresh }) }))),
-            tour.endedAtMs == null && h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { tournamentId: tid, onSaved: refresh }) },
+            tour.endedAt == null && h('button', { class: 'fab btn', type: 'button', onclick: () => roundSheet(gid, ctx, { tournamentId: tid, onSaved: refresh }) },
                 icon('plus'), t('newRound'))));
     shownVersion = ctx.version;
     if (!pollTimer) pollVersion(() => grpc(gid, 'GetGameVersion', { gameId }), refresh, 60000);
@@ -1056,7 +1063,7 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
         value: editing && (i ? round.scoreB : round.scoreA) != null ? String(i ? round.scoreB : round.scoreA) : '',
     });
     const scores = [scoreInput(0), scoreInput(1)];
-    const tournaments = (ctx.tournaments || []).filter((x) => x.endedAtMs == null || x.id === (round?.tournamentId ?? tournamentId));
+    const tournaments = (ctx.tournaments || []).filter((x) => x.endedAt == null || x.id === (round?.tournamentId ?? tournamentId));
     const tourSelect = h('select', { class: 'input', 'aria-label': t('tournament') },
         h('option', { value: '' }, t('noTournament')),
         tournaments.map((x) => h('option', { value: x.id, selected: x.id === (editing ? round.tournamentId : tournamentId) }, x.name)));
@@ -1182,7 +1189,7 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     function looksLikeDuplicate(body) {
         const key = (teams) => teams.map((x) => [...x].sort().join()).join('|');
         const want = key([body.teamA, body.teamB]);
-        return (ctx.rounds || []).some((r) => Date.now() - r.playedAtMs < 120000 && r.winner === body.winner
+        return (ctx.rounds || []).some((r) => Date.now() - r.playedAt < 120000 && r.winner === body.winner
             && key([0, 1].map((i) => r.players.filter((p) => p.team === i).map((p) => p.playerId))) === want);
     }
 
@@ -1350,7 +1357,7 @@ async function pageGroupSettings(gid, current) {
         h('span', { class: 'device' },
             h('span', null, d.playerId ? playerName(ctx, d.playerId) : t('unnamedDevice'),
                 d.isMe && h('span', { class: 'chip' }, t('thisDevice')), d.owner && h('span', { class: 'chip' }, t('owner'))),
-            h('span', { class: 'muted small' }, [d.label, t('lastSeen', { date: fmtDate(d.lastSeenMs) })].filter(Boolean).join(' · '))),
+            h('span', { class: 'muted small' }, [d.label, t('lastSeen', { date: fmtDate(d.lastSeenAt) })].filter(Boolean).join(' · '))),
         !d.isMe && iconButton('x', t('removeDevice'), async () => {
             if (!confirm(t('removeDeviceConfirm'))) return;
             try { await grpc(gid, 'RemoveDevice', { deviceId: d.id }); refresh(); } catch (err) { errorToast(err); }
@@ -1425,7 +1432,7 @@ async function pageDashboard(token, current, known = null) {
     const base = known || await rpc('GetDashboard', { token });
     const params = new URLSearchParams(location.search);
     const game = base.games.find((g) => g.id === params.get('game')) || base.games[0];
-    const data = game ? (await rpc('GetDashboardGame', { token, gameId: game.id, sinceMs: startOfToday() })).view : null;
+    const data = game ? (await rpc('GetDashboardGame', { token, gameId: game.id, since: asIso(startOfToday()) })).view : null;
     if (!current() || seq !== loadSeq) return;
     document.title = `${base.groupName} · ${brandName()}`;
     const ctx = { group: { name: base.groupName }, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])), me: null };
@@ -1437,7 +1444,7 @@ async function pageDashboard(token, current, known = null) {
         content = h('div', { class: 'card empty' }, h('p', null, t('noGames')));
     } else {
         withGameData(ctx, data);
-        const today = ctx.rounds.filter((r) => r.playedAtMs >= startOfToday());
+        const today = ctx.rounds.filter((r) => r.playedAt >= startOfToday());
         content = h('div', { class: 'game-grid tv-grid' },
             h('section', { class: 'card pad board-card' },
                 h('div', { class: 'section-head' }, h('h2', null, t('leaderboard')), teamLegend(ctx.game)),

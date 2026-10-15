@@ -113,7 +113,7 @@ async function history() {
 }
 const rounds = await history();
 assert.equal(rounds.length, new Set(rounds.map((r) => r.id)).size, 'paging returns each round once');
-const view = (await ok('GetGame', { gameId: game, sinceMs: 1 }, member)).view;
+const view = (await ok('GetGame', { gameId: game, since: '1970-01-01T00:00:00.001Z' }, member)).view;
 const full = replay(rounds.map((r) => ({
     id: r.id,
     teams: [0, 1].map((t) => r.players.filter((p) => p.team === t).map((p) => p.playerId)),
@@ -154,7 +154,7 @@ assert.equal((await ok('ListRounds', { gameId: game, limit: -2 }, member)).round
 assert.equal((await ok('ListRounds', { gameId: game, limit: 100000 }, member)).rounds.length, Math.min(200, rounds.length));
 const stats = await ok('GetPlayerStats', { gameId: game, playerId: ids[0] }, member);
 assert.equal(stats.history.length, view.ratings.find((r) => r.playerId === ids[0]).rounds);
-assert.ok(stats.history.every((h) => /^\d+$/.test(h.playedAtMs) && Number.isInteger(h.display)));
+assert.ok(stats.history.every((h) => !Number.isNaN(Date.parse(h.playedAt)) && Number.isInteger(h.display)));
 
 // ---- polling version --------------------------------------------------------------------------
 const v1 = Number((await ok('GetGameVersion', { gameId: game }, member)).version);
@@ -173,7 +173,7 @@ await fails('ListDevices', {}, member, 'permission_denied');
 const dash = g.group.dashboardToken;
 const board = await ok('GetDashboard', { token: dash });
 assert.equal(board.groupName, 'Office');
-assert.equal((await ok('GetDashboardGame', { token: dash, gameId: game, sinceMs: 1 })).view.ratings.length, view.ratings.length);
+assert.equal((await ok('GetDashboardGame', { token: dash, gameId: game, since: '1970-01-01T00:00:00.001Z' })).view.ratings.length, view.ratings.length);
 await fails('GetDashboard', { token: 'wrong' }, undefined, 'not_found');
 // Owner link: an existing member's device becomes owner...
 const own = await ok('ClaimOwner', { token: created.ownerToken, knownTokens: [member] });

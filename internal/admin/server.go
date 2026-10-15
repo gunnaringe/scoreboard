@@ -13,8 +13,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1"
 	"github.com/gunnaringe/scoreboard/gen/scoreboard/admin/v1/adminv1connect"
@@ -123,7 +125,7 @@ func (v *service) links(g store.Group, ownerToken string) *pb.Links {
 }
 
 func (v *service) groupPB(g store.Group, ownerToken string) *pb.Group {
-	return &pb.Group{Id: g.ID, Name: g.Name, CreatedAtMs: g.CreatedAt, Links: v.links(g, ownerToken)}
+	return &pb.Group{Id: g.ID, Name: g.Name, CreatedAt: ts(g.CreatedAt), Links: v.links(g, ownerToken)}
 }
 
 // ---- instance --------------------------------------------------------------------------------
@@ -264,7 +266,10 @@ func (v *service) ListDevices(ctx context.Context, r *connect.Request[pb.ListDev
 	}
 	out := &pb.ListDevicesResponse{}
 	for _, d := range devices {
-		pd := &pb.Device{Id: d.ID, Owner: d.Owner, Label: d.Label, CreatedAtMs: d.CreatedAt, LastSeenMs: d.LastSeen}
+		pd := &pb.Device{Id: d.ID, Owner: d.Owner, Label: d.Label, CreatedAt: ts(d.CreatedAt)}
+		if d.LastSeen != nil {
+			pd.LastSeenAt = ts(*d.LastSeen)
+		}
 		if d.PlayerID != nil {
 			pd.Player = names[*d.PlayerID]
 		}
@@ -460,3 +465,6 @@ func (v *service) ImportGroup(ctx context.Context, r *connect.Request[pb.ImportG
 	}
 	return connect.NewResponse(&pb.ImportGroupResponse{Group: v.groupPB(created.Group, created.OwnerToken)}), nil
 }
+
+// ts turns the store's Unix milliseconds into an API timestamp.
+func ts(ms int64) *timestamppb.Timestamp { return timestamppb.New(time.UnixMilli(ms)) }
