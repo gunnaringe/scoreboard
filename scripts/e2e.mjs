@@ -179,6 +179,18 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     eq(await ratingOf(ada, 'Ada'), flipped, 'Undo brings the rating back');
     await shot(ada, 'multi-03-game');
 
+    // Gamer theme: picked in the app settings; unnamed teams become Blue and Red.
+    await ada.goto(`${multi.url}/settings`);
+    await ada.click('.segmented button:has-text("Gamer")');
+    eq(await ada.evaluate(() => document.documentElement.dataset.theme), 'gamer', 'the gamer theme can be picked');
+    await ada.goto(multi.url + gamePath);
+    await ada.waitForSelector('.board');
+    eq(await ada.locator('.tl').allInnerTexts(), ['Blue', 'Red'], 'gamer theme: the teams are Blue and Red');
+    await shot(ada, 'multi-03b-gamer', false);
+    await ada.evaluate(() => { localStorage.setItem('theme', 'dark'); window.applyTheme(); });
+    await ada.reload();
+    await ada.waitForSelector('.board');
+
     // Tournament
     await ada.fill('input[placeholder="New tournament"]', 'Friday cup');
     await ada.click('button:has-text("Start")');

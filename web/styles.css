@@ -148,6 +148,59 @@
     .sheet, .round, .win-btn, .fab, .list-link, .invite-qr, .code, .team-box, .stat, .chip-main, .chip-x) { border-radius: 2px; }
 [data-theme="hacker"] .switch span::after { border-radius: 1px; }
 
+/* Gamer: esports red against blue on near-black, sharp corners, bold italic caps. */
+[data-theme="gamer"] {
+    --bg: #07080f;
+    --bg-glow-1: rgba(255, 36, 66, 0.2);
+    --bg-glow-2: rgba(36, 112, 255, 0.22);
+    --card: rgba(18, 21, 36, 0.72);
+    --card-strong: #171b2e;
+    --border: rgba(120, 140, 255, 0.16);
+    --text: #f1f3ff;
+    --muted: #9198b8;
+    --faint: #5d6385;
+    --accent: #ff2e4d;
+    --accent-soft: rgba(255, 46, 77, 0.16);
+    --on-accent: #fff;
+    --on-team: #fff;
+    --danger: #ff8a3d;
+
+    --team-0: #2f7bff;
+    --team-0-bg: rgba(47, 123, 255, 0.18);
+    --team-1: #ff2e4d;
+    --team-1-bg: rgba(255, 46, 77, 0.18);
+    --up: #2ee6a6;
+    --down: #ff5c74;
+    --gold: #ffd23f;
+    --silver: #c7d0ea;
+    --bronze: #ff9d4d;
+
+    --radius: 6px;
+    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.02) inset, 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+    color-scheme: dark;
+}
+[data-theme="gamer"] body {
+    background:
+        radial-gradient(50rem 40rem at 0% 0%, var(--bg-glow-1), transparent 60%),
+        radial-gradient(50rem 40rem at 100% 100%, var(--bg-glow-2), transparent 60%),
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 14px),
+        var(--bg);
+    background-attachment: fixed;
+}
+/* A red-to-blue bar under the top bar and on top of every card. */
+[data-theme="gamer"] .topbar { border-bottom: 2px solid; border-image: linear-gradient(90deg, var(--team-1), var(--team-0)) 1; }
+[data-theme="gamer"] .card { border-top: 2px solid transparent; background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(90deg, var(--team-1), var(--team-0)) border-box top / 100% 2px no-repeat; }
+[data-theme="gamer"] :is(h1, h2, .btn, th) { text-transform: uppercase; font-style: italic; font-weight: 800; letter-spacing: 0.06em; }
+[data-theme="gamer"] .rating { font-style: italic; font-weight: 800; }
+[data-theme="gamer"] .brand { text-transform: uppercase; font-style: italic; font-weight: 800; letter-spacing: 0.08em; color: var(--text); }
+[data-theme="gamer"] .brand-dot { width: 16px; height: 10px; border-radius: 1px; transform: skewX(-20deg);
+    background: linear-gradient(90deg, var(--team-1) 50%, var(--team-0) 50%); box-shadow: 0 0 12px var(--team-1), 0 0 12px var(--team-0); }
+[data-theme="gamer"] .fab { box-shadow: 0 0 22px rgba(255, 46, 77, 0.55); }
+[data-theme="gamer"] .pchip.team-0, [data-theme="gamer"] .win-0 { box-shadow: 0 0 12px -2px var(--team-0); }
+[data-theme="gamer"] .pchip.team-1, [data-theme="gamer"] .win-1 { box-shadow: 0 0 12px -2px var(--team-1); }
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -710,7 +763,7 @@ button.round:hover { border-color: var(--accent); }
     animation: toast-in .2s ease-out;
 }
 .toast button { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
-[data-theme="dark"] .toast button { color: #3442b8; }
+[data-theme="dark"] .toast button, [data-theme="gamer"] .toast button { color: #3442b8; }
 [data-theme="light"] .toast button { color: #a5b4fc; }
 [data-theme="hacker"] .toast { background: #000; color: var(--text); border: 1px solid var(--accent); }
 @keyframes toast-in { from { opacity: 0; translate: -50% 10px; } }

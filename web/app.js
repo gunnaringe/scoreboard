@@ -416,7 +416,9 @@ const SPEEDS = {
     RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
     RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
 };
-const teamName = (game, i) => (i === 0 ? game.teamA || t('teamBlue') : game.teamB || t('teamOrange'));
+// Unnamed teams are Blue and Orange, or Blue and Red in the gamer theme (its team colours).
+const defaultTeamName = (i) => t(i === 0 ? 'teamBlue' : document.documentElement.dataset.theme === 'gamer' ? 'teamRed' : 'teamOrange');
+const teamName = (game, i) => (i === 0 ? game.teamA : game.teamB) || defaultTeamName(i);
 
 // A dialog that labels itself, closes on Escape/backdrop and removes itself.
 function sheet(title, ...content) {
@@ -554,7 +556,7 @@ async function pageAppSettings() {
         topbar({ back: '/?home', title: t('settings') }),
         h('main', { class: 'wrap narrow' },
             h('section', { class: 'card pad' }, h('h2', null, t('theme')),
-                segmented([['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')], ['hacker', t('themeHacker')]],
+                segmented([['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')], ['hacker', t('themeHacker')], ['gamer', t('themeGamer')]],
                     localStorage.getItem('theme') || 'auto', (v) => { localStorage.setItem('theme', v); window.applyTheme(); })),
             h('section', { class: 'card pad' }, h('h2', null, t('language')),
                 segmented([['auto', t('langAuto')], ['en', 'English'], ['no', 'Norsk']],
@@ -1335,7 +1337,7 @@ async function pageGroupSettings(gid, current) {
                 const b = prompt(t('teamNames', { n: 2 }), teamName(g, 1));
                 if (b === null) return;
                 // Keeping the default names stores nothing, so they follow the language.
-                act('UpdateGame', { gameId: g.id, teamA: a === t('teamBlue') ? '' : a, teamB: b === t('teamOrange') ? '' : b });
+                act('UpdateGame', { gameId: g.id, teamA: a === defaultTeamName(0) ? '' : a, teamB: b === defaultTeamName(1) ? '' : b });
             } }, t('teams')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => speedDialog(g) }, t('ratingSpeed')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdateGame', { gameId: g.id, archived: !g.archived }) },
