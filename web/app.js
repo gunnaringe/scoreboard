@@ -42,7 +42,6 @@ const ICONS = {
     printer: '<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
     trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
     shuffle: '<path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/>',
-    repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     swap: '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
     history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
@@ -434,6 +433,12 @@ const SPEEDS = {
     RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
     RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
 };
+// A game is played in teams (any size) or one against one; in 1v1 the sides
+// are just the two players, so the sheet and labels are simpler.
+const FORMATS = ['GAME_FORMAT_TEAMS', 'GAME_FORMAT_ONE_VS_ONE'];
+const FORMAT_LABELS = { GAME_FORMAT_TEAMS: 'formatTeams', GAME_FORMAT_ONE_VS_ONE: 'formatOneVsOne' };
+const oneVsOne = (game) => game?.format === 'GAME_FORMAT_ONE_VS_ONE';
+
 // A team is a name and a colour (TEAM_COLOR_RED → 'red'); without a name it
 // goes by its colour, in the viewer's language.
 const TEAM_COLORS = ['blue', 'orange', 'red', 'green', 'purple', 'yellow', 'pink', 'teal'];
@@ -639,6 +644,7 @@ async function pageGroup(gid, current) {
     document.title = titleOf(ctx.group.name, brandName());
     const games = ctx.games.filter((g) => !g.archived);
     const gameName = h('input', { class: 'input', placeholder: t('gameNamePlaceholder'), maxlength: 40, 'aria-label': t('gameNamePlaceholder') });
+    let format = 'GAME_FORMAT_TEAMS';
     // Just joined with a link: go straight to the game when there is only one.
     if (new URLSearchParams(location.search).has('welcome') && games.length === 1) return navigate(`/g/${gid}/game/${games[0].id}`, true);
 
@@ -647,24 +653,23 @@ async function pageGroup(gid, current) {
             iconButton('share', t('share'), () => share(ctx.group.name, t('shareText', { group: ctx.group.name }), officeUrl(ctx.group.officeCode))),
             iconLink('settings', `/g/${gid}/settings`, t('groupSettings')),
         ] }),
+        // Just the games: sharing and the dashboard link are in the group settings
+        // (and the share button above).
         h('main', { class: 'wrap narrow' },
             h('section', { class: 'card pad' }, h('h2', null, t('games')),
                 games.length ? h('ul', { class: 'list' }, games.map((g) => h('li', null,
-                    h('a', { class: 'list-link big', href: `/g/${gid}/game/${g.id}` }, h('span', null, g.name), icon('back')))))
+                    h('a', { class: 'list-link big', href: `/g/${gid}/game/${g.id}` },
+                        h('span', null, g.name, oneVsOne(g) && h('span', { class: 'muted small' }, ` · ${t('formatOneVsOne')}`)), icon('back')))))
                     : h('p', { class: 'muted' }, t('noGames')),
-                h('form', { class: 'row', onsubmit: async (e) => {
+                h('form', { class: 'stack', onsubmit: async (e) => {
                     e.preventDefault();
                     try {
-                        const { game } = await grpc(gid, 'CreateGame', { name: gameName.value });
+                        const { game } = await grpc(gid, 'CreateGame', { name: gameName.value, format });
                         navigate(`/g/${gid}/game/${game.id}`);
                     } catch (err) { errorToast(err); }
-                } }, gameName, h('button', { class: 'btn ghost' }, icon('plus'), t('addGame')))),
-            h('section', { class: 'card pad' }, h('h2', null, t('players')),
-                ctx.players.some((p) => !p.archived)
-                    ? h('div', { class: 'chips' }, ctx.players.filter((p) => !p.archived).map((p) => h('span', { class: 'pchip static' }, p.name)))
-                    : h('p', { class: 'muted' }, t('noPlayersYet'))),
-            officeLinkCard(gid, ctx),
-            dashboardLinkCard(ctx)));
+                } },
+                h('div', { class: 'row' }, gameName, h('button', { class: 'btn ghost' }, icon('plus'), t('addGame'))),
+                segmented(FORMATS.map((f) => [f, t(FORMAT_LABELS[f])]), format, (v) => { format = v; })))));
 
     if (location.search) history.replaceState(null, '', `/g/${gid}`);
 }
@@ -672,7 +677,7 @@ async function pageGroup(gid, current) {
 // ---- leaderboard and rounds (shared with the dashboard) -----------------------
 
 // ctx: { game, ratings (Map), playersById }. hrefFor(playerId) or null.
-function leaderboard(ctx, _todayRounds, hrefFor, { big = false } = {}) {
+function leaderboard(ctx, hrefFor, { big = false } = {}) {
     // display, provisional, today and week come from the server.
     const rows = [...ctx.ratings.values()].filter((r) => ctx.playersById.get(r.playerId) && !ctx.playersById.get(r.playerId).archived);
     const ranked = rows.filter((r) => !r.provisional).sort((a, b) => b.display - a.display || b.wins - a.wins);
@@ -745,6 +750,7 @@ function roundList(ctx, rounds, opts = {}) {
 }
 
 function teamLegend(game) {
+    if (oneVsOne(game)) return null; // the sides are the players
     return h('div', { class: 'team-legend' },
         h('span', { class: 'tl tl-0' }, teamName(game, 0)), h('span', { class: 'muted' }, t('vs')), h('span', { class: 'tl tl-1' }, teamName(game, 1)));
 }
@@ -806,7 +812,7 @@ async function pageGame(gid, gameId, current) {
                 homeScreenNudge(),
                 h('section', { class: 'card pad board-card' },
                     h('div', { class: 'section-head' }, h('h2', null, t('leaderboard'), ratingInfoButton()), teamLegend(ctx.game)),
-                    empty ? h('p', { class: 'muted empty-small' }, t('emptyGame')) : leaderboard(ctx, today, (pid) => `/g/${gid}/game/${gameId}/p/${pid}`)),
+                    empty ? h('p', { class: 'muted empty-small' }, t('emptyGame')) : leaderboard(ctx, (pid) => `/g/${gid}/game/${gameId}/p/${pid}`)),
                 h('section', { class: 'card pad' },
                     h('h2', null, t('tournaments')),
                     ctx.tournaments.length > 0 && h('ul', { class: 'list' }, ctx.tournaments.slice(0, 8).map((x) => h('li', null,
@@ -1043,6 +1049,7 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
 
     const teamBoxes = [0, 1].map((i) => h('div', { class: 'drop-zone', 'data-drop': String(i) }));
     const bench = h('div', { class: 'chips bench-chips drop-zone', 'data-drop': 'bench' });
+    const benchHint = h('span', { class: 'muted small' });
     const scoreInput = (i) => h('input', {
         class: 'input score-input', type: 'number', inputmode: 'numeric', min: 0, max: 999, placeholder: '–',
         'aria-label': t('scoreFor', { team: teamName(game, i) }),
@@ -1066,11 +1073,40 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
 
     // A player: name and rating, draggable between the teams and the bench, with
     // buttons for the same moves (bench: + each team; team: other team, bench).
-    const place = (id, team) => { if (team === null) assign.delete(id); else assign.set(id, team); draw(); };
+    // One against one: each side holds one player, so tapping is enough
+    // (bench → the free side, side → bench); no team buttons, no balancing.
+    const solo = oneVsOne(game);
+    const freeSide = () => [0, 1].find((i) => !teamIds(i).length);
+    const place = (id, team) => {
+        if (team === null) assign.delete(id);
+        else {
+            // A 1v1 side holds one player: whoever was there goes back to the bench.
+            if (solo) for (const [other, side] of assign) if (side === team && other !== id) assign.delete(other);
+            assign.set(id, team);
+        }
+        draw();
+    };
+    let dragEnded = 0; // a drop also ends in a click: ignore that one
     function chip(p, team) {
         const r = ctx.ratings?.get(p.id);
         const label = h('span', { class: 'chip-label' }, h('span', { class: 'chip-name' }, p.name),
             h('span', { class: `chip-rating ${!r || r.provisional ? 'muted' : ''}` }, r ? r.display : t('newShort')));
+        if (solo) {
+            const tap = () => {
+                if (Date.now() - dragEnded < 300) return;
+                if (team !== undefined) return place(p.id, null);
+                const side = freeSide();
+                if (side === undefined) return toast(t('sidesFull'));
+                place(p.id, side);
+            };
+            const el = h('span', { class: `pchip ${team === undefined ? 'bench-chip' : `team-${team}`}`, 'data-id': p.id },
+                h('button', { type: 'button', class: 'chip-tap', 'aria-label': team === undefined ? t('pickPlayer', { name: p.name }) : t('benchPlayer', { name: p.name }),
+                    onclick: tap }, label),
+                team !== undefined && h('button', { type: 'button', class: 'chip-x', 'aria-label': t('benchPlayer', { name: p.name }),
+                    title: t('bench'), onclick: () => place(p.id, null) }, icon('x')));
+            dragSource(el, p.id);
+            return el;
+        }
         const el = team === undefined
             ? h('span', { class: 'pchip bench-chip', 'data-id': p.id }, label,
                 [0, 1].map((i) => h('button', { type: 'button', class: `chip-add add-${i}`, 'aria-label': t('addTo', { name: p.name, team: teamName(game, i) }),
@@ -1088,7 +1124,7 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     // drag starts after a short hold so a swipe still scrolls the sheet.
     function dragSource(el, id) {
         el.addEventListener('pointerdown', (down) => {
-            if (down.button !== 0 || down.target.closest('button')) return;
+            if (down.button !== 0 || down.target.closest('.chip-add, .chip-move, .chip-x')) return;
             let ghost = null;
             let over = null;
             let ready = down.pointerType === 'mouse';
@@ -1118,6 +1154,7 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
                 removeEventListener('touchmove', noScroll);
                 over?.classList.remove('drop-over');
                 el.classList.remove('dragging', 'lifted');
+                if (ghost) dragEnded = Date.now();
                 ghost?.remove();
                 if (ghost && e?.type === 'pointerup' && over) {
                     const to = over.dataset.drop === 'bench' ? null : Number(over.dataset.drop);
@@ -1157,14 +1194,16 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
             if (!ready || editing) { prob = null; oddsFor = ''; } else if (key !== oddsFor) { oddsFor = key; requestOdds(key, ids[0], ids[1]); }
         }
         [0, 1].forEach((i) => teamBoxes[i].replaceChildren(h('div', { class: `team-box team-box-${i}` },
-            h('div', { class: 'team-box-head' }, h('strong', null, teamName(game, i)),
+            h('div', { class: 'team-box-head' }, h('strong', null, solo ? '' : teamName(game, i)),
                 prob !== null && ready && !editing && h('span', { class: 'odds' }, `${Math.round((i ? 1 - prob : prob) * 100)} %`)),
             h('div', { class: 'chips' }, ids[i].length
                 ? players.filter((p) => assign.get(p.id) === i).map((p) => chip(p, i))
-                : h('span', { class: 'muted small' }, t('tapToAdd'))))));
+                : h('span', { class: 'muted small' }, t(solo ? 'tapToPick' : 'tapToAdd'))))));
         bench.replaceChildren(...players.filter((p) => !assign.has(p.id)).map((p) => chip(p)));
+        benchHint.textContent = t(solo ? 'benchHintSolo' : 'benchHint');
         winButtons.forEach((b, i) => {
-            b.textContent = t('teamWon', { team: teamName(game, i) });
+            // 1v1: "Ada won"; teams: "Lions won".
+            b.textContent = t('teamWon', { team: solo && ids[i].length ? playerName(ctx, ids[i][0]) : teamName(game, i) });
             b.disabled = !ready;
             b.classList.toggle('on', editing && winner === i);
             if (editing) b.setAttribute('aria-pressed', String(winner === i));
@@ -1194,15 +1233,11 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
             ctx.playersById.set(p.id, p);
         }
         if (!players.some((x) => x.id === p.id)) players = [...players, p].sort(order);
-        if (!assign.has(p.id)) assign.set(p.id, teamIds(0).length <= teamIds(1).length ? 0 : 1);
+        if (!assign.has(p.id)) {
+            const side = solo ? freeSide() : teamIds(0).length <= teamIds(1).length ? 0 : 1;
+            if (side !== undefined) assign.set(p.id, side);
+        }
         newName.value = '';
-        draw();
-    }
-
-    function sameAsLast() {
-        if (!lastRound) return;
-        assign.clear();
-        for (const p of lastRound.players) if (usable(p.playerId)) assign.set(p.playerId, p.team);
         draw();
     }
 
@@ -1279,12 +1314,11 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     const dialog = sheet(editing ? t('editRound') : t('newRound'),
         h('div', { class: 'teams' }, teamBoxes),
         h('div', { class: 'bench' },
-            h('div', { class: 'section-head' }, h('h3', null, t('bench')), h('span', { class: 'muted small' }, t('benchHint'))),
+            h('div', { class: 'section-head' }, h('h3', null, t('bench')), benchHint),
             bench,
             h('form', { class: 'row', onsubmit: addPlayer }, newName, h('button', { class: 'btn ghost' }, icon('plus'), t('add')))),
         h('div', { class: 'row wrap-row tools' },
-            !editing && lastRound && h('button', { type: 'button', class: 'btn ghost small', onclick: sameAsLast }, icon('repeat'), t('sameAsLast')),
-            h('button', { type: 'button', class: 'btn ghost small', onclick: balance }, icon('shuffle'), t('balance')),
+            !solo && h('button', { type: 'button', class: 'btn ghost small', onclick: balance }, icon('shuffle'), t('balance')),
             h('button', { type: 'button', class: 'btn ghost small', onclick: swapTeams }, icon('swap'), t('swap')),
             h('button', { type: 'button', class: 'btn ghost small', onclick: () => { assign.clear(); draw(); } }, t('clear'))),
         h('details', { class: 'more', open: hasDetails },
@@ -1372,17 +1406,20 @@ async function pageGroupSettings(gid, current) {
         showHint();
     };
 
-    // Both teams in one sheet: a name and a colour each, shown in that colour.
-    // An empty name stores nothing: the team goes by its colour, in the
-    // viewer's language. The two teams can't share a colour.
+    // How the game is played, and its two teams: a name and a colour each, shown
+    // in that colour. An empty name stores nothing: the team goes by its colour,
+    // in the viewer's language. The two teams can't share a colour. One against
+    // one has no team names (the sides are the players), only colours.
     const teamsDialog = (g) => {
+        let format = g.format;
         const colors = [0, 1].map((i) => colorOf(teamOf(g, i)));
         const inputs = [0, 1].map((i) => h('input', { class: 'input', maxlength: 40, value: teamOf(g, i)?.name || '', 'aria-label': t('teamName', { n: i + 1 }) }));
         const heads = [0, 1].map(() => h('strong'));
         const swatches = [0, 1].map(() => h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t('teamColor') }));
         const boxes = [0, 1].map((i) => h('div', { class: `team-name-field team-box team-box-${i}` }, heads[i], inputs[i], swatches[i]));
-        const title = (i) => { heads[i].textContent = inputs[i].value.trim() || colorName(colors[i]); };
+        const title = (i) => { heads[i].textContent = (format !== 'GAME_FORMAT_ONE_VS_ONE' && inputs[i].value.trim()) || colorName(colors[i]); };
         const draw = () => [0, 1].forEach((i) => {
+            inputs[i].hidden = format === 'GAME_FORMAT_ONE_VS_ONE';
             inputs[i].placeholder = colorName(colors[i]);
             setTeamColor(boxes[i], i, colors[i]);
             title(i);
@@ -1397,10 +1434,12 @@ async function pageGroupSettings(gid, current) {
             e.preventDefault();
             dialog.close();
             const team = (i) => ({ name: inputs[i].value.trim(), color: `TEAM_COLOR_${colors[i].toUpperCase()}` });
-            act('UpdateGame', { gameId: g.id, teamA: team(0), teamB: team(1) });
+            act('UpdateGame', { gameId: g.id, teamA: team(0), teamB: team(1), ...(format !== g.format && { format }) });
         };
         const dialog = sheet(t('teamsTitle', { game: g.name }),
             h('form', { class: 'stack', onsubmit: save },
+                h('div', { class: 'setting stack-setting' }, h('span', { class: 'muted small' }, t('format')),
+                    segmented(FORMATS.map((f) => [f, t(FORMAT_LABELS[f])]), format, (v) => { format = v; draw(); })),
                 h('div', { class: 'team-names' }, boxes),
                 h('p', { class: 'muted small' }, t('teamsHint')),
                 h('div', { class: 'sheet-actions' }, h('button', { class: 'btn' }, t('save')))));
@@ -1408,7 +1447,7 @@ async function pageGroupSettings(gid, current) {
     };
 
     const gameRows = ctx.games.map((g) => h('li', { class: `list-row ${g.archived ? 'faded' : ''}` },
-        h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${teamName(g, 0)} / ${teamName(g, 1)}`,
+        h('span', null, g.name, h('span', { class: 'muted small' }, oneVsOne(g) ? ` · ${t('formatOneVsOne')}` : ` · ${teamName(g, 0)} / ${teamName(g, 1)}`,
             g.ratingSpeed !== 'RATING_SPEED_STEADY' ? ` · ${t(SPEEDS[g.ratingSpeed]?.label ?? 'speedSteady')}` : '')),
         h('span', { class: 'row wrap-row' },
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
@@ -1503,7 +1542,7 @@ async function pageDashboard(token, current, known = null) {
     const data = game ? (await rpc('GetDashboardGame', { token, gameId: game.id, ...periods() })).view : null;
     if (!current() || seq !== loadSeq) return;
     document.title = titleOf(base.groupName, brandName());
-    const ctx = { group: { name: base.groupName }, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])), me: null };
+    const ctx = { group: { name: base.groupName }, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])) };
     // Group, games and players only change rarely: refetched every 10th refresh.
     const refresh = () => pageDashboard(token, current, ++dashboardRefreshes % 10 ? base : null);
     const url = dashboardUrl(token);
@@ -1516,7 +1555,7 @@ async function pageDashboard(token, current, known = null) {
         content = h('div', { class: 'game-grid tv-grid' },
             h('section', { class: 'card pad board-card' },
                 h('div', { class: 'section-head' }, h('h2', null, t('leaderboard')), teamLegend(ctx.game)),
-                leaderboard(ctx, today, null, { big: true })),
+                leaderboard(ctx, null, { big: true })),
             h('section', { class: 'card pad' },
                 h('h2', null, today.length ? t('today') : t('recent')),
                 roundList(ctx, (today.length ? today : ctx.rounds).slice(0, 8), { showDay: !today.length })));

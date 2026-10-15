@@ -324,6 +324,15 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 	wantCode(t, err, connect.CodeInvalidArgument)
 	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamB: &pb.Team{Color: pb.TeamColor(99)}})
 	wantCode(t, err, connect.CodeInvalidArgument)
+	if game.Format != pb.GameFormat_GAME_FORMAT_TEAMS {
+		t.Fatalf("format: %v", game.Format)
+	}
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, Format: pb.GameFormat_GAME_FORMAT_UNSPECIFIED.Enum()})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	tt := must(e, e.c.CreateGame, o.owner, &pb.CreateGameRequest{Name: "Table tennis", Format: pb.GameFormat_GAME_FORMAT_ONE_VS_ONE}).Game
+	if tt.Format != pb.GameFormat_GAME_FORMAT_ONE_VS_ONE || tt.RatingSpeed != pb.RatingSpeed_RATING_SPEED_FAST {
+		t.Fatalf("1v1 game: %+v", tt)
+	}
 	g2 := must(e, e.c.CreateGame, o.owner, &pb.CreateGameRequest{Name: "Pool", TeamB: &pb.Team{Color: pb.TeamColor_TEAM_COLOR_PURPLE}}).Game
 	if g2.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_BLUE || g2.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_PURPLE {
 		t.Fatalf("create with a colour: %+v", g2)
@@ -485,7 +494,7 @@ func TestGroupCreationCanBeSwitchedOff(t *testing.T) {
 		t.Fatal("instance still says creation is allowed")
 	}
 	// The operator can still make groups, and people join them.
-	cg, err := e.st.CreateGroup(context.Background(), "Made by operator", "", "RL", false, "")
+	cg, err := e.st.CreateGroup(context.Background(), "Made by operator", "RL", false, "")
 	if err != nil {
 		t.Fatal(err)
 	}

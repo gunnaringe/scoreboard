@@ -71,7 +71,8 @@ const rpcDone = (p, method) => p.waitForResponse((r) => r.url().endsWith(`.Score
 // The chip of a player in the open round sheet.
 const chipOf = (p, name) => p.locator('dialog .pchip', { has: p.locator(`.chip-name:text-is("${name}")`) }).first();
 // Puts a player on a team in the open round sheet (adding them first if unknown),
-// with the chip's buttons: + team on the bench, "move" in the other team.
+// with the chip's buttons: + team on the bench, "move" in the other team. In a
+// 1v1 game tapping a benched player fills the free side (place side 0 first).
 async function place(p, name, team) {
     if (!(await chipOf(p, name).count())) {
         await p.fill('dialog input[placeholder="New player"]', name);
@@ -82,7 +83,8 @@ async function place(p, name, team) {
         const c = chipOf(p, name);
         const cls = (await c.getAttribute('class')) || '';
         if (cls.includes(`team-${team}`)) return;
-        await c.locator(cls.includes('team-') ? '.chip-move' : `.add-${team}`).click();
+        if (await c.locator('.chip-tap').count()) await c.locator('.chip-tap').click();
+        else await c.locator(cls.includes('team-') ? '.chip-move' : `.add-${team}`).click();
     }
     throw new Error(`could not put ${name} on team ${team}`);
 }
@@ -277,6 +279,13 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await ada.click('dialog button:has-text("Save")');
     await reset;
     await ada.waitForSelector('text=Blue / Orange');
+    // A game with team rounds can't become one against one.
+    await ada.click('button:has-text("Teams")');
+    await ada.click('dialog .segmented button:has-text("1 vs 1")');
+    check(await ada.locator('dialog .team-names input').first().isHidden(), '1v1 has no team names, only colours');
+    await ada.click('dialog button:has-text("Save")');
+    await ada.waitForSelector('.toast:has-text("team rounds")');
+    check(!(await text(ada)).includes('Rocket League · 1 vs 1'), 'switching a game with team rounds to 1v1 is refused');
 
     // Rating speed: the sheet explains the choice, saving re-rates the game.
     const setSpeed = async (label) => {
@@ -365,7 +374,7 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
 console.log('\nmulti mode, group creation off, Norwegian');
 const closed = await startServer('closed', ['--allow-group-creation=false']);
 {
-    const out = closed.cli('groups', 'create', 'Kontoret', '--player', 'Kari', '--game', 'Rocket League');
+    const out = closed.cli('groups', 'create', 'Kontoret', '--game', 'Rocket League');
     const office = out.match(/office link:\s+(\S+)/)[1];
     const p = await newPage({ name: 'nb', locale: 'nb-NO' });
     await p.goto(closed.url);
@@ -396,13 +405,28 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
     check(new URL(a.url()).pathname === '/g/main' && (await a.locator('dialog[open]').count()) === 0, 'opening the address joins silently');
     check(!(await text(a)).includes('Join a group'), 'there is no start page');
     check(!(await text(a)).includes("You're") && !(await text(a)).includes('Who are you'), 'nobody is asked who they are');
+    // A one-against-one game: picked when it is created.
     await a.fill('input[placeholder="Game name"]', 'Table tennis');
+    await a.click('.segmented button:has-text("1 vs 1")');
     await a.click('button:has-text("Add")');
     await a.waitForURL(/\/game\//);
     await a.waitForSelector('.fab');
+    check((await a.locator('.team-legend').count()) === 0, '1v1: no team legend');
     await logRound(a, ['Ada'], ['Bob'], 0);
     await logRound(a, ['Ada'], ['Bob'], 1);
     check((await text(a, '.board-wrap')).includes('Bob'), 'rounds work in single mode');
+    // The 1v1 sheet: tap to fill the free side, tap to put back, no team buttons or Balance.
+    await a.locator('.fab').click();
+    await a.waitForSelector('dialog[open]');
+    await settle(a);
+    eq(await a.locator('dialog .win-btn').allInnerTexts(), ['Ada won', 'Bob won'], '1v1: the win buttons name the players');
+    check((await a.locator('dialog button:has-text("Balance"), dialog .chip-add, dialog .chip-move').count()) === 0, '1v1: no Balance or team buttons');
+    await chipOf(a, 'Bob').locator('.chip-tap').click();
+    check(!(await chipOf(a, 'Bob').getAttribute('class')).includes('team-'), '1v1: tapping a player puts them back on the bench');
+    await place(a, 'Cy', 1);
+    eq(await a.locator('dialog .team-box-1 .chip-name').allInnerTexts(), ['Cy'], '1v1: tapping a benched player fills the free side');
+    await shot(a, 'single-01b-1v1-sheet', false);
+    await a.click('dialog button[aria-label="Close"]');
 
     await a.goto(`${single.url}/g/main/settings`);
     await a.waitForSelector('text=Players');

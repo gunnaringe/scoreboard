@@ -181,7 +181,7 @@ func (v *service) ListGroups(ctx context.Context, _ *connect.Request[pb.ListGrou
 
 func (v *service) CreateGroup(ctx context.Context, r *connect.Request[pb.CreateGroupRequest]) (*connect.Response[pb.CreateGroupResponse], error) {
 	m := r.Msg
-	created, err := v.s.Store.CreateGroup(ctx, m.Name, m.Player, m.Game, false, "")
+	created, err := v.s.Store.CreateGroup(ctx, m.Name, m.Game, false, "")
 	if err != nil {
 		return nil, rpcErr(err)
 	}

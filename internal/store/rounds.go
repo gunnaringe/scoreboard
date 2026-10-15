@@ -62,6 +62,14 @@ func checkScore(v *int) error {
 	return nil
 }
 
+// checkFormat refuses teams a one-against-one game can't have.
+func checkFormat(format string, teams [2][]string) error {
+	if format == FormatOneVsOne && (len(teams[0]) != 1 || len(teams[1]) != 1) {
+		return BadRequest("this game is one against one")
+	}
+	return nil
+}
+
 // validateTeams checks both teams and returns copies sorted by id (so sums are
 // always taken in the same order).
 func validateTeams(ctx context.Context, q queryer, groupID string, teams [2][]string) ([2][]string, error) {
@@ -158,13 +166,15 @@ func (s *Store) CreateRound(ctx context.Context, groupID, gameID, deviceID strin
 	}
 	id := newID()
 	err := s.write(ctx, func(tx *sql.Tx) error {
-		if n, err := count(ctx, tx, `SELECT COUNT(*) FROM games WHERE id = ? AND group_id = ?`, gameID, groupID); err != nil {
-			return err
-		} else if n == 0 {
-			return ErrNotFound
+		var format string
+		if err := tx.QueryRowContext(ctx, `SELECT format FROM games WHERE id = ? AND group_id = ?`, gameID, groupID).Scan(&format); err != nil {
+			return notFoundIf(err)
 		}
 		teams, err := validateTeams(ctx, tx, groupID, in.Teams)
 		if err != nil {
+			return err
+		}
+		if err := checkFormat(format, teams); err != nil {
 			return err
 		}
 		if err := checkTournament(ctx, tx, gameID, in.TournamentID); err != nil {
@@ -489,6 +499,13 @@ func (s *Store) UpdateRound(ctx context.Context, groupID, roundID string, p Roun
 		teams := oldTeams
 		if p.Teams != nil {
 			if teams, err = validateTeams(ctx, tx, groupID, *p.Teams); err != nil {
+				return err
+			}
+			var format string
+			if err := tx.QueryRowContext(ctx, `SELECT format FROM games WHERE id = ?`, r.gameID).Scan(&format); err != nil {
+				return err
+			}
+			if err := checkFormat(format, teams); err != nil {
 				return err
 			}
 		}

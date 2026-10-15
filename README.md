@@ -7,9 +7,10 @@ a wall-screen dashboard update themselves. One Go binary with the web app
 inside, SQLite for storage, no accounts.
 
 <p align="center">
-  <img src="docs/screenshots/leaderboard.png" width="250" alt="Leaderboard">
-  <img src="docs/screenshots/round.png" width="250" alt="Logging a round, with win odds">
-  <img src="docs/screenshots/player.png" width="250" alt="A player's page">
+  <img src="docs/screenshots/leaderboard.png" width="190" alt="Leaderboard">
+  <img src="docs/screenshots/round.png" width="190" alt="Logging a team round, with win odds">
+  <img src="docs/screenshots/round-1v1.png" width="190" alt="Logging a 1 vs 1 round">
+  <img src="docs/screenshots/player.png" width="190" alt="A player's page">
 </p>
 
 ## Features
@@ -24,6 +25,9 @@ inside, SQLite for storage, no accounts.
   everyone's rating in sight. Tapping who won saves it, Undo fixes mistakes.
   Win odds and "balance teams" are built in. Editing or deleting an old round
   recalculates everything exactly.
+- **1 vs 1 or teams.** Each game is set up as one or the other. A 1 vs 1 game
+  (table tennis, chess) keeps the sheet to two sides you fill with a tap, and
+  starts on a faster rating speed.
 - **Made for a shared screen.** Nobody signs in or says who they are: one
   tablet or phone by the table can log every round. The leaderboard shows
   each player's points today and this week.

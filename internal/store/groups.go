@@ -80,17 +80,12 @@ type CreatedGroup struct {
 	OwnerToken  string // shown once; only its hash is kept
 }
 
-// CreateGroup makes a group with an optional first player and game. When ua is
-// non-empty the caller's browser becomes its first device and an owner.
-func (s *Store) CreateGroup(ctx context.Context, name, playerName, gameName string, withDevice bool, ua string) (CreatedGroup, error) {
+// CreateGroup makes a group with an optional first game (played in teams).
+// withDevice makes the caller's browser its first device and an owner.
+func (s *Store) CreateGroup(ctx context.Context, name, gameName string, withDevice bool, ua string) (CreatedGroup, error) {
 	name, err := CleanName(name, "group name")
 	if err != nil {
 		return CreatedGroup{}, err
-	}
-	if playerName != "" {
-		if playerName, err = CleanName(playerName, "player name"); err != nil {
-			return CreatedGroup{}, err
-		}
 	}
 	if gameName != "" {
 		if gameName, err = CleanName(gameName, "game name"); err != nil {
@@ -104,12 +99,6 @@ func (s *Store) CreateGroup(ctx context.Context, name, playerName, gameName stri
 		if _, err := tx.ExecContext(ctx, `INSERT INTO groups (id, name, invite_code, dashboard_token, owner_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 			out.Group.ID, name, out.Group.InviteCode, out.Group.DashboardToken, Hash(out.OwnerToken), now); err != nil {
 			return err
-		}
-		if playerName != "" {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO players (id, group_id, name, name_key, created_at) VALUES (?, ?, ?, ?, ?)`,
-				newID(), out.Group.ID, playerName, nameKey(playerName), now); err != nil {
-				return err
-			}
 		}
 		if withDevice {
 			out.DeviceToken = NewToken()

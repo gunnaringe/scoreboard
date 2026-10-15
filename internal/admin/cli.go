@@ -29,7 +29,7 @@ Commands (add --group <id or name> when the instance has several groups):
   stats                              totals for the whole instance
   config                             the running configuration
   groups list                        every group with its links
-  groups create <name> [--player NAME] [--game NAME]
+  groups create <name> [--game NAME]
                                      make a group (prints its owner link once)
   groups rename <new name>
   groups delete --yes
@@ -64,9 +64,9 @@ Options:
 `
 
 type options struct {
-	url, token, group, player, game, name, output string
-	json, yes, off                                bool
-	args                                          []string
+	url, token, group, game, name, output string
+	json, yes, off                        bool
+	args                                  []string
 }
 
 func parse(args []string, env func(string) string) (options, error) {
@@ -91,8 +91,6 @@ func parse(args []string, env func(string) string) (options, error) {
 			o.token, err = value()
 		case "-g", "--group":
 			o.group, err = value()
-		case "--player":
-			o.player, err = value()
 		case "--game":
 			o.game, err = value()
 		case "--name":
@@ -272,10 +270,10 @@ func (c *client) run(ctx context.Context, w io.Writer) error {
 				tw.Flush()
 			})
 		case "create":
-			if err := c.need(2, "groups create <name> [--player NAME] [--game NAME]"); err != nil {
+			if err := c.need(2, "groups create <name> [--game NAME]"); err != nil {
 				return err
 			}
-			r, err := c.rpc.CreateGroup(ctx, connect.NewRequest(&pb.CreateGroupRequest{Name: rest(2), Player: c.o.player, Game: c.o.game}))
+			r, err := c.rpc.CreateGroup(ctx, connect.NewRequest(&pb.CreateGroupRequest{Name: rest(2), Game: c.o.game}))
 			if err != nil {
 				return err
 			}

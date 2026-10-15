@@ -98,7 +98,23 @@ func playersPB(ps []store.Player) []*pb.Player {
 
 func gamePB(g store.Game) *pb.Game {
 	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: teamPB(g.Teams[0]), TeamB: teamPB(g.Teams[1]), Archived: g.Archived,
-		CreatedAt: ts(g.CreatedAt), RatingSpeed: speedPB[g.RatingSpeed]}
+		CreatedAt: ts(g.CreatedAt), RatingSpeed: speedPB[g.RatingSpeed], Format: formatPB[g.Format]}
+}
+
+var formatPB = map[string]pb.GameFormat{store.FormatTeams: pb.GameFormat_GAME_FORMAT_TEAMS, store.FormatOneVsOne: pb.GameFormat_GAME_FORMAT_ONE_VS_ONE}
+
+// formatOf is a requested format in the store's terms; UNSPECIFIED is "" and
+// an unknown number something the store refuses.
+func formatOf(f pb.GameFormat) string {
+	for s, p := range formatPB {
+		if p == f {
+			return s
+		}
+	}
+	if f == pb.GameFormat_GAME_FORMAT_UNSPECIFIED {
+		return ""
+	}
+	return f.String()
 }
 
 // Team colours are TEAM_COLOR_BLUE in the API and "blue" in the store.
@@ -257,7 +273,7 @@ func (v *service) CreateGroup(ctx context.Context, r req[pb.CreateGroupRequest])
 		return nil, err
 	}
 	m := r.Msg
-	created, err := v.s.Store.CreateGroup(ctx, m.Name, "", m.GameName, true, r.Header().Get("User-Agent"))
+	created, err := v.s.Store.CreateGroup(ctx, m.Name, m.GameName, true, r.Header().Get("User-Agent"))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -454,7 +470,7 @@ func (v *service) CreateGame(ctx context.Context, r req[pb.CreateGameRequest]) (
 	if err != nil {
 		return nil, err
 	}
-	g, err := v.s.Store.CreateGame(ctx, dev.GroupID, r.Msg.Name, [2]store.Team{teamOf(r.Msg.TeamA), teamOf(r.Msg.TeamB)})
+	g, err := v.s.Store.CreateGame(ctx, dev.GroupID, r.Msg.Name, [2]store.Team{teamOf(r.Msg.TeamA), teamOf(r.Msg.TeamB)}, formatOf(r.Msg.Format))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -468,13 +484,25 @@ func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (
 	}
 	m := r.Msg
 	err = v.s.Store.UpdateGame(ctx, dev.GroupID, m.GameId, store.GamePatch{
-		Name: m.Name, Teams: [2]*store.Team{teamPatch(m.TeamA), teamPatch(m.TeamB)}, Archived: m.Archived,
+		Name: m.Name, Teams: [2]*store.Team{teamPatch(m.TeamA), teamPatch(m.TeamB)}, Archived: m.Archived, Format: formatPatch(m.Format),
 		RatingSpeed: speedPatch(m.RatingSpeed),
 	})
 	if err != nil {
 		return nil, rpcErr(err)
 	}
 	return connect.NewResponse(&pb.UpdateGameResponse{}), nil
+}
+
+// formatPatch: absent leaves the format, UNSPECIFIED is refused (by the store).
+func formatPatch(f *pb.GameFormat) *string {
+	if f == nil {
+		return nil
+	}
+	s := formatOf(*f)
+	if s == "" {
+		s = "unspecified"
+	}
+	return &s
 }
 
 func teamPatch(t *pb.Team) *store.Team {

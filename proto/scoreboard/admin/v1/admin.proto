@@ -103,7 +103,7 @@ message ListGroupsResponse {
 
 message CreateGroupRequest {
   string name = 1;
-  string player = 2;
+  reserved 2;
   string game = 3;
 }
 
