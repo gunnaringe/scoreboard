@@ -215,6 +215,9 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await shot(ada, 'multi-05-player');
     await ada.goBack();
     await ada.click('a:has-text("History")');
+    // The game page has a .rounds list too: wait for the history page itself.
+    await ada.waitForURL(/\/history$/);
+    await settle(ada);
     await ada.waitForSelector('.rounds');
     check(await ada.locator('.round').count() >= 4, 'history lists the rounds');
 
