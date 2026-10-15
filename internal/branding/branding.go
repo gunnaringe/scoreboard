@@ -35,7 +35,7 @@ type Branding struct {
 	Name            string `json:"name"`
 	ShortName       string `json:"shortName"`
 	Accent          string `json:"accent,omitempty"`
-	DefaultTheme    string `json:"defaultTheme,omitempty"`    // auto, light, dark, hacker
+	DefaultTheme    string `json:"defaultTheme,omitempty"`    // auto, light, dark, hacker, gamer
 	DefaultLanguage string `json:"defaultLanguage,omitempty"` // auto, en, no
 	Footer          string `json:"footer,omitempty"`
 	HasLogo         bool   `json:"logo"`
@@ -88,10 +88,10 @@ func Load(dir string) (*Branding, error) {
 		b.Accent = strings.ToLower(f.Accent)
 	}
 	switch f.DefaultTheme {
-	case "", "auto", "light", "dark", "hacker":
+	case "", "auto", "light", "dark", "hacker", "gamer":
 		b.DefaultTheme = f.DefaultTheme
 	default:
-		return nil, fmt.Errorf("branding.json: defaultTheme must be auto, light, dark or hacker")
+		return nil, fmt.Errorf("branding.json: defaultTheme must be auto, light, dark, hacker or gamer")
 	}
 	switch f.DefaultLanguage {
 	case "", "auto", "en", "no":
@@ -157,7 +157,8 @@ func readAsset(dir, named string, guesses ...string) ([]byte, string, error) {
 }
 
 // accentCSS recolours the buttons and highlights of the light and dark themes
-// (the hacker theme stays green), choosing readable text for the colour.
+// (the hacker and gamer themes keep their own colours), choosing readable text
+// for the colour.
 func accentCSS(hex string) string {
 	r, _ := strconv.ParseUint(hex[1:3], 16, 8)
 	g, _ := strconv.ParseUint(hex[3:5], 16, 8)

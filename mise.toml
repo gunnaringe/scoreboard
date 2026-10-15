@@ -1,0 +1,11 @@
+# The toolchain for working on Scoreboard: `mise install`, then the Makefile
+# targets work as usual (they call the tools directly, not through mise). CI
+# installs the same versions from this file.
+[tools]
+go = "1.26.9"
+node = "24"   # dev tools only: tests, e2e, screenshots
+buf = "1.73.0"
+# Code generators for `make gen`: same versions as the runtime libraries in go.mod.
+"go:google.golang.org/protobuf/cmd/protoc-gen-go" = "1.36.12"
+"go:connectrpc.com/connect/cmd/protoc-gen-connect-go" = "1.21.0"
+prek = "0.5.5"

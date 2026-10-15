@@ -93,6 +93,16 @@ func TestInvalidBranding(t *testing.T) {
 	}
 }
 
+func TestDefaultThemes(t *testing.T) {
+	for _, theme := range []string{"auto", "light", "dark", "hacker", "gamer"} {
+		dir := t.TempDir()
+		write(t, dir, "branding.json", `{"defaultTheme":"`+theme+`"}`)
+		if b, err := Load(dir); err != nil || b.DefaultTheme != theme {
+			t.Errorf("%s: %+v %v", theme, b, err)
+		}
+	}
+}
+
 func TestReadableTextOnAccent(t *testing.T) {
 	for hex, want := range map[string]string{"#ffffff": "#0a0e1a", "#8b9dff": "#0a0e1a", "#000000": "#ffffff", "#1a237e": "#ffffff", "#ffeb3b": "#0a0e1a"} {
 		if got := OnColor(hex); got != want {

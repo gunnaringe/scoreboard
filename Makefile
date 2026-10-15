@@ -1,8 +1,9 @@
-# Plain make, no tool manager. Needs: go, node (dev tools only), buf + protoc-gen-go +
-# protoc-gen-connect-go (only to change proto/).
+# Tools: `mise install` (see mise.toml) gives go, node (dev tools only), buf and the
+# protoc plugins (only to change proto/), and prek. The targets call the tools
+# directly, so any install of them works too.
 VERSION ?= $(shell git describe --tags --match 'v*' --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: build run run-single test gen smoke e2e check
+.PHONY: build run run-single test gen smoke e2e screenshots hooks check
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o scoreboard ./cmd/scoreboard
@@ -29,7 +30,14 @@ smoke: build      # end-to-end check against a throwaway server
 e2e: build        # drives Chromium through both modes (CHROME=/path to pick a browser)
 	npm run e2e
 
+screenshots: build # README images in docs/screenshots/ (commit them with UI changes)
+	npm run screenshots
+
+hooks:            # prek checks (YAML, JSON); `prek install` runs them on commit
+	prek run --all-files
+
 check:            # what CI runs (plus `make smoke e2e`)
+	prek run --all-files
 	gofmt -l cmd internal gen web | (! grep .)
 	go vet ./...
 	buf lint

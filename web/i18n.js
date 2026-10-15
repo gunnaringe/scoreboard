@@ -38,6 +38,7 @@ export const I18N = {
         themeLight: 'Light',
         themeDark: 'Dark',
         themeHacker: 'Hacker',
+        themeGamer: 'Gamer',
         language: 'Language',
         langAuto: 'Auto',
         groupsOnDevice: 'Groups on this device',
@@ -127,6 +128,7 @@ export const I18N = {
         newRound: 'New round',
         teamBlue: 'Blue',
         teamOrange: 'Orange',
+        teamRed: 'Red',
         a2hs: 'Tip: tap Share → "Add to Home Screen". Otherwise Safari may forget this phone after a week away.',
         gotIt: 'Got it',
 
@@ -262,6 +264,7 @@ export const I18N = {
         themeLight: 'Lys',
         themeDark: 'Mørk',
         themeHacker: 'Hacker',
+        themeGamer: 'Gamer',
         language: 'Språk',
         langAuto: 'Auto',
         groupsOnDevice: 'Grupper på denne enheten',
@@ -351,6 +354,7 @@ export const I18N = {
         newRound: 'Ny runde',
         teamBlue: 'Blå',
         teamOrange: 'Oransje',
+        teamRed: 'Rød',
         a2hs: 'Tips: trykk Del → «Legg til på Hjem-skjerm». Ellers kan Safari glemme denne telefonen etter en uke borte.',
         gotIt: 'Skjønner',
 

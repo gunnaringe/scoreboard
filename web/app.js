@@ -416,7 +416,9 @@ const SPEEDS = {
     RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
     RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
 };
-const teamName = (game, i) => (i === 0 ? game.teamA || t('teamBlue') : game.teamB || t('teamOrange'));
+// Unnamed teams are Blue and Orange, or Blue and Red in the gamer theme (its team colours).
+const defaultTeamName = (i) => t(i === 0 ? 'teamBlue' : document.documentElement.dataset.theme === 'gamer' ? 'teamRed' : 'teamOrange');
+const teamName = (game, i) => (i === 0 ? game.teamA : game.teamB) || defaultTeamName(i);
 
 // A dialog that labels itself, closes on Escape/backdrop and removes itself.
 function sheet(title, ...content) {
@@ -554,7 +556,7 @@ async function pageAppSettings() {
         topbar({ back: '/?home', title: t('settings') }),
         h('main', { class: 'wrap narrow' },
             h('section', { class: 'card pad' }, h('h2', null, t('theme')),
-                segmented([['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')], ['hacker', t('themeHacker')]],
+                segmented([['auto', t('themeAuto')], ['light', t('themeLight')], ['dark', t('themeDark')], ['hacker', t('themeHacker')], ['gamer', t('themeGamer')]],
                     localStorage.getItem('theme') || 'auto', (v) => { localStorage.setItem('theme', v); window.applyTheme(); })),
             h('section', { class: 'card pad' }, h('h2', null, t('language')),
                 segmented([['auto', t('langAuto')], ['en', 'English'], ['no', 'Norsk']],
@@ -709,7 +711,9 @@ function leaderboard(ctx, _todayRounds, hrefFor, { big = false } = {}) {
 }
 
 function roundItem(ctx, round, { showDay = false, onEdit } = {}) {
-    const team = (i) => round.players.filter((p) => p.team === i);
+    // Teammates alphabetically: the server's order (by id) means nothing to people.
+    const team = (i) => round.players.filter((p) => p.team === i)
+        .sort((a, b) => playerName(ctx, a.playerId).localeCompare(playerName(ctx, b.playerId), locale()));
     const names = (i) => team(i).map((p) => playerName(ctx, p.playerId)).join(', ');
     const side = (i) => h('div', { class: `side side-${i} ${round.winner === i ? 'won' : ''}` },
         round.winner === i && h('span', { class: 'win-mark' }, icon('trophy'), t('win')),
@@ -906,7 +910,7 @@ async function pageTournament(gid, gameId, tid, current) {
                         h('th', { class: 'num' }, t('winsShort')), h('th', { class: 'num' }, t('lossesShort')), h('th', { class: 'num' }, t('ratingChange')))),
                     h('tbody', null, rows.map((s, i) => h('tr', { class: `${s.id === ctx.me.playerId ? 'me' : ''} ${i < 3 ? `top top${i + 1}` : ''}` },
                         h('td', { class: 'num rank' }, i + 1),
-                        h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.playerId}` }, playerName(ctx, s.playerId))),
+                        h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
                         h('td', { class: 'num rating' }, s.wins), h('td', { class: 'num muted' }, s.losses), h('td', { class: 'num' }, deltaEl(s.delta))))))
                     : h('p', { class: 'muted empty-small' }, t('noRoundsYet')),
                 h('p', { class: 'muted small' }, t('tournamentHint')),
@@ -983,7 +987,7 @@ async function pagePlayer(gid, gameId, pid, current) {
     const h2hTable = (title, list) => list.length > 0 && h('div', null, h('h3', null, title), h('table', { class: 'board compact' },
         h('thead', null, h('tr', null, h('th', null, t('player')), h('th', { class: 'num' }, t('roundsShort')), h('th', { class: 'num' }, t('wl')), h('th', { class: 'num' }, '%'))),
         h('tbody', null, [...list].sort((a, b) => b.games - a.games).map((s) => h('tr', null,
-            h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
+            h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.playerId}` }, playerName(ctx, s.playerId))),
             h('td', { class: 'num' }, s.games), h('td', { class: 'num' }, `${s.wins}–${s.games - s.wins}`),
             h('td', { class: 'num muted' }, `${Math.round(pct(s) * 100)} %`))))));
 
@@ -1335,7 +1339,7 @@ async function pageGroupSettings(gid, current) {
                 const b = prompt(t('teamNames', { n: 2 }), teamName(g, 1));
                 if (b === null) return;
                 // Keeping the default names stores nothing, so they follow the language.
-                act('UpdateGame', { gameId: g.id, teamA: a === t('teamBlue') ? '' : a, teamB: b === t('teamOrange') ? '' : b });
+                act('UpdateGame', { gameId: g.id, teamA: a === defaultTeamName(0) ? '' : a, teamB: b === defaultTeamName(1) ? '' : b });
             } }, t('teams')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => speedDialog(g) }, t('ratingSpeed')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdateGame', { gameId: g.id, archived: !g.archived }) },

@@ -1,0 +1,18 @@
+# docker compose up -d   → http://localhost:8080
+# Administer with: docker compose exec scoreboard /scoreboard admin <command>
+services:
+  scoreboard:
+    image: ghcr.io/gunnaringe/scoreboard:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - scoreboard-data:/data
+    environment:
+      SCOREBOARD_MODE: single                     # or multi: several groups with secret links
+      SCOREBOARD_PUBLIC_URL: http://localhost:8080 # the address people use; the CLI prints links with it
+      # SCOREBOARD_GROUP_NAME: Oslo office         # single: the group's name at first start
+      # SCOREBOARD_TRUST_PROXY: "true"             # behind a reverse proxy
+      # SCOREBOARD_BRANDING_DIR: /branding         # and mount a directory there
+volumes:
+  scoreboard-data:

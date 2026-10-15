@@ -179,6 +179,18 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     eq(await ratingOf(ada, 'Ada'), flipped, 'Undo brings the rating back');
     await shot(ada, 'multi-03-game');
 
+    // Gamer theme: picked in the app settings; unnamed teams become Blue and Red.
+    await ada.goto(`${multi.url}/settings`);
+    await ada.click('.segmented button:has-text("Gamer")');
+    eq(await ada.evaluate(() => document.documentElement.dataset.theme), 'gamer', 'the gamer theme can be picked');
+    await ada.goto(multi.url + gamePath);
+    await ada.waitForSelector('.board');
+    eq(await ada.locator('.tl').allInnerTexts(), ['Blue', 'Red'], 'gamer theme: the teams are Blue and Red');
+    await shot(ada, 'multi-03b-gamer', false);
+    await ada.evaluate(() => { localStorage.setItem('theme', 'dark'); window.applyTheme(); });
+    await ada.reload();
+    await ada.waitForSelector('.board');
+
     // Tournament
     await ada.fill('input[placeholder="New tournament"]', 'Friday cup');
     await ada.click('button:has-text("Start")');
@@ -186,6 +198,7 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await logRound(ada, ['Ada'], ['Cy'], 0).catch(() => {});
     await settle(ada);
     check((await text(ada)).includes('Friday cup'), 'the tournament page lists its round');
+    eq(await ada.locator('.board td.name').allInnerTexts(), ['Ada', 'Cy'], 'the standings name the players');
     await shot(ada, 'multi-04-tournament');
     await ada.click('button:has-text("End tournament")');
     await ada.waitForSelector('text=ended');
@@ -197,9 +210,14 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await ada.waitForSelector('.chart');
     const stats = (await text(ada)).toLowerCase(); // headings are upper-cased by CSS
     check(stats.includes('streak') && stats.includes('with') && stats.includes('against'), 'the player page shows stats and head-to-head');
+    const h2h = await ada.locator('.board.compact td.name').allInnerTexts();
+    check(h2h.length > 0 && !h2h.includes('?'), `the head-to-head tables name the players (${h2h.join(', ')})`);
     await shot(ada, 'multi-05-player');
     await ada.goBack();
     await ada.click('a:has-text("History")');
+    // The game page has a .rounds list too: wait for the history page itself.
+    await ada.waitForURL(/\/history$/);
+    await settle(ada);
     await ada.waitForSelector('.rounds');
     check(await ada.locator('.round').count() >= 4, 'history lists the rounds');
 
@@ -332,9 +350,14 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
     check(!(await text(a)).includes('Join a group'), 'there is no start page');
     await a.fill('dialog input', 'Ada');
     await a.click('dialog button:has-text("Add")');
+    // "No games yet." is already behind the dialog; the page re-renders after it
+    // closes, so wait for that or the typed game name is lost.
+    await a.waitForSelector('dialog[open]', { state: 'detached' });
+    await settle(a);
     await a.waitForSelector('text=No games yet.');
     await a.fill('input[placeholder="Game name"]', 'Table tennis');
     await a.click('button:has-text("Add")');
+    await a.waitForURL(/\/game\//);
     await a.waitForSelector('.fab');
     await logRound(a, ['Ada'], ['Bob'], 0);
     await logRound(a, ['Ada'], ['Bob'], 1);

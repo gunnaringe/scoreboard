@@ -1,28 +1,23 @@
 name: CI
 on:
   push:
-    branches: [main, go]
+    branches: [main]
   pull_request:
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
+      # Go, Node, buf, the protoc plugins and prek, at the versions in mise.toml.
+      - uses: jdx/mise-action@v5
+      - name: prek hooks (YAML, JSON)
+        run: prek run --all-files --show-diff-on-failure
       - name: Format and vet
         run: |
           test -z "$(gofmt -l cmd internal gen web)"
           go vet ./...
-      - uses: bufbuild/buf-setup-action@v1
       - name: Protobuf lint and generated code up to date
         run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go connectrpc.com/connect/cmd/protoc-gen-connect-go
-          export PATH="$PATH:$(go env GOPATH)/bin"
           buf lint
           buf generate
           git diff --exit-code gen
