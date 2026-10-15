@@ -623,7 +623,6 @@ func (x *ListGroupsResponse) GetGroups() []*Group {
 type CreateGroupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Player        string                 `protobuf:"bytes,2,opt,name=player,proto3" json:"player,omitempty"`
 	Game          string                 `protobuf:"bytes,3,opt,name=game,proto3" json:"game,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -662,13 +661,6 @@ func (*CreateGroupRequest) Descriptor() ([]byte, []int) {
 func (x *CreateGroupRequest) GetName() string {
 	if x != nil {
 		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateGroupRequest) GetPlayer() string {
-	if x != nil {
-		return x.Player
 	}
 	return ""
 }
@@ -2359,11 +2351,10 @@ const file_scoreboard_admin_v1_admin_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"\x13\n" +
 	"\x11ListGroupsRequest\"H\n" +
 	"\x12ListGroupsResponse\x122\n" +
-	"\x06groups\x18\x01 \x03(\v2\x1a.scoreboard.admin.v1.GroupR\x06groups\"T\n" +
+	"\x06groups\x18\x01 \x03(\v2\x1a.scoreboard.admin.v1.GroupR\x06groups\"B\n" +
 	"\x12CreateGroupRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06player\x18\x02 \x01(\tR\x06player\x12\x12\n" +
-	"\x04game\x18\x03 \x01(\tR\x04game\"G\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04game\x18\x03 \x01(\tR\x04gameJ\x04\b\x02\x10\x03\"G\n" +
 	"\x13CreateGroupResponse\x120\n" +
 	"\x05group\x18\x01 \x01(\v2\x1a.scoreboard.admin.v1.GroupR\x05group\"'\n" +
 	"\x0fGetGroupRequest\x12\x14\n" +

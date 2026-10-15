@@ -22,7 +22,8 @@ type Player struct {
 type Game struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
-	Teams     [2]Team `json:"teams"` // team A, team B
+	Teams     [2]Team `json:"teams"`  // team A, team B
+	Format    string  `json:"format"` // FormatTeams or FormatOneVsOne
 	Archived  bool    `json:"archived"`
 	CreatedAt int64   `json:"createdAt"`
 	// RatingSpeed is how quickly ratings follow changes in form.
@@ -150,6 +151,12 @@ type Team struct {
 // per theme and a name for each per language.
 var TeamColors = []string{"blue", "orange", "red", "green", "purple", "yellow", "pink", "teal"}
 
+// A game's format: teams of any size (uneven allowed), or one against one.
+const (
+	FormatTeams    = "teams"
+	FormatOneVsOne = "1v1"
+)
+
 // DefaultTeamColors are a new game's colours (team A, team B).
 var DefaultTeamColors = [2]string{"blue", "orange"}
 
@@ -178,14 +185,25 @@ func cleanTeams(teams, fallback [2]Team) ([2]Team, error) {
 	return teams, nil
 }
 
-const gameCols = `id, name, team_a, team_b, team_a_color, team_b_color, archived, created_at, version, rating_speed`
+// cleanFormat checks a game format; empty means teams.
+func cleanFormat(format string) (string, error) {
+	switch format {
+	case "", FormatTeams:
+		return FormatTeams, nil
+	case FormatOneVsOne:
+		return format, nil
+	}
+	return "", BadRequest(fmt.Sprintf("unknown game format %q", format))
+}
+
+const gameCols = `id, name, team_a, team_b, team_a_color, team_b_color, format, archived, created_at, version, rating_speed`
 
 func scanGame(row interface{ Scan(...any) error }) (Game, error) {
 	var g Game
 	var a, b sql.NullString
 	var archived int
 	var speed string
-	if err := row.Scan(&g.ID, &g.Name, &a, &b, &g.Teams[0].Color, &g.Teams[1].Color, &archived, &g.CreatedAt, &g.Version, &speed); err != nil {
+	if err := row.Scan(&g.ID, &g.Name, &a, &b, &g.Teams[0].Color, &g.Teams[1].Color, &g.Format, &archived, &g.CreatedAt, &g.Version, &speed); err != nil {
 		return Game{}, notFoundIf(err)
 	}
 	g.RatingSpeed, _ = rating.ParseSpeed(speed)
@@ -218,8 +236,10 @@ func (s *Store) GetGame(ctx context.Context, groupID, gameID string) (Game, erro
 }
 
 // CreateGame adds a game. Team names are optional (a team goes by its colour);
-// empty colours are the defaults, blue and orange.
-func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]Team) (Game, error) {
+// empty colours are the defaults, blue and orange. format is FormatTeams (also
+// when empty) or FormatOneVsOne; one-against-one games start on the fast rating
+// speed, which suits games people get better at (table tennis).
+func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]Team, format string) (Game, error) {
 	name, err := CleanName(name, "game name")
 	if err != nil {
 		return Game{}, err
@@ -227,7 +247,14 @@ func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]T
 	if teams, err = cleanTeams(teams, [2]Team{{Color: DefaultTeamColors[0]}, {Color: DefaultTeamColors[1]}}); err != nil {
 		return Game{}, err
 	}
-	g := Game{ID: newID(), Name: name, Teams: teams, CreatedAt: s.nowMs(), RatingSpeed: rating.Steady}
+	if format, err = cleanFormat(format); err != nil {
+		return Game{}, err
+	}
+	speed := rating.Steady
+	if format == FormatOneVsOne {
+		speed = rating.Fast
+	}
+	g := Game{ID: newID(), Name: name, Teams: teams, Format: format, CreatedAt: s.nowMs(), RatingSpeed: speed}
 	err = s.write(ctx, func(tx *sql.Tx) error {
 		n, err := count(ctx, tx, `SELECT COUNT(*) FROM games WHERE group_id = ?`, groupID)
 		if err != nil {
@@ -236,8 +263,8 @@ func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]T
 		if n >= s.Limits.Games {
 			return ErrLimit
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			g.ID, groupID, name, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, g.CreatedAt)
+		_, err = tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, format, rating_speed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			g.ID, groupID, name, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, format, string(speed), g.CreatedAt)
 		return err
 	})
 	return g, err
@@ -246,8 +273,10 @@ func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]T
 // GamePatch changes a game. A team that is set replaces its name (empty: it
 // goes by its colour) and, unless empty, its colour.
 type GamePatch struct {
-	Name     *string
-	Teams    [2]*Team
+	Name  *string
+	Teams [2]*Team
+	// Format: switching to one against one needs every round to be 1v1.
+	Format   *string
 	Archived *bool
 	// RatingSpeed: a change re-rates the whole game.
 	RatingSpeed *string
@@ -284,6 +313,15 @@ func (s *Store) UpdateGame(ctx context.Context, groupID, gameID string, p GamePa
 	if p.Archived != nil {
 		sets, args = append(sets, "archived = ?"), append(args, b2i(*p.Archived))
 	}
+	toOneVsOne := false
+	if p.Format != nil {
+		format, err := cleanFormat(*p.Format)
+		if err != nil {
+			return err
+		}
+		toOneVsOne = format == FormatOneVsOne && game.Format != FormatOneVsOne
+		sets, args = append(sets, "format = ?"), append(args, format)
+	}
 	var speed rating.Speed
 	if p.RatingSpeed != nil {
 		var ok bool
@@ -296,6 +334,17 @@ func (s *Store) UpdateGame(ctx context.Context, groupID, gameID string, p GamePa
 		return nil
 	}
 	return s.write(ctx, func(tx *sql.Tx) error {
+		if toOneVsOne {
+			// Deleted rounds count too: they can be restored.
+			n, err := count(ctx, tx, `SELECT COUNT(*) FROM (SELECT 1 FROM round_players rp JOIN rounds r ON r.id = rp.round_id
+				WHERE r.game_id = ? GROUP BY rp.round_id, rp.team HAVING COUNT(*) != 1)`, gameID)
+			if err != nil {
+				return err
+			}
+			if n > 0 {
+				return BadRequest("this game has team rounds, so it can't be one against one")
+			}
+		}
 		rerate := false
 		if speed != "" {
 			current, err := gameSpeed(ctx, tx, gameID)

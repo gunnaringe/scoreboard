@@ -119,6 +119,16 @@ message Game {
   // The two sides: team A is `team_a` in rounds, team B `team_b`.
   Team team_a = 8;
   Team team_b = 9;
+  // Always set (never UNSPECIFIED).
+  GameFormat format = 10;
+}
+
+// How a game is played. One against one keeps every round to a single player
+// per side (enforced); teams can be any size, uneven too.
+enum GameFormat {
+  GAME_FORMAT_UNSPECIFIED = 0;
+  GAME_FORMAT_TEAMS = 1;
+  GAME_FORMAT_ONE_VS_ONE = 2;
 }
 
 // Team is one side of a game: a name and a colour.
@@ -405,6 +415,8 @@ message CreateGameRequest {
   // Absent, or an UNSPECIFIED colour: blue for team A, orange for team B.
   Team team_a = 4;
   Team team_b = 5;
+  // UNSPECIFIED means teams. One against one starts on the fast rating speed.
+  GameFormat format = 6;
 }
 
 message CreateGameResponse {
@@ -422,6 +434,9 @@ message UpdateGameRequest {
   // UNSPECIFIED, its colour. Absent leaves the team as it is.
   Team team_a = 7;
   Team team_b = 8;
+  // Switching to one against one is refused while the game has a team round
+  // (deleted ones too). UNSPECIFIED is refused.
+  optional GameFormat format = 9;
 }
 
 message UpdateGameResponse {}

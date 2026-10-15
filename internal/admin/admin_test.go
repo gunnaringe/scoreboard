@@ -71,7 +71,7 @@ func (f *fixture) fails(contains string, args ...string) {
 
 func TestGroupsAndLinks(t *testing.T) {
 	f := newFixture(t, nil)
-	out := f.ok("groups", "create", "Oslo", "office", "--player", "Ada", "--game", "Rocket League")
+	out := f.ok("groups", "create", "Oslo", "office", "--game", "Rocket League")
 	for _, want := range []string{"created: Oslo office", "https://score.example.com/j/", "https://score.example.com/d/", "https://score.example.com/o/", "shown only now"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
@@ -130,9 +130,10 @@ func TestSeveralGroupsNeedAReference(t *testing.T) {
 
 func TestPlayersGamesAndDevices(t *testing.T) {
 	f := newFixture(t, nil)
-	f.ok("groups", "create", "Office", "--player", "Ada", "--game", "Rocket League")
+	f.ok("groups", "create", "Office", "--game", "Rocket League")
 	g, _ := f.st.FindGroup(context.Background(), "Office")
 	ctx := context.Background()
+	f.st.CreatePlayer(ctx, g.ID, "Ada")
 	bob, _ := f.st.CreatePlayer(ctx, g.ID, "Bob")
 	bobby, _ := f.st.CreatePlayer(ctx, g.ID, "Bobby")
 	games, _ := f.st.ListGames(ctx, g.ID)
@@ -201,9 +202,10 @@ func TestPlayersGamesAndDevices(t *testing.T) {
 
 func TestExportImportAndBackup(t *testing.T) {
 	f := newFixture(t, nil)
-	f.ok("groups", "create", "Source", "--player", "Ada", "--game", "RL")
+	f.ok("groups", "create", "Source", "--game", "RL")
 	ctx := context.Background()
 	g, _ := f.st.FindGroup(ctx, "Source")
+	f.st.CreatePlayer(ctx, g.ID, "Ada")
 	bob, _ := f.st.CreatePlayer(ctx, g.ID, "Bob")
 	games, _ := f.st.ListGames(ctx, g.ID)
 	ps, _ := f.st.ListPlayers(ctx, g.ID)

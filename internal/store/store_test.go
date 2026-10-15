@@ -34,7 +34,7 @@ func newFixture(t *testing.T, nPlayers int) *fixture {
 	t.Cleanup(func() { s.Close() })
 	f := &fixture{t: t, s: s, names: map[string]string{}, clock: time.Date(2026, 10, 10, 8, 0, 0, 0, time.UTC)}
 	s.Now = func() time.Time { return f.clock }
-	cg, err := s.CreateGroup(ctx, "Office", "", "Rocket League", false, "")
+	cg, err := s.CreateGroup(ctx, "Office", "Rocket League", false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestLimits(t *testing.T) {
 	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Fourth"); !errors.Is(err, ErrLimit) {
 		t.Fatalf("got %v", err)
 	}
-	if _, err := f.s.CreateGame(ctx, f.group.ID, "Another", [2]Team{}); !errors.Is(err, ErrLimit) {
+	if _, err := f.s.CreateGame(ctx, f.group.ID, "Another", [2]Team{}, ""); !errors.Is(err, ErrLimit) {
 		t.Fatalf("got %v", err)
 	}
 	f.round(f.players[0:1], f.players[1:2], 0)
@@ -378,11 +378,12 @@ func TestLimits(t *testing.T) {
 func TestRoundValidation(t *testing.T) {
 	f := newFixture(t, 4)
 	p := f.players
-	other, err := f.s.CreateGroup(ctx, "Other", "Stranger", "", false, "")
+	other, err := f.s.CreateGroup(ctx, "Other", "", false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	strangers, _ := f.s.ListPlayers(ctx, other.Group.ID)
+	stranger, _ := f.s.CreatePlayer(ctx, other.Group.ID, "Stranger")
+	strangers := []Player{stranger}
 	cases := map[string]RoundInput{
 		"same player on both teams": {Teams: [2][]string{p[0:1], p[0:1]}},
 		"empty team":                {Teams: [2][]string{p[0:1], nil}},
@@ -407,7 +408,7 @@ func ptr[T any](v T) *T { return &v }
 func TestGroupsAreIsolated(t *testing.T) {
 	f := newFixture(t, 2)
 	r := f.round(f.players[0:1], f.players[1:2], 0)
-	other, _ := f.s.CreateGroup(ctx, "Other", "", "Game", false, "")
+	other, _ := f.s.CreateGroup(ctx, "Other", "Game", false, "")
 	if _, err := f.s.GetRound(ctx, other.Group.ID, r.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("got %v", err)
 	}
@@ -428,7 +429,7 @@ func TestLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	cg, err := s.CreateGroup(ctx, "Office", "Ada", "RL", true, "Mozilla/5.0 (iPhone) Safari/604.1")
+	cg, err := s.CreateGroup(ctx, "Office", "RL", true, "Mozilla/5.0 (iPhone) Safari/604.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -657,5 +658,64 @@ func TestBackupAndStats(t *testing.T) {
 	}
 	if err := f.s.Backup(ctx, path); err == nil {
 		t.Fatal("overwrote an existing backup")
+	}
+}
+
+func TestOneVsOneGames(t *testing.T) {
+	f := newFixture(t, 3)
+	p := f.players
+	tt, err := f.s.CreateGame(ctx, f.group.ID, "Table tennis", [2]Team{}, FormatOneVsOne)
+	if err != nil || tt.Format != FormatOneVsOne || tt.RatingSpeed != rating.Fast {
+		t.Fatalf("1v1 games start fast: %+v %v", tt, err)
+	}
+	if _, err := f.s.CreateGame(ctx, f.group.ID, "Darts", [2]Team{}, "3v3"); err == nil {
+		t.Fatal("unknown format accepted")
+	}
+	// Only one against one rounds, also when editing.
+	round := func(a, b []string) error {
+		_, err := f.s.CreateRound(ctx, f.group.ID, tt.ID, "", RoundInput{Teams: [2][]string{a, b}})
+		return err
+	}
+	if err := round(p[0:2], p[2:3]); err == nil {
+		t.Fatal("a 2v1 round in a 1v1 game")
+	}
+	if err := round(p[0:1], p[1:2]); err != nil {
+		t.Fatal(err)
+	}
+	r, _, _ := f.s.ListRounds(ctx, f.group.ID, tt.ID, RoundFilter{})
+	teams := [2][]string{p[0:2], p[2:3]}
+	if _, err := f.s.UpdateRound(ctx, f.group.ID, r[0].ID, RoundPatch{Teams: &teams}); err == nil {
+		t.Fatal("edited into a team round")
+	}
+	// The fixture's teams game has a 2v1 round (deleted): it can't become 1v1,
+	// because the round could be restored.
+	team := f.round(p[0:2], p[2:3], 0)
+	if err := f.s.SetRoundDeleted(ctx, f.group.ID, team.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	oneVsOne, teamsFormat := FormatOneVsOne, FormatTeams
+	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{Format: &oneVsOne}); err == nil {
+		t.Fatal("switched a game with team rounds to 1v1")
+	}
+	// Teams is always possible, and back to 1v1 while all rounds are 1v1.
+	if err := f.s.UpdateGame(ctx, f.group.ID, tt.ID, GamePatch{Format: &teamsFormat}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.s.UpdateGame(ctx, f.group.ID, tt.ID, GamePatch{Format: &oneVsOne}); err != nil {
+		t.Fatal(err)
+	}
+	// Export and import keep the format.
+	exp, _ := f.s.Export(ctx, f.group.ID)
+	created, err := f.s.Import(ctx, exp, "Copy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	games, _ := f.s.ListGames(ctx, created.Group.ID)
+	formats := map[string]string{}
+	for _, g := range games {
+		formats[g.Name] = g.Format
+	}
+	if formats["Rocket League"] != FormatTeams || formats["Table tennis"] != FormatOneVsOne {
+		t.Fatalf("formats after import: %v", formats)
 	}
 }

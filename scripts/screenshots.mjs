@@ -58,7 +58,7 @@ for (let d = 42; d >= 1; d--) {
 }
 
 const rl = { name: 'Rocket League', tournaments: [], rounds: [] };
-const tt = { name: 'Table tennis', ratingSpeed: 'fast', rounds: [] };
+const tt = { name: 'Table tennis', format: '1v1', ratingSpeed: 'fast', teamAColor: 'red', teamBColor: 'teal', rounds: [] };
 const cup = days.filter((d) => new Date(d).getDay() === 5).at(-1);
 rl.tournaments.push({ name: 'Friday cup', createdAt: cup + 15 * 3600000, endedAt: cup + 17 * 3600000 });
 
@@ -122,6 +122,7 @@ const gid = join_.groupId;
 const { players, games } = await rpc('GetGroup', {}, token);
 const ada = players.find((p) => p.name === 'Ada');
 const gameId = games.find((g) => g.name === rl.name).id;
+const ttId = games.find((g) => g.name === tt.name).id;
 const { tournaments } = (await rpc('GetGame', { gameId }, token)).view;
 const cupId = tournaments.find((t) => t.name === 'Friday cup').id;
 
@@ -169,6 +170,7 @@ async function difference(p, a, b) {
 }
 async function shot(p, name) {
     const file = join(OUT, `${name}.png`);
+    await p.evaluate(() => document.activeElement?.blur()); // a blinking caret differs per run
     const png = await p.screenshot();
     const diff = existsSync(file) ? await difference(p, readFileSync(file), png) : 1;
     if (diff > 0.0005) {
@@ -188,11 +190,21 @@ await shot(await open(game), 'leaderboard');
     await p.waitForTimeout(300);
     await shot(p, 'round');
 }
+{
+    const p = await open(`/g/${gid}/game/${ttId}`);
+    await p.locator('.fab').click();
+    await p.waitForSelector('dialog[open]');
+    await p.waitForLoadState('networkidle');
+    await p.waitForTimeout(300);
+    await shot(p, 'round-1v1');
+}
 await shot(await open(`${game}/p/${ada.id}`), 'player');
 {
     const p = await open(`/g/${gid}/settings`);
     await p.locator('.list-row', { hasText: rl.name }).locator('button:has-text("Teams")').click();
     await p.waitForSelector('dialog[open]');
+    // The click scrolls the page by a varying amount: pin it behind the sheet.
+    await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     await p.waitForTimeout(300);
     await shot(p, 'teams');
 }

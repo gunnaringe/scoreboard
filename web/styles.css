@@ -619,6 +619,8 @@ button.round:hover { border-color: var(--accent); }
 .chip-add.add-1:hover, .chip-move.to-1:hover { background: var(--team-1-bg); }
 .chip-add { border: 1.5px solid currentColor; width: 28px; height: 28px; margin-left: 2px; }
 .chip-x:hover { color: var(--danger); }
+.chip-tap { border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; display: inline-flex; min-width: 0; text-align: left; }
+.round-sheet .bench-chip:has(.chip-tap) { padding-right: 12px; }
 .pchip.dragging { opacity: 0.35; }
 .pchip.lifted { transform: scale(1.06); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5); }
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; opacity: 0.92;

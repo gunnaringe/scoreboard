@@ -132,6 +132,7 @@ type ExportGame struct {
 	TeamB       *string            `json:"teamB,omitempty"`
 	TeamAColor  string             `json:"teamAColor,omitempty"` // absent: blue
 	TeamBColor  string             `json:"teamBColor,omitempty"` // absent: orange
+	Format      string             `json:"format,omitempty"`     // absent: teams
 	Archived    bool               `json:"archived,omitempty"`
 	RatingSpeed string             `json:"ratingSpeed,omitempty"` // absent: steady
 	Tournaments []ExportTournament `json:"tournaments,omitempty"`
@@ -177,6 +178,9 @@ func (s *Store) Export(ctx context.Context, groupID string) (ExportedGroup, erro
 	for _, game := range games {
 		eg := ExportGame{Name: game.Name, Archived: game.Archived, Rounds: []ExportRound{},
 			TeamAColor: game.Teams[0].Color, TeamBColor: game.Teams[1].Color}
+		if game.Format != FormatTeams {
+			eg.Format = game.Format
+		}
 		if game.Teams[0].Name != "" {
 			eg.TeamA = &game.Teams[0].Name
 		}
@@ -234,7 +238,7 @@ func (s *Store) Import(ctx context.Context, in ExportedGroup, name string) (Crea
 	if name == "" {
 		name = in.Name
 	}
-	created, err := s.CreateGroup(ctx, name, "", "", false, "")
+	created, err := s.CreateGroup(ctx, name, "", false, "")
 	if err != nil {
 		return created, err
 	}
@@ -275,9 +279,13 @@ func (s *Store) Import(ctx context.Context, in ExportedGroup, name string) (Crea
 			if teams, err = cleanTeams(teams, [2]Team{{Color: DefaultTeamColors[0]}, {Color: DefaultTeamColors[1]}}); err != nil {
 				return BadRequest(fmt.Sprintf("game %q: %v", g.Name, err))
 			}
+			format, err := cleanFormat(g.Format)
+			if err != nil {
+				return BadRequest(fmt.Sprintf("game %q: %v", g.Name, err))
+			}
 			gid := newID()
-			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, archived, created_at, rating_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				gid, created.Group.ID, gname, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, b2i(g.Archived), now, string(speed)); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, format, archived, created_at, rating_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				gid, created.Group.ID, gname, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, format, b2i(g.Archived), now, string(speed)); err != nil {
 				return err
 			}
 			tours := map[string]string{}
@@ -292,6 +300,9 @@ func (s *Store) Import(ctx context.Context, in ExportedGroup, name string) (Crea
 			for _, r := range g.Rounds {
 				if r.Winner != 0 && r.Winner != 1 {
 					return BadRequest("a round has no winner")
+				}
+				if format == FormatOneVsOne && (len(r.Teams[0]) != 1 || len(r.Teams[1]) != 1) {
+					return BadRequest(fmt.Sprintf("game %q is one against one, but has a team round", g.Name))
 				}
 				var tour any
 				if r.Tournament != "" {

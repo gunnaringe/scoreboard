@@ -40,7 +40,7 @@ func TestEmbeddedSchemaAppliesAtStartup(t *testing.T) {
 	}
 	defer s.Close()
 	v, err := s.SchemaVersion(ctx)
-	if err != nil || v != "0004_team_colors.sql" {
+	if err != nil || v != "0005_game_format.sql" {
 		t.Fatalf("schema version %q %v", v, err)
 	}
 	for _, table := range []string{"groups", "players", "devices", "games", "tournaments", "rounds", "round_players", "ratings", "handicaps"} {

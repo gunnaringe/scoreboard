@@ -139,6 +139,15 @@ chip drags (pointer events; on touch after a 180 ms hold so swiping still
 scrolls) onto `[data-drop]` zones (`0`, `1`, `bench`). e2e covers both the
 buttons (`place()`) and dragging (`drag()`).
 
+**Game format** (`Game.format`, `games.format`): `teams` (any size, uneven
+allowed) or `1v1`. The store enforces 1v1 on every round write and refuses
+switching a game to 1v1 while any of its rounds (deleted ones too, they can be
+restored) has a team; new 1v1 games start on the fast rating speed. In the
+sheet (`solo`) a side holds one player: tapping a benched player fills the
+free side, tapping a side's player benches them, dropping on a taken side
+benches whoever was there; no + / move buttons and no Balance, and the win
+buttons name the players. 1v1 games have no team names or legend, only colours.
+
 ## Admin
 
 Second listener (default `127.0.0.1:8081`), `scoreboard.admin.v1.AdminService`.
