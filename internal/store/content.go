@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gunnaringe/scoreboard/internal/rating"
@@ -20,8 +22,7 @@ type Player struct {
 type Game struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
-	TeamA     *string `json:"teamA"`
-	TeamB     *string `json:"teamB"`
+	Teams     [2]Team `json:"teams"` // team A, team B
 	Archived  bool    `json:"archived"`
 	CreatedAt int64   `json:"createdAt"`
 	// RatingSpeed is how quickly ratings follow changes in form.
@@ -139,24 +140,57 @@ func (s *Store) UpdatePlayer(ctx context.Context, groupID, playerID string, patc
 
 // ---- games ----------------------------------------------------------------------------
 
-const gameCols = `id, name, team_a, team_b, archived, created_at, version, rating_speed`
+// Team is one side of a game. An empty Name means it goes by its colour.
+type Team struct {
+	Name  string `json:"name"`
+	Color string `json:"color"` // one of TeamColors
+}
+
+// TeamColors are the colours a team can have; the frontend has a shade of each
+// per theme and a name for each per language.
+var TeamColors = []string{"blue", "orange", "red", "green", "purple", "yellow", "pink", "teal"}
+
+// DefaultTeamColors are a new game's colours (team A, team B).
+var DefaultTeamColors = [2]string{"blue", "orange"}
+
+// cleanTeams checks a game's two teams: names are optional, colours must be
+// known (empty takes `fallback`'s) and different.
+func cleanTeams(teams, fallback [2]Team) ([2]Team, error) {
+	for i := range teams {
+		name, err := optionalName(&teams[i].Name, "team name")
+		if err != nil {
+			return teams, err
+		}
+		teams[i].Name = ""
+		if name != nil {
+			teams[i].Name = *name
+		}
+		if teams[i].Color == "" {
+			teams[i].Color = fallback[i].Color
+		}
+		if !slices.Contains(TeamColors, teams[i].Color) {
+			return teams, BadRequest(fmt.Sprintf("unknown team colour %q", teams[i].Color))
+		}
+	}
+	if teams[0].Color == teams[1].Color {
+		return teams, BadRequest("the two teams need different colours")
+	}
+	return teams, nil
+}
+
+const gameCols = `id, name, team_a, team_b, team_a_color, team_b_color, archived, created_at, version, rating_speed`
 
 func scanGame(row interface{ Scan(...any) error }) (Game, error) {
 	var g Game
 	var a, b sql.NullString
 	var archived int
 	var speed string
-	if err := row.Scan(&g.ID, &g.Name, &a, &b, &archived, &g.CreatedAt, &g.Version, &speed); err != nil {
+	if err := row.Scan(&g.ID, &g.Name, &a, &b, &g.Teams[0].Color, &g.Teams[1].Color, &archived, &g.CreatedAt, &g.Version, &speed); err != nil {
 		return Game{}, notFoundIf(err)
 	}
 	g.RatingSpeed, _ = rating.ParseSpeed(speed)
 	g.Archived = archived == 1
-	if a.Valid {
-		g.TeamA = &a.String
-	}
-	if b.Valid {
-		g.TeamB = &b.String
-	}
+	g.Teams[0].Name, g.Teams[1].Name = a.String, b.String
 	return g, nil
 }
 
@@ -183,21 +217,17 @@ func (s *Store) GetGame(ctx context.Context, groupID, gameID string) (Game, erro
 	return scanGame(s.db.QueryRowContext(ctx, `SELECT `+gameCols+` FROM games WHERE id = ? AND group_id = ?`, gameID, groupID))
 }
 
-// CreateGame adds a game; empty team names mean the localised defaults.
-func (s *Store) CreateGame(ctx context.Context, groupID, name string, teamA, teamB *string) (Game, error) {
+// CreateGame adds a game. Team names are optional (a team goes by its colour);
+// empty colours are the defaults, blue and orange.
+func (s *Store) CreateGame(ctx context.Context, groupID, name string, teams [2]Team) (Game, error) {
 	name, err := CleanName(name, "game name")
 	if err != nil {
 		return Game{}, err
 	}
-	a, err := optionalName(teamA, "team name")
-	if err != nil {
+	if teams, err = cleanTeams(teams, [2]Team{{Color: DefaultTeamColors[0]}, {Color: DefaultTeamColors[1]}}); err != nil {
 		return Game{}, err
 	}
-	b, err := optionalName(teamB, "team name")
-	if err != nil {
-		return Game{}, err
-	}
-	g := Game{ID: newID(), Name: name, TeamA: a, TeamB: b, CreatedAt: s.nowMs(), RatingSpeed: rating.Steady}
+	g := Game{ID: newID(), Name: name, Teams: teams, CreatedAt: s.nowMs(), RatingSpeed: rating.Steady}
 	err = s.write(ctx, func(tx *sql.Tx) error {
 		n, err := count(ctx, tx, `SELECT COUNT(*) FROM games WHERE group_id = ?`, groupID)
 		if err != nil {
@@ -206,26 +236,27 @@ func (s *Store) CreateGame(ctx context.Context, groupID, name string, teamA, tea
 		if n >= s.Limits.Games {
 			return ErrLimit
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-			g.ID, groupID, name, a, b, g.CreatedAt)
+		_, err = tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			g.ID, groupID, name, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, g.CreatedAt)
 		return err
 	})
 	return g, err
 }
 
-// GamePatch changes a game. A team name that is cleared (or empty) resets to
-// the localised default.
+// GamePatch changes a game. A team that is set replaces its name (empty: it
+// goes by its colour) and, unless empty, its colour.
 type GamePatch struct {
-	Name         *string
-	TeamA, TeamB Nullable[string]
-	Archived     *bool
+	Name     *string
+	Teams    [2]*Team
+	Archived *bool
 	// RatingSpeed: a change re-rates the whole game.
 	RatingSpeed *string
 }
 
 // UpdateGame applies a patch.
 func (s *Store) UpdateGame(ctx context.Context, groupID, gameID string, p GamePatch) error {
-	if _, err := s.GetGame(ctx, groupID, gameID); err != nil {
+	game, err := s.GetGame(ctx, groupID, gameID)
+	if err != nil {
 		return err
 	}
 	var sets []string
@@ -237,18 +268,18 @@ func (s *Store) UpdateGame(ctx context.Context, groupID, gameID string, p GamePa
 		}
 		sets, args = append(sets, "name = ?"), append(args, name)
 	}
-	for _, t := range []struct {
-		col string
-		v   Nullable[string]
-	}{{"team_a", p.TeamA}, {"team_b", p.TeamB}} {
-		if !t.v.Set {
-			continue
+	if p.Teams[0] != nil || p.Teams[1] != nil {
+		teams := game.Teams
+		for i, t := range p.Teams {
+			if t != nil {
+				teams[i] = Team{Name: t.Name, Color: t.Color}
+			}
 		}
-		name, err := optionalName(t.v.Val, "team name")
-		if err != nil {
+		if teams, err = cleanTeams(teams, game.Teams); err != nil {
 			return err
 		}
-		sets, args = append(sets, t.col+" = ?"), append(args, name)
+		sets = append(sets, "team_a = ?", "team_b = ?", "team_a_color = ?", "team_b_color = ?")
+		args = append(args, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color)
 	}
 	if p.Archived != nil {
 		sets, args = append(sets, "archived = ?"), append(args, b2i(*p.Archived))

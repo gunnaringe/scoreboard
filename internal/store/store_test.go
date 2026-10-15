@@ -364,7 +364,7 @@ func TestLimits(t *testing.T) {
 	if _, err := f.s.CreatePlayer(ctx, f.group.ID, "Fourth"); !errors.Is(err, ErrLimit) {
 		t.Fatalf("got %v", err)
 	}
-	if _, err := f.s.CreateGame(ctx, f.group.ID, "Another", nil, nil); !errors.Is(err, ErrLimit) {
+	if _, err := f.s.CreateGame(ctx, f.group.ID, "Another", [2]Team{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("got %v", err)
 	}
 	f.round(f.players[0:1], f.players[1:2], 0)
@@ -573,7 +573,8 @@ func TestExportImportRoundTrip(t *testing.T) {
 	p := f.players
 	tour, _ := f.s.CreateTournament(ctx, f.group.ID, f.gameID, "Cup")
 	medium := "medium"
-	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &medium}); err != nil {
+	if err := f.s.UpdateGame(ctx, f.group.ID, f.gameID, GamePatch{RatingSpeed: &medium,
+		Teams: [2]*Team{{Name: "Lions", Color: "red"}, {Color: "teal"}}}); err != nil {
 		t.Fatal(err)
 	}
 	f.round(p[0:1], p[1:2], 0)
@@ -598,6 +599,9 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	games, _ := f.s.ListGames(ctx, created.Group.ID)
+	if want := [2]Team{{"Lions", "red"}, {"", "teal"}}; len(games) != 1 || games[0].Teams != want {
+		t.Fatalf("teams after import: %+v", games)
+	}
 	if len(games) != 1 || games[0].RatingSpeed != rating.Medium {
 		t.Fatalf("game not imported: %+v", games)
 	}

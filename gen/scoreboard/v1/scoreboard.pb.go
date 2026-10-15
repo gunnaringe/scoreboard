@@ -36,6 +36,75 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// The colours a team can have. Each theme has its own shade of every colour,
+// so they stay readable on light and dark backgrounds.
+type TeamColor int32
+
+const (
+	TeamColor_TEAM_COLOR_UNSPECIFIED TeamColor = 0
+	TeamColor_TEAM_COLOR_BLUE        TeamColor = 1
+	TeamColor_TEAM_COLOR_ORANGE      TeamColor = 2
+	TeamColor_TEAM_COLOR_RED         TeamColor = 3
+	TeamColor_TEAM_COLOR_GREEN       TeamColor = 4
+	TeamColor_TEAM_COLOR_PURPLE      TeamColor = 5
+	TeamColor_TEAM_COLOR_YELLOW      TeamColor = 6
+	TeamColor_TEAM_COLOR_PINK        TeamColor = 7
+	TeamColor_TEAM_COLOR_TEAL        TeamColor = 8
+)
+
+// Enum value maps for TeamColor.
+var (
+	TeamColor_name = map[int32]string{
+		0: "TEAM_COLOR_UNSPECIFIED",
+		1: "TEAM_COLOR_BLUE",
+		2: "TEAM_COLOR_ORANGE",
+		3: "TEAM_COLOR_RED",
+		4: "TEAM_COLOR_GREEN",
+		5: "TEAM_COLOR_PURPLE",
+		6: "TEAM_COLOR_YELLOW",
+		7: "TEAM_COLOR_PINK",
+		8: "TEAM_COLOR_TEAL",
+	}
+	TeamColor_value = map[string]int32{
+		"TEAM_COLOR_UNSPECIFIED": 0,
+		"TEAM_COLOR_BLUE":        1,
+		"TEAM_COLOR_ORANGE":      2,
+		"TEAM_COLOR_RED":         3,
+		"TEAM_COLOR_GREEN":       4,
+		"TEAM_COLOR_PURPLE":      5,
+		"TEAM_COLOR_YELLOW":      6,
+		"TEAM_COLOR_PINK":        7,
+		"TEAM_COLOR_TEAL":        8,
+	}
+)
+
+func (x TeamColor) Enum() *TeamColor {
+	p := new(TeamColor)
+	*p = x
+	return p
+}
+
+func (x TeamColor) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TeamColor) Descriptor() protoreflect.EnumDescriptor {
+	return file_scoreboard_v1_scoreboard_proto_enumTypes[0].Descriptor()
+}
+
+func (TeamColor) Type() protoreflect.EnumType {
+	return &file_scoreboard_v1_scoreboard_proto_enumTypes[0]
+}
+
+func (x TeamColor) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TeamColor.Descriptor instead.
+func (TeamColor) EnumDescriptor() ([]byte, []int) {
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{0}
+}
+
 // How quickly a game's ratings follow a player getting better or worse.
 // Faster means newer results count for more: improvement shows sooner, but
 // ratings wobble more and long-time players show a little lower (the display
@@ -78,11 +147,11 @@ func (x RatingSpeed) String() string {
 }
 
 func (RatingSpeed) Descriptor() protoreflect.EnumDescriptor {
-	return file_scoreboard_v1_scoreboard_proto_enumTypes[0].Descriptor()
+	return file_scoreboard_v1_scoreboard_proto_enumTypes[1].Descriptor()
 }
 
 func (RatingSpeed) Type() protoreflect.EnumType {
-	return &file_scoreboard_v1_scoreboard_proto_enumTypes[0]
+	return &file_scoreboard_v1_scoreboard_proto_enumTypes[1]
 }
 
 func (x RatingSpeed) Number() protoreflect.EnumNumber {
@@ -91,7 +160,7 @@ func (x RatingSpeed) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RatingSpeed.Descriptor instead.
 func (RatingSpeed) EnumDescriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{0}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{1}
 }
 
 type Mode int32
@@ -129,11 +198,11 @@ func (x Mode) String() string {
 }
 
 func (Mode) Descriptor() protoreflect.EnumDescriptor {
-	return file_scoreboard_v1_scoreboard_proto_enumTypes[1].Descriptor()
+	return file_scoreboard_v1_scoreboard_proto_enumTypes[2].Descriptor()
 }
 
 func (Mode) Type() protoreflect.EnumType {
-	return &file_scoreboard_v1_scoreboard_proto_enumTypes[1]
+	return &file_scoreboard_v1_scoreboard_proto_enumTypes[2]
 }
 
 func (x Mode) Number() protoreflect.EnumNumber {
@@ -142,7 +211,7 @@ func (x Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Mode.Descriptor instead.
 func (Mode) EnumDescriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{1}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{2}
 }
 
 type LinkKind int32
@@ -181,11 +250,11 @@ func (x LinkKind) String() string {
 }
 
 func (LinkKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_scoreboard_v1_scoreboard_proto_enumTypes[2].Descriptor()
+	return file_scoreboard_v1_scoreboard_proto_enumTypes[3].Descriptor()
 }
 
 func (LinkKind) Type() protoreflect.EnumType {
-	return &file_scoreboard_v1_scoreboard_proto_enumTypes[2]
+	return &file_scoreboard_v1_scoreboard_proto_enumTypes[3]
 }
 
 func (x LinkKind) Number() protoreflect.EnumNumber {
@@ -194,7 +263,7 @@ func (x LinkKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LinkKind.Descriptor instead.
 func (LinkKind) EnumDescriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{2}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{3}
 }
 
 type Group struct {
@@ -336,16 +405,16 @@ func (x *Player) GetArchived() bool {
 }
 
 type Game struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Team names; absent means the localised defaults (Blue / Orange).
-	TeamA     *string                `protobuf:"bytes,3,opt,name=team_a,json=teamA,proto3,oneof" json:"team_a,omitempty"`
-	TeamB     *string                `protobuf:"bytes,4,opt,name=team_b,json=teamB,proto3,oneof" json:"team_b,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Archived  bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Always set (never UNSPECIFIED).
-	RatingSpeed   RatingSpeed `protobuf:"varint,7,opt,name=rating_speed,json=ratingSpeed,proto3,enum=scoreboard.v1.RatingSpeed" json:"rating_speed,omitempty"`
+	RatingSpeed RatingSpeed `protobuf:"varint,7,opt,name=rating_speed,json=ratingSpeed,proto3,enum=scoreboard.v1.RatingSpeed" json:"rating_speed,omitempty"`
+	// The two sides: team A is `team_a` in rounds, team B `team_b`.
+	TeamA         *Team `protobuf:"bytes,8,opt,name=team_a,json=teamA,proto3" json:"team_a,omitempty"`
+	TeamB         *Team `protobuf:"bytes,9,opt,name=team_b,json=teamB,proto3" json:"team_b,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -394,20 +463,6 @@ func (x *Game) GetName() string {
 	return ""
 }
 
-func (x *Game) GetTeamA() string {
-	if x != nil && x.TeamA != nil {
-		return *x.TeamA
-	}
-	return ""
-}
-
-func (x *Game) GetTeamB() string {
-	if x != nil && x.TeamB != nil {
-		return *x.TeamB
-	}
-	return ""
-}
-
 func (x *Game) GetArchived() bool {
 	if x != nil {
 		return x.Archived
@@ -429,6 +484,75 @@ func (x *Game) GetRatingSpeed() RatingSpeed {
 	return RatingSpeed_RATING_SPEED_UNSPECIFIED
 }
 
+func (x *Game) GetTeamA() *Team {
+	if x != nil {
+		return x.TeamA
+	}
+	return nil
+}
+
+func (x *Game) GetTeamB() *Team {
+	if x != nil {
+		return x.TeamB
+	}
+	return nil
+}
+
+// Team is one side of a game: a name and a colour.
+type Team struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty: the team goes by its colour ("Blue", in the viewer's language).
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Always set in responses; the two teams of a game never share one.
+	Color         TeamColor `protobuf:"varint,2,opt,name=color,proto3,enum=scoreboard.v1.TeamColor" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Team) Reset() {
+	*x = Team{}
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Team) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Team) ProtoMessage() {}
+
+func (x *Team) ProtoReflect() protoreflect.Message {
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Team.ProtoReflect.Descriptor instead.
+func (*Team) Descriptor() ([]byte, []int) {
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Team) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Team) GetColor() TeamColor {
+	if x != nil {
+		return x.Color
+	}
+	return TeamColor_TEAM_COLOR_UNSPECIFIED
+}
+
 type Tournament struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -443,7 +567,7 @@ type Tournament struct {
 
 func (x *Tournament) Reset() {
 	*x = Tournament{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[3]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -455,7 +579,7 @@ func (x *Tournament) String() string {
 func (*Tournament) ProtoMessage() {}
 
 func (x *Tournament) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[3]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -468,7 +592,7 @@ func (x *Tournament) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tournament.ProtoReflect.Descriptor instead.
 func (*Tournament) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{3}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Tournament) GetId() string {
@@ -517,7 +641,7 @@ type Rating struct {
 
 func (x *Rating) Reset() {
 	*x = Rating{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[4]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +653,7 @@ func (x *Rating) String() string {
 func (*Rating) ProtoMessage() {}
 
 func (x *Rating) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[4]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +666,7 @@ func (x *Rating) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rating.ProtoReflect.Descriptor instead.
 func (*Rating) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{4}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Rating) GetMu() float64 {
@@ -576,7 +700,7 @@ type RoundPlayer struct {
 
 func (x *RoundPlayer) Reset() {
 	*x = RoundPlayer{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[5]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -588,7 +712,7 @@ func (x *RoundPlayer) String() string {
 func (*RoundPlayer) ProtoMessage() {}
 
 func (x *RoundPlayer) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[5]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -601,7 +725,7 @@ func (x *RoundPlayer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundPlayer.ProtoReflect.Descriptor instead.
 func (*RoundPlayer) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{5}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RoundPlayer) GetPlayerId() string {
@@ -659,7 +783,7 @@ type Round struct {
 
 func (x *Round) Reset() {
 	*x = Round{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[6]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +795,7 @@ func (x *Round) String() string {
 func (*Round) ProtoMessage() {}
 
 func (x *Round) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[6]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +808,7 @@ func (x *Round) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Round.ProtoReflect.Descriptor instead.
 func (*Round) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{6}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Round) GetId() string {
@@ -778,7 +902,7 @@ type PlayerRating struct {
 
 func (x *PlayerRating) Reset() {
 	*x = PlayerRating{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[7]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +914,7 @@ func (x *PlayerRating) String() string {
 func (*PlayerRating) ProtoMessage() {}
 
 func (x *PlayerRating) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[7]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +927,7 @@ func (x *PlayerRating) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerRating.ProtoReflect.Descriptor instead.
 func (*PlayerRating) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{7}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PlayerRating) GetPlayerId() string {
@@ -881,7 +1005,7 @@ type Handicap struct {
 
 func (x *Handicap) Reset() {
 	*x = Handicap{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[8]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +1017,7 @@ func (x *Handicap) String() string {
 func (*Handicap) ProtoMessage() {}
 
 func (x *Handicap) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[8]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +1030,7 @@ func (x *Handicap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Handicap.ProtoReflect.Descriptor instead.
 func (*Handicap) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{8}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Handicap) GetFormat() string {
@@ -944,7 +1068,7 @@ type GameView struct {
 
 func (x *GameView) Reset() {
 	*x = GameView{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[9]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -956,7 +1080,7 @@ func (x *GameView) String() string {
 func (*GameView) ProtoMessage() {}
 
 func (x *GameView) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[9]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1093,7 @@ func (x *GameView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameView.ProtoReflect.Descriptor instead.
 func (*GameView) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{9}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GameView) GetGame() *Game {
@@ -1029,7 +1153,7 @@ type Device struct {
 
 func (x *Device) Reset() {
 	*x = Device{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[10]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +1165,7 @@ func (x *Device) String() string {
 func (*Device) ProtoMessage() {}
 
 func (x *Device) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[10]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +1178,7 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Device.ProtoReflect.Descriptor instead.
 func (*Device) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{10}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Device) GetId() string {
@@ -1110,7 +1234,7 @@ type Owner struct {
 
 func (x *Owner) Reset() {
 	*x = Owner{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[11]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1122,7 +1246,7 @@ func (x *Owner) String() string {
 func (*Owner) ProtoMessage() {}
 
 func (x *Owner) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[11]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1135,7 +1259,7 @@ func (x *Owner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Owner.ProtoReflect.Descriptor instead.
 func (*Owner) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{11}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Owner) GetLabel() string {
@@ -1155,7 +1279,7 @@ type Me struct {
 
 func (x *Me) Reset() {
 	*x = Me{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[12]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1167,7 +1291,7 @@ func (x *Me) String() string {
 func (*Me) ProtoMessage() {}
 
 func (x *Me) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[12]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1180,7 +1304,7 @@ func (x *Me) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Me.ProtoReflect.Descriptor instead.
 func (*Me) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{12}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Me) GetDeviceId() string {
@@ -1211,7 +1335,7 @@ type Branding struct {
 
 func (x *Branding) Reset() {
 	*x = Branding{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[13]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1223,7 +1347,7 @@ func (x *Branding) String() string {
 func (*Branding) ProtoMessage() {}
 
 func (x *Branding) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[13]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1236,7 +1360,7 @@ func (x *Branding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Branding.ProtoReflect.Descriptor instead.
 func (*Branding) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{13}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Branding) GetName() string {
@@ -1289,7 +1413,7 @@ type GetInstanceRequest struct {
 
 func (x *GetInstanceRequest) Reset() {
 	*x = GetInstanceRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[14]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1301,7 +1425,7 @@ func (x *GetInstanceRequest) String() string {
 func (*GetInstanceRequest) ProtoMessage() {}
 
 func (x *GetInstanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[14]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1314,7 +1438,7 @@ func (x *GetInstanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInstanceRequest.ProtoReflect.Descriptor instead.
 func (*GetInstanceRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{14}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{15}
 }
 
 type GetInstanceResponse struct {
@@ -1334,7 +1458,7 @@ type GetInstanceResponse struct {
 
 func (x *GetInstanceResponse) Reset() {
 	*x = GetInstanceResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[15]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1470,7 @@ func (x *GetInstanceResponse) String() string {
 func (*GetInstanceResponse) ProtoMessage() {}
 
 func (x *GetInstanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[15]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1483,7 @@ func (x *GetInstanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInstanceResponse.ProtoReflect.Descriptor instead.
 func (*GetInstanceResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{15}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetInstanceResponse) GetMode() Mode {
@@ -1415,7 +1539,7 @@ type CreateGroupRequest struct {
 
 func (x *CreateGroupRequest) Reset() {
 	*x = CreateGroupRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[16]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1427,7 +1551,7 @@ func (x *CreateGroupRequest) String() string {
 func (*CreateGroupRequest) ProtoMessage() {}
 
 func (x *CreateGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[16]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1440,7 +1564,7 @@ func (x *CreateGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGroupRequest.ProtoReflect.Descriptor instead.
 func (*CreateGroupRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{16}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateGroupRequest) GetName() string {
@@ -1471,7 +1595,7 @@ type CreateGroupResponse struct {
 
 func (x *CreateGroupResponse) Reset() {
 	*x = CreateGroupResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[17]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1483,7 +1607,7 @@ func (x *CreateGroupResponse) String() string {
 func (*CreateGroupResponse) ProtoMessage() {}
 
 func (x *CreateGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[17]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1496,7 +1620,7 @@ func (x *CreateGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGroupResponse.ProtoReflect.Descriptor instead.
 func (*CreateGroupResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{17}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateGroupResponse) GetDeviceToken() string {
@@ -1543,7 +1667,7 @@ type JoinRequest struct {
 
 func (x *JoinRequest) Reset() {
 	*x = JoinRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[18]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1555,7 +1679,7 @@ func (x *JoinRequest) String() string {
 func (*JoinRequest) ProtoMessage() {}
 
 func (x *JoinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[18]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1568,7 +1692,7 @@ func (x *JoinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinRequest.ProtoReflect.Descriptor instead.
 func (*JoinRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{18}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *JoinRequest) GetCode() string {
@@ -1589,7 +1713,7 @@ type JoinResponse struct {
 
 func (x *JoinResponse) Reset() {
 	*x = JoinResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[19]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1601,7 +1725,7 @@ func (x *JoinResponse) String() string {
 func (*JoinResponse) ProtoMessage() {}
 
 func (x *JoinResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[19]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1614,7 +1738,7 @@ func (x *JoinResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinResponse.ProtoReflect.Descriptor instead.
 func (*JoinResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{19}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *JoinResponse) GetDeviceToken() string {
@@ -1649,7 +1773,7 @@ type ClaimOwnerRequest struct {
 
 func (x *ClaimOwnerRequest) Reset() {
 	*x = ClaimOwnerRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[20]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1661,7 +1785,7 @@ func (x *ClaimOwnerRequest) String() string {
 func (*ClaimOwnerRequest) ProtoMessage() {}
 
 func (x *ClaimOwnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[20]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1674,7 +1798,7 @@ func (x *ClaimOwnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimOwnerRequest.ProtoReflect.Descriptor instead.
 func (*ClaimOwnerRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{20}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ClaimOwnerRequest) GetToken() string {
@@ -1703,7 +1827,7 @@ type ClaimOwnerResponse struct {
 
 func (x *ClaimOwnerResponse) Reset() {
 	*x = ClaimOwnerResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[21]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1715,7 +1839,7 @@ func (x *ClaimOwnerResponse) String() string {
 func (*ClaimOwnerResponse) ProtoMessage() {}
 
 func (x *ClaimOwnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[21]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1728,7 +1852,7 @@ func (x *ClaimOwnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimOwnerResponse.ProtoReflect.Descriptor instead.
 func (*ClaimOwnerResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{21}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ClaimOwnerResponse) GetGroupId() string {
@@ -1760,7 +1884,7 @@ type GetGroupRequest struct {
 
 func (x *GetGroupRequest) Reset() {
 	*x = GetGroupRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[22]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1772,7 +1896,7 @@ func (x *GetGroupRequest) String() string {
 func (*GetGroupRequest) ProtoMessage() {}
 
 func (x *GetGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[22]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1785,7 +1909,7 @@ func (x *GetGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGroupRequest.ProtoReflect.Descriptor instead.
 func (*GetGroupRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{22}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{23}
 }
 
 type GetGroupResponse struct {
@@ -1801,7 +1925,7 @@ type GetGroupResponse struct {
 
 func (x *GetGroupResponse) Reset() {
 	*x = GetGroupResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[23]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1813,7 +1937,7 @@ func (x *GetGroupResponse) String() string {
 func (*GetGroupResponse) ProtoMessage() {}
 
 func (x *GetGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[23]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1826,7 +1950,7 @@ func (x *GetGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGroupResponse.ProtoReflect.Descriptor instead.
 func (*GetGroupResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{23}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetGroupResponse) GetGroup() *Group {
@@ -1873,7 +1997,7 @@ type UpdateGroupRequest struct {
 
 func (x *UpdateGroupRequest) Reset() {
 	*x = UpdateGroupRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[24]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1885,7 +2009,7 @@ func (x *UpdateGroupRequest) String() string {
 func (*UpdateGroupRequest) ProtoMessage() {}
 
 func (x *UpdateGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[24]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +2022,7 @@ func (x *UpdateGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGroupRequest.ProtoReflect.Descriptor instead.
 func (*UpdateGroupRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{24}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateGroupRequest) GetName() string {
@@ -1916,7 +2040,7 @@ type UpdateGroupResponse struct {
 
 func (x *UpdateGroupResponse) Reset() {
 	*x = UpdateGroupResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[25]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1928,7 +2052,7 @@ func (x *UpdateGroupResponse) String() string {
 func (*UpdateGroupResponse) ProtoMessage() {}
 
 func (x *UpdateGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[25]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1941,7 +2065,7 @@ func (x *UpdateGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGroupResponse.ProtoReflect.Descriptor instead.
 func (*UpdateGroupResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{25}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{26}
 }
 
 type DeleteGroupRequest struct {
@@ -1952,7 +2076,7 @@ type DeleteGroupRequest struct {
 
 func (x *DeleteGroupRequest) Reset() {
 	*x = DeleteGroupRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[26]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1964,7 +2088,7 @@ func (x *DeleteGroupRequest) String() string {
 func (*DeleteGroupRequest) ProtoMessage() {}
 
 func (x *DeleteGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[26]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1977,7 +2101,7 @@ func (x *DeleteGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteGroupRequest.ProtoReflect.Descriptor instead.
 func (*DeleteGroupRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{26}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{27}
 }
 
 type DeleteGroupResponse struct {
@@ -1988,7 +2112,7 @@ type DeleteGroupResponse struct {
 
 func (x *DeleteGroupResponse) Reset() {
 	*x = DeleteGroupResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[27]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2000,7 +2124,7 @@ func (x *DeleteGroupResponse) String() string {
 func (*DeleteGroupResponse) ProtoMessage() {}
 
 func (x *DeleteGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[27]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,7 +2137,7 @@ func (x *DeleteGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteGroupResponse.ProtoReflect.Descriptor instead.
 func (*DeleteGroupResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{27}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{28}
 }
 
 type RotateLinkRequest struct {
@@ -2025,7 +2149,7 @@ type RotateLinkRequest struct {
 
 func (x *RotateLinkRequest) Reset() {
 	*x = RotateLinkRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[28]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2037,7 +2161,7 @@ func (x *RotateLinkRequest) String() string {
 func (*RotateLinkRequest) ProtoMessage() {}
 
 func (x *RotateLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[28]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2050,7 +2174,7 @@ func (x *RotateLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateLinkRequest.ProtoReflect.Descriptor instead.
 func (*RotateLinkRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{28}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RotateLinkRequest) GetKind() LinkKind {
@@ -2072,7 +2196,7 @@ type RotateLinkResponse struct {
 
 func (x *RotateLinkResponse) Reset() {
 	*x = RotateLinkResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[29]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2084,7 +2208,7 @@ func (x *RotateLinkResponse) String() string {
 func (*RotateLinkResponse) ProtoMessage() {}
 
 func (x *RotateLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[29]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2097,7 +2221,7 @@ func (x *RotateLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RotateLinkResponse.ProtoReflect.Descriptor instead.
 func (*RotateLinkResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{29}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RotateLinkResponse) GetOfficeCode() string {
@@ -2129,7 +2253,7 @@ type ListDevicesRequest struct {
 
 func (x *ListDevicesRequest) Reset() {
 	*x = ListDevicesRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[30]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2141,7 +2265,7 @@ func (x *ListDevicesRequest) String() string {
 func (*ListDevicesRequest) ProtoMessage() {}
 
 func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[30]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2154,7 +2278,7 @@ func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
 func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{30}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{31}
 }
 
 type ListDevicesResponse struct {
@@ -2166,7 +2290,7 @@ type ListDevicesResponse struct {
 
 func (x *ListDevicesResponse) Reset() {
 	*x = ListDevicesResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[31]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2178,7 +2302,7 @@ func (x *ListDevicesResponse) String() string {
 func (*ListDevicesResponse) ProtoMessage() {}
 
 func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[31]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2191,7 +2315,7 @@ func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
 func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{31}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListDevicesResponse) GetDevices() []*Device {
@@ -2210,7 +2334,7 @@ type RemoveDeviceRequest struct {
 
 func (x *RemoveDeviceRequest) Reset() {
 	*x = RemoveDeviceRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[32]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2222,7 +2346,7 @@ func (x *RemoveDeviceRequest) String() string {
 func (*RemoveDeviceRequest) ProtoMessage() {}
 
 func (x *RemoveDeviceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[32]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2235,7 +2359,7 @@ func (x *RemoveDeviceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveDeviceRequest.ProtoReflect.Descriptor instead.
 func (*RemoveDeviceRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{32}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *RemoveDeviceRequest) GetDeviceId() string {
@@ -2253,7 +2377,7 @@ type RemoveDeviceResponse struct {
 
 func (x *RemoveDeviceResponse) Reset() {
 	*x = RemoveDeviceResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[33]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2265,7 +2389,7 @@ func (x *RemoveDeviceResponse) String() string {
 func (*RemoveDeviceResponse) ProtoMessage() {}
 
 func (x *RemoveDeviceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[33]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2402,7 @@ func (x *RemoveDeviceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveDeviceResponse.ProtoReflect.Descriptor instead.
 func (*RemoveDeviceResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{33}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{34}
 }
 
 type CreatePlayerRequest struct {
@@ -2290,7 +2414,7 @@ type CreatePlayerRequest struct {
 
 func (x *CreatePlayerRequest) Reset() {
 	*x = CreatePlayerRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[34]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2302,7 +2426,7 @@ func (x *CreatePlayerRequest) String() string {
 func (*CreatePlayerRequest) ProtoMessage() {}
 
 func (x *CreatePlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[34]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2315,7 +2439,7 @@ func (x *CreatePlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlayerRequest.ProtoReflect.Descriptor instead.
 func (*CreatePlayerRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{34}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CreatePlayerRequest) GetName() string {
@@ -2336,7 +2460,7 @@ type CreatePlayerResponse struct {
 
 func (x *CreatePlayerResponse) Reset() {
 	*x = CreatePlayerResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[35]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2348,7 +2472,7 @@ func (x *CreatePlayerResponse) String() string {
 func (*CreatePlayerResponse) ProtoMessage() {}
 
 func (x *CreatePlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[35]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2361,7 +2485,7 @@ func (x *CreatePlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlayerResponse.ProtoReflect.Descriptor instead.
 func (*CreatePlayerResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{35}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CreatePlayerResponse) GetPlayer() *Player {
@@ -2389,7 +2513,7 @@ type UpdatePlayerRequest struct {
 
 func (x *UpdatePlayerRequest) Reset() {
 	*x = UpdatePlayerRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[36]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2401,7 +2525,7 @@ func (x *UpdatePlayerRequest) String() string {
 func (*UpdatePlayerRequest) ProtoMessage() {}
 
 func (x *UpdatePlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[36]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2414,7 +2538,7 @@ func (x *UpdatePlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePlayerRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePlayerRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{36}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UpdatePlayerRequest) GetPlayerId() string {
@@ -2446,7 +2570,7 @@ type UpdatePlayerResponse struct {
 
 func (x *UpdatePlayerResponse) Reset() {
 	*x = UpdatePlayerResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[37]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2458,7 +2582,7 @@ func (x *UpdatePlayerResponse) String() string {
 func (*UpdatePlayerResponse) ProtoMessage() {}
 
 func (x *UpdatePlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[37]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2471,21 +2595,22 @@ func (x *UpdatePlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePlayerResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePlayerResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{37}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{38}
 }
 
 type CreateGameRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	TeamA         *string                `protobuf:"bytes,2,opt,name=team_a,json=teamA,proto3,oneof" json:"team_a,omitempty"`
-	TeamB         *string                `protobuf:"bytes,3,opt,name=team_b,json=teamB,proto3,oneof" json:"team_b,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Absent, or an UNSPECIFIED colour: blue for team A, orange for team B.
+	TeamA         *Team `protobuf:"bytes,4,opt,name=team_a,json=teamA,proto3" json:"team_a,omitempty"`
+	TeamB         *Team `protobuf:"bytes,5,opt,name=team_b,json=teamB,proto3" json:"team_b,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateGameRequest) Reset() {
 	*x = CreateGameRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[38]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2497,7 +2622,7 @@ func (x *CreateGameRequest) String() string {
 func (*CreateGameRequest) ProtoMessage() {}
 
 func (x *CreateGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[38]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2510,7 +2635,7 @@ func (x *CreateGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGameRequest.ProtoReflect.Descriptor instead.
 func (*CreateGameRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{38}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *CreateGameRequest) GetName() string {
@@ -2520,18 +2645,18 @@ func (x *CreateGameRequest) GetName() string {
 	return ""
 }
 
-func (x *CreateGameRequest) GetTeamA() string {
-	if x != nil && x.TeamA != nil {
-		return *x.TeamA
+func (x *CreateGameRequest) GetTeamA() *Team {
+	if x != nil {
+		return x.TeamA
 	}
-	return ""
+	return nil
 }
 
-func (x *CreateGameRequest) GetTeamB() string {
-	if x != nil && x.TeamB != nil {
-		return *x.TeamB
+func (x *CreateGameRequest) GetTeamB() *Team {
+	if x != nil {
+		return x.TeamB
 	}
-	return ""
+	return nil
 }
 
 type CreateGameResponse struct {
@@ -2543,7 +2668,7 @@ type CreateGameResponse struct {
 
 func (x *CreateGameResponse) Reset() {
 	*x = CreateGameResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[39]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2555,7 +2680,7 @@ func (x *CreateGameResponse) String() string {
 func (*CreateGameResponse) ProtoMessage() {}
 
 func (x *CreateGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[39]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2568,7 +2693,7 @@ func (x *CreateGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateGameResponse.ProtoReflect.Descriptor instead.
 func (*CreateGameResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{39}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *CreateGameResponse) GetGame() *Game {
@@ -2579,22 +2704,23 @@ func (x *CreateGameResponse) GetGame() *Game {
 }
 
 type UpdateGameRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	GameId string                 `protobuf:"bytes,1,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
-	Name   *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	// An empty team name resets it to the localised default.
-	TeamA    *string `protobuf:"bytes,3,opt,name=team_a,json=teamA,proto3,oneof" json:"team_a,omitempty"`
-	TeamB    *string `protobuf:"bytes,4,opt,name=team_b,json=teamB,proto3,oneof" json:"team_b,omitempty"`
-	Archived *bool   `protobuf:"varint,5,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	GameId   string                 `protobuf:"bytes,1,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
+	Name     *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Archived *bool                  `protobuf:"varint,5,opt,name=archived,proto3,oneof" json:"archived,omitempty"`
 	// Re-rates the whole game when it changes. UNSPECIFIED is refused.
-	RatingSpeed   *RatingSpeed `protobuf:"varint,6,opt,name=rating_speed,json=ratingSpeed,proto3,enum=scoreboard.v1.RatingSpeed,oneof" json:"rating_speed,omitempty"`
+	RatingSpeed *RatingSpeed `protobuf:"varint,6,opt,name=rating_speed,json=ratingSpeed,proto3,enum=scoreboard.v1.RatingSpeed,oneof" json:"rating_speed,omitempty"`
+	// Present: sets the team's name (empty = goes by its colour) and, unless
+	// UNSPECIFIED, its colour. Absent leaves the team as it is.
+	TeamA         *Team `protobuf:"bytes,7,opt,name=team_a,json=teamA,proto3" json:"team_a,omitempty"`
+	TeamB         *Team `protobuf:"bytes,8,opt,name=team_b,json=teamB,proto3" json:"team_b,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateGameRequest) Reset() {
 	*x = UpdateGameRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[40]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2606,7 +2732,7 @@ func (x *UpdateGameRequest) String() string {
 func (*UpdateGameRequest) ProtoMessage() {}
 
 func (x *UpdateGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[40]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2619,7 +2745,7 @@ func (x *UpdateGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGameRequest.ProtoReflect.Descriptor instead.
 func (*UpdateGameRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{40}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *UpdateGameRequest) GetGameId() string {
@@ -2632,20 +2758,6 @@ func (x *UpdateGameRequest) GetGameId() string {
 func (x *UpdateGameRequest) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
-	}
-	return ""
-}
-
-func (x *UpdateGameRequest) GetTeamA() string {
-	if x != nil && x.TeamA != nil {
-		return *x.TeamA
-	}
-	return ""
-}
-
-func (x *UpdateGameRequest) GetTeamB() string {
-	if x != nil && x.TeamB != nil {
-		return *x.TeamB
 	}
 	return ""
 }
@@ -2664,6 +2776,20 @@ func (x *UpdateGameRequest) GetRatingSpeed() RatingSpeed {
 	return RatingSpeed_RATING_SPEED_UNSPECIFIED
 }
 
+func (x *UpdateGameRequest) GetTeamA() *Team {
+	if x != nil {
+		return x.TeamA
+	}
+	return nil
+}
+
+func (x *UpdateGameRequest) GetTeamB() *Team {
+	if x != nil {
+		return x.TeamB
+	}
+	return nil
+}
+
 type UpdateGameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2672,7 +2798,7 @@ type UpdateGameResponse struct {
 
 func (x *UpdateGameResponse) Reset() {
 	*x = UpdateGameResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[41]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2684,7 +2810,7 @@ func (x *UpdateGameResponse) String() string {
 func (*UpdateGameResponse) ProtoMessage() {}
 
 func (x *UpdateGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[41]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2697,7 +2823,7 @@ func (x *UpdateGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateGameResponse.ProtoReflect.Descriptor instead.
 func (*UpdateGameResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{41}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{42}
 }
 
 type GetGameRequest struct {
@@ -2714,7 +2840,7 @@ type GetGameRequest struct {
 
 func (x *GetGameRequest) Reset() {
 	*x = GetGameRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[42]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2726,7 +2852,7 @@ func (x *GetGameRequest) String() string {
 func (*GetGameRequest) ProtoMessage() {}
 
 func (x *GetGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[42]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2739,7 +2865,7 @@ func (x *GetGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameRequest.ProtoReflect.Descriptor instead.
 func (*GetGameRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{42}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetGameRequest) GetGameId() string {
@@ -2772,7 +2898,7 @@ type GetGameResponse struct {
 
 func (x *GetGameResponse) Reset() {
 	*x = GetGameResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[43]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2784,7 +2910,7 @@ func (x *GetGameResponse) String() string {
 func (*GetGameResponse) ProtoMessage() {}
 
 func (x *GetGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[43]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2797,7 +2923,7 @@ func (x *GetGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameResponse.ProtoReflect.Descriptor instead.
 func (*GetGameResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{43}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetGameResponse) GetView() *GameView {
@@ -2816,7 +2942,7 @@ type GetGameVersionRequest struct {
 
 func (x *GetGameVersionRequest) Reset() {
 	*x = GetGameVersionRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[44]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2828,7 +2954,7 @@ func (x *GetGameVersionRequest) String() string {
 func (*GetGameVersionRequest) ProtoMessage() {}
 
 func (x *GetGameVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[44]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2841,7 +2967,7 @@ func (x *GetGameVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetGameVersionRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{44}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetGameVersionRequest) GetGameId() string {
@@ -2860,7 +2986,7 @@ type GetGameVersionResponse struct {
 
 func (x *GetGameVersionResponse) Reset() {
 	*x = GetGameVersionResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[45]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2872,7 +2998,7 @@ func (x *GetGameVersionResponse) String() string {
 func (*GetGameVersionResponse) ProtoMessage() {}
 
 func (x *GetGameVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[45]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2885,7 +3011,7 @@ func (x *GetGameVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameVersionResponse.ProtoReflect.Descriptor instead.
 func (*GetGameVersionResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{45}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetGameVersionResponse) GetVersion() int64 {
@@ -2905,7 +3031,7 @@ type CreateTournamentRequest struct {
 
 func (x *CreateTournamentRequest) Reset() {
 	*x = CreateTournamentRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[46]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2917,7 +3043,7 @@ func (x *CreateTournamentRequest) String() string {
 func (*CreateTournamentRequest) ProtoMessage() {}
 
 func (x *CreateTournamentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[46]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2930,7 +3056,7 @@ func (x *CreateTournamentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTournamentRequest.ProtoReflect.Descriptor instead.
 func (*CreateTournamentRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{46}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *CreateTournamentRequest) GetGameId() string {
@@ -2956,7 +3082,7 @@ type CreateTournamentResponse struct {
 
 func (x *CreateTournamentResponse) Reset() {
 	*x = CreateTournamentResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[47]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2968,7 +3094,7 @@ func (x *CreateTournamentResponse) String() string {
 func (*CreateTournamentResponse) ProtoMessage() {}
 
 func (x *CreateTournamentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[47]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2981,7 +3107,7 @@ func (x *CreateTournamentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTournamentResponse.ProtoReflect.Descriptor instead.
 func (*CreateTournamentResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{47}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *CreateTournamentResponse) GetTournament() *Tournament {
@@ -3003,7 +3129,7 @@ type UpdateTournamentRequest struct {
 
 func (x *UpdateTournamentRequest) Reset() {
 	*x = UpdateTournamentRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[48]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3015,7 +3141,7 @@ func (x *UpdateTournamentRequest) String() string {
 func (*UpdateTournamentRequest) ProtoMessage() {}
 
 func (x *UpdateTournamentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[48]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3028,7 +3154,7 @@ func (x *UpdateTournamentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTournamentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTournamentRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{48}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *UpdateTournamentRequest) GetTournamentId() string {
@@ -3060,7 +3186,7 @@ type UpdateTournamentResponse struct {
 
 func (x *UpdateTournamentResponse) Reset() {
 	*x = UpdateTournamentResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[49]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3072,7 +3198,7 @@ func (x *UpdateTournamentResponse) String() string {
 func (*UpdateTournamentResponse) ProtoMessage() {}
 
 func (x *UpdateTournamentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[49]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3085,7 +3211,7 @@ func (x *UpdateTournamentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTournamentResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTournamentResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{49}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{50}
 }
 
 type ListRoundsRequest struct {
@@ -3103,7 +3229,7 @@ type ListRoundsRequest struct {
 
 func (x *ListRoundsRequest) Reset() {
 	*x = ListRoundsRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[50]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3115,7 +3241,7 @@ func (x *ListRoundsRequest) String() string {
 func (*ListRoundsRequest) ProtoMessage() {}
 
 func (x *ListRoundsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[50]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3128,7 +3254,7 @@ func (x *ListRoundsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoundsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoundsRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{50}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ListRoundsRequest) GetGameId() string {
@@ -3178,7 +3304,7 @@ type ListRoundsResponse struct {
 
 func (x *ListRoundsResponse) Reset() {
 	*x = ListRoundsResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[51]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3190,7 +3316,7 @@ func (x *ListRoundsResponse) String() string {
 func (*ListRoundsResponse) ProtoMessage() {}
 
 func (x *ListRoundsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[51]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3203,7 +3329,7 @@ func (x *ListRoundsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoundsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoundsResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{51}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ListRoundsResponse) GetRounds() []*Round {
@@ -3236,7 +3362,7 @@ type CreateRoundRequest struct {
 
 func (x *CreateRoundRequest) Reset() {
 	*x = CreateRoundRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[52]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3248,7 +3374,7 @@ func (x *CreateRoundRequest) String() string {
 func (*CreateRoundRequest) ProtoMessage() {}
 
 func (x *CreateRoundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[52]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3261,7 +3387,7 @@ func (x *CreateRoundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoundRequest.ProtoReflect.Descriptor instead.
 func (*CreateRoundRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{52}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *CreateRoundRequest) GetGameId() string {
@@ -3322,7 +3448,7 @@ type CreateRoundResponse struct {
 
 func (x *CreateRoundResponse) Reset() {
 	*x = CreateRoundResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[53]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3334,7 +3460,7 @@ func (x *CreateRoundResponse) String() string {
 func (*CreateRoundResponse) ProtoMessage() {}
 
 func (x *CreateRoundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[53]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3347,7 +3473,7 @@ func (x *CreateRoundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoundResponse.ProtoReflect.Descriptor instead.
 func (*CreateRoundResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{53}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *CreateRoundResponse) GetRound() *Round {
@@ -3367,7 +3493,7 @@ type RoundTeams struct {
 
 func (x *RoundTeams) Reset() {
 	*x = RoundTeams{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[54]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3379,7 +3505,7 @@ func (x *RoundTeams) String() string {
 func (*RoundTeams) ProtoMessage() {}
 
 func (x *RoundTeams) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[54]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3392,7 +3518,7 @@ func (x *RoundTeams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundTeams.ProtoReflect.Descriptor instead.
 func (*RoundTeams) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{54}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *RoundTeams) GetTeamA() []string {
@@ -3420,7 +3546,7 @@ type RoundScore struct {
 
 func (x *RoundScore) Reset() {
 	*x = RoundScore{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[55]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3432,7 +3558,7 @@ func (x *RoundScore) String() string {
 func (*RoundScore) ProtoMessage() {}
 
 func (x *RoundScore) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[55]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3445,7 +3571,7 @@ func (x *RoundScore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundScore.ProtoReflect.Descriptor instead.
 func (*RoundScore) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{55}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *RoundScore) GetA() int32 {
@@ -3472,7 +3598,7 @@ type RoundTournament struct {
 
 func (x *RoundTournament) Reset() {
 	*x = RoundTournament{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[56]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3484,7 +3610,7 @@ func (x *RoundTournament) String() string {
 func (*RoundTournament) ProtoMessage() {}
 
 func (x *RoundTournament) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[56]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3497,7 +3623,7 @@ func (x *RoundTournament) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundTournament.ProtoReflect.Descriptor instead.
 func (*RoundTournament) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{56}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *RoundTournament) GetId() string {
@@ -3523,7 +3649,7 @@ type UpdateRoundRequest struct {
 
 func (x *UpdateRoundRequest) Reset() {
 	*x = UpdateRoundRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[57]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3535,7 +3661,7 @@ func (x *UpdateRoundRequest) String() string {
 func (*UpdateRoundRequest) ProtoMessage() {}
 
 func (x *UpdateRoundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[57]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3548,7 +3674,7 @@ func (x *UpdateRoundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoundRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRoundRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{57}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *UpdateRoundRequest) GetRoundId() string {
@@ -3595,7 +3721,7 @@ type UpdateRoundResponse struct {
 
 func (x *UpdateRoundResponse) Reset() {
 	*x = UpdateRoundResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[58]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3607,7 +3733,7 @@ func (x *UpdateRoundResponse) String() string {
 func (*UpdateRoundResponse) ProtoMessage() {}
 
 func (x *UpdateRoundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[58]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3620,7 +3746,7 @@ func (x *UpdateRoundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoundResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRoundResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{58}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *UpdateRoundResponse) GetRound() *Round {
@@ -3639,7 +3765,7 @@ type DeleteRoundRequest struct {
 
 func (x *DeleteRoundRequest) Reset() {
 	*x = DeleteRoundRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[59]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3651,7 +3777,7 @@ func (x *DeleteRoundRequest) String() string {
 func (*DeleteRoundRequest) ProtoMessage() {}
 
 func (x *DeleteRoundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[59]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3664,7 +3790,7 @@ func (x *DeleteRoundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoundRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRoundRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{59}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *DeleteRoundRequest) GetRoundId() string {
@@ -3682,7 +3808,7 @@ type DeleteRoundResponse struct {
 
 func (x *DeleteRoundResponse) Reset() {
 	*x = DeleteRoundResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[60]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3694,7 +3820,7 @@ func (x *DeleteRoundResponse) String() string {
 func (*DeleteRoundResponse) ProtoMessage() {}
 
 func (x *DeleteRoundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[60]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3707,7 +3833,7 @@ func (x *DeleteRoundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRoundResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRoundResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{60}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{61}
 }
 
 type RestoreRoundRequest struct {
@@ -3719,7 +3845,7 @@ type RestoreRoundRequest struct {
 
 func (x *RestoreRoundRequest) Reset() {
 	*x = RestoreRoundRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[61]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3731,7 +3857,7 @@ func (x *RestoreRoundRequest) String() string {
 func (*RestoreRoundRequest) ProtoMessage() {}
 
 func (x *RestoreRoundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[61]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3744,7 +3870,7 @@ func (x *RestoreRoundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreRoundRequest.ProtoReflect.Descriptor instead.
 func (*RestoreRoundRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{61}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RestoreRoundRequest) GetRoundId() string {
@@ -3762,7 +3888,7 @@ type RestoreRoundResponse struct {
 
 func (x *RestoreRoundResponse) Reset() {
 	*x = RestoreRoundResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[62]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3774,7 +3900,7 @@ func (x *RestoreRoundResponse) String() string {
 func (*RestoreRoundResponse) ProtoMessage() {}
 
 func (x *RestoreRoundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[62]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3787,7 +3913,7 @@ func (x *RestoreRoundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreRoundResponse.ProtoReflect.Descriptor instead.
 func (*RestoreRoundResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{62}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{63}
 }
 
 type HistoryPoint struct {
@@ -3802,7 +3928,7 @@ type HistoryPoint struct {
 
 func (x *HistoryPoint) Reset() {
 	*x = HistoryPoint{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[63]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3814,7 +3940,7 @@ func (x *HistoryPoint) String() string {
 func (*HistoryPoint) ProtoMessage() {}
 
 func (x *HistoryPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[63]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3827,7 +3953,7 @@ func (x *HistoryPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryPoint.ProtoReflect.Descriptor instead.
 func (*HistoryPoint) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{63}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *HistoryPoint) GetPlayedAt() *timestamppb.Timestamp {
@@ -3863,7 +3989,7 @@ type PairStat struct {
 
 func (x *PairStat) Reset() {
 	*x = PairStat{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[64]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3875,7 +4001,7 @@ func (x *PairStat) String() string {
 func (*PairStat) ProtoMessage() {}
 
 func (x *PairStat) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[64]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3888,7 +4014,7 @@ func (x *PairStat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PairStat.ProtoReflect.Descriptor instead.
 func (*PairStat) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{64}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *PairStat) GetPlayerId() string {
@@ -3922,7 +4048,7 @@ type GetPlayerStatsRequest struct {
 
 func (x *GetPlayerStatsRequest) Reset() {
 	*x = GetPlayerStatsRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[65]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3934,7 +4060,7 @@ func (x *GetPlayerStatsRequest) String() string {
 func (*GetPlayerStatsRequest) ProtoMessage() {}
 
 func (x *GetPlayerStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[65]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3947,7 +4073,7 @@ func (x *GetPlayerStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlayerStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetPlayerStatsRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{65}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *GetPlayerStatsRequest) GetGameId() string {
@@ -3977,7 +4103,7 @@ type GetPlayerStatsResponse struct {
 
 func (x *GetPlayerStatsResponse) Reset() {
 	*x = GetPlayerStatsResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[66]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3989,7 +4115,7 @@ func (x *GetPlayerStatsResponse) String() string {
 func (*GetPlayerStatsResponse) ProtoMessage() {}
 
 func (x *GetPlayerStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[66]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4002,7 +4128,7 @@ func (x *GetPlayerStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlayerStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetPlayerStatsResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{66}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *GetPlayerStatsResponse) GetHistory() []*HistoryPoint {
@@ -4037,7 +4163,7 @@ type PreviewRoundRequest struct {
 
 func (x *PreviewRoundRequest) Reset() {
 	*x = PreviewRoundRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[67]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4049,7 +4175,7 @@ func (x *PreviewRoundRequest) String() string {
 func (*PreviewRoundRequest) ProtoMessage() {}
 
 func (x *PreviewRoundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[67]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4062,7 +4188,7 @@ func (x *PreviewRoundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewRoundRequest.ProtoReflect.Descriptor instead.
 func (*PreviewRoundRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{67}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *PreviewRoundRequest) GetGameId() string {
@@ -4096,7 +4222,7 @@ type PreviewRoundResponse struct {
 
 func (x *PreviewRoundResponse) Reset() {
 	*x = PreviewRoundResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[68]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4108,7 +4234,7 @@ func (x *PreviewRoundResponse) String() string {
 func (*PreviewRoundResponse) ProtoMessage() {}
 
 func (x *PreviewRoundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[68]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4121,7 +4247,7 @@ func (x *PreviewRoundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewRoundResponse.ProtoReflect.Descriptor instead.
 func (*PreviewRoundResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{68}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *PreviewRoundResponse) GetWinProbabilityA() float64 {
@@ -4142,7 +4268,7 @@ type SuggestTeamsRequest struct {
 
 func (x *SuggestTeamsRequest) Reset() {
 	*x = SuggestTeamsRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[69]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4154,7 +4280,7 @@ func (x *SuggestTeamsRequest) String() string {
 func (*SuggestTeamsRequest) ProtoMessage() {}
 
 func (x *SuggestTeamsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[69]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4167,7 +4293,7 @@ func (x *SuggestTeamsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestTeamsRequest.ProtoReflect.Descriptor instead.
 func (*SuggestTeamsRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{69}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SuggestTeamsRequest) GetGameId() string {
@@ -4195,7 +4321,7 @@ type SuggestTeamsResponse struct {
 
 func (x *SuggestTeamsResponse) Reset() {
 	*x = SuggestTeamsResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[70]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4207,7 +4333,7 @@ func (x *SuggestTeamsResponse) String() string {
 func (*SuggestTeamsResponse) ProtoMessage() {}
 
 func (x *SuggestTeamsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[70]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4220,7 +4346,7 @@ func (x *SuggestTeamsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestTeamsResponse.ProtoReflect.Descriptor instead.
 func (*SuggestTeamsResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{70}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SuggestTeamsResponse) GetTeamA() []string {
@@ -4254,7 +4380,7 @@ type GetDashboardRequest struct {
 
 func (x *GetDashboardRequest) Reset() {
 	*x = GetDashboardRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[71]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4266,7 +4392,7 @@ func (x *GetDashboardRequest) String() string {
 func (*GetDashboardRequest) ProtoMessage() {}
 
 func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[71]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4279,7 +4405,7 @@ func (x *GetDashboardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardRequest.ProtoReflect.Descriptor instead.
 func (*GetDashboardRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{71}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *GetDashboardRequest) GetToken() string {
@@ -4301,7 +4427,7 @@ type GetDashboardResponse struct {
 
 func (x *GetDashboardResponse) Reset() {
 	*x = GetDashboardResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[72]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4313,7 +4439,7 @@ func (x *GetDashboardResponse) String() string {
 func (*GetDashboardResponse) ProtoMessage() {}
 
 func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[72]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4326,7 +4452,7 @@ func (x *GetDashboardResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardResponse.ProtoReflect.Descriptor instead.
 func (*GetDashboardResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{72}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *GetDashboardResponse) GetGroupName() string {
@@ -4363,7 +4489,7 @@ type GetDashboardGameRequest struct {
 
 func (x *GetDashboardGameRequest) Reset() {
 	*x = GetDashboardGameRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[73]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4375,7 +4501,7 @@ func (x *GetDashboardGameRequest) String() string {
 func (*GetDashboardGameRequest) ProtoMessage() {}
 
 func (x *GetDashboardGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[73]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4388,7 +4514,7 @@ func (x *GetDashboardGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardGameRequest.ProtoReflect.Descriptor instead.
 func (*GetDashboardGameRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{73}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *GetDashboardGameRequest) GetToken() string {
@@ -4428,7 +4554,7 @@ type GetDashboardGameResponse struct {
 
 func (x *GetDashboardGameResponse) Reset() {
 	*x = GetDashboardGameResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[74]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4440,7 +4566,7 @@ func (x *GetDashboardGameResponse) String() string {
 func (*GetDashboardGameResponse) ProtoMessage() {}
 
 func (x *GetDashboardGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[74]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4453,7 +4579,7 @@ func (x *GetDashboardGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardGameResponse.ProtoReflect.Descriptor instead.
 func (*GetDashboardGameResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{74}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *GetDashboardGameResponse) GetView() *GameView {
@@ -4473,7 +4599,7 @@ type GetDashboardGameVersionRequest struct {
 
 func (x *GetDashboardGameVersionRequest) Reset() {
 	*x = GetDashboardGameVersionRequest{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[75]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4485,7 +4611,7 @@ func (x *GetDashboardGameVersionRequest) String() string {
 func (*GetDashboardGameVersionRequest) ProtoMessage() {}
 
 func (x *GetDashboardGameVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[75]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4498,7 +4624,7 @@ func (x *GetDashboardGameVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardGameVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetDashboardGameVersionRequest) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{75}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *GetDashboardGameVersionRequest) GetToken() string {
@@ -4524,7 +4650,7 @@ type GetDashboardGameVersionResponse struct {
 
 func (x *GetDashboardGameVersionResponse) Reset() {
 	*x = GetDashboardGameVersionResponse{}
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[76]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4536,7 +4662,7 @@ func (x *GetDashboardGameVersionResponse) String() string {
 func (*GetDashboardGameVersionResponse) ProtoMessage() {}
 
 func (x *GetDashboardGameVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[76]
+	mi := &file_scoreboard_v1_scoreboard_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4549,7 +4675,7 @@ func (x *GetDashboardGameVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDashboardGameVersionResponse.ProtoReflect.Descriptor instead.
 func (*GetDashboardGameVersionResponse) Descriptor() ([]byte, []int) {
-	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{76}
+	return file_scoreboard_v1_scoreboard_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *GetDashboardGameVersionResponse) GetVersion() int64 {
@@ -4575,18 +4701,19 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\x06Player\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\barchived\x18\x03 \x01(\bR\barchived\"\x8e\x02\n" +
+	"\barchived\x18\x03 \x01(\bR\barchived\"\xa4\x02\n" +
 	"\x04Game\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\x06team_a\x18\x03 \x01(\tH\x00R\x05teamA\x88\x01\x01\x12\x1a\n" +
-	"\x06team_b\x18\x04 \x01(\tH\x01R\x05teamB\x88\x01\x01\x12\x1a\n" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
-	"\frating_speed\x18\a \x01(\x0e2\x1a.scoreboard.v1.RatingSpeedR\vratingSpeedB\t\n" +
-	"\a_team_aB\t\n" +
-	"\a_team_b\"\xbb\x01\n" +
+	"\frating_speed\x18\a \x01(\x0e2\x1a.scoreboard.v1.RatingSpeedR\vratingSpeed\x12*\n" +
+	"\x06team_a\x18\b \x01(\v2\x13.scoreboard.v1.TeamR\x05teamA\x12*\n" +
+	"\x06team_b\x18\t \x01(\v2\x13.scoreboard.v1.TeamR\x05teamBJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"J\n" +
+	"\x04Team\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
+	"\x05color\x18\x02 \x01(\x0e2\x18.scoreboard.v1.TeamColorR\x05color\"\xbb\x01\n" +
 	"\n" +
 	"Tournament\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
@@ -4737,27 +4864,23 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\barchived\x18\x03 \x01(\bH\x01R\barchived\x88\x01\x01B\a\n" +
 	"\x05_nameB\v\n" +
 	"\t_archived\"\x16\n" +
-	"\x14UpdatePlayerResponse\"u\n" +
+	"\x14UpdatePlayerResponse\"\x8b\x01\n" +
 	"\x11CreateGameRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
-	"\x06team_a\x18\x02 \x01(\tH\x00R\x05teamA\x88\x01\x01\x12\x1a\n" +
-	"\x06team_b\x18\x03 \x01(\tH\x01R\x05teamB\x88\x01\x01B\t\n" +
-	"\a_team_aB\t\n" +
-	"\a_team_b\"=\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12*\n" +
+	"\x06team_a\x18\x04 \x01(\v2\x13.scoreboard.v1.TeamR\x05teamA\x12*\n" +
+	"\x06team_b\x18\x05 \x01(\v2\x13.scoreboard.v1.TeamR\x05teamBJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04\"=\n" +
 	"\x12CreateGameResponse\x12'\n" +
-	"\x04game\x18\x01 \x01(\v2\x13.scoreboard.v1.GameR\x04game\"\x9f\x02\n" +
+	"\x04game\x18\x01 \x01(\v2\x13.scoreboard.v1.GameR\x04game\"\xb5\x02\n" +
 	"\x11UpdateGameRequest\x12\x17\n" +
 	"\agame_id\x18\x01 \x01(\tR\x06gameId\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1a\n" +
-	"\x06team_a\x18\x03 \x01(\tH\x01R\x05teamA\x88\x01\x01\x12\x1a\n" +
-	"\x06team_b\x18\x04 \x01(\tH\x02R\x05teamB\x88\x01\x01\x12\x1f\n" +
-	"\barchived\x18\x05 \x01(\bH\x03R\barchived\x88\x01\x01\x12B\n" +
-	"\frating_speed\x18\x06 \x01(\x0e2\x1a.scoreboard.v1.RatingSpeedH\x04R\vratingSpeed\x88\x01\x01B\a\n" +
-	"\x05_nameB\t\n" +
-	"\a_team_aB\t\n" +
-	"\a_team_bB\v\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1f\n" +
+	"\barchived\x18\x05 \x01(\bH\x01R\barchived\x88\x01\x01\x12B\n" +
+	"\frating_speed\x18\x06 \x01(\x0e2\x1a.scoreboard.v1.RatingSpeedH\x02R\vratingSpeed\x88\x01\x01\x12*\n" +
+	"\x06team_a\x18\a \x01(\v2\x13.scoreboard.v1.TeamR\x05teamA\x12*\n" +
+	"\x06team_b\x18\b \x01(\v2\x13.scoreboard.v1.TeamR\x05teamBB\a\n" +
+	"\x05_nameB\v\n" +
 	"\t_archivedB\x0f\n" +
-	"\r_rating_speed\"\x14\n" +
+	"\r_rating_speedJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"\x14\n" +
 	"\x12UpdateGameResponse\"\x96\x01\n" +
 	"\x0eGetGameRequest\x12\x17\n" +
 	"\agame_id\x18\x01 \x01(\tR\x06gameId\x120\n" +
@@ -4890,7 +5013,17 @@ const file_scoreboard_v1_scoreboard_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x17\n" +
 	"\agame_id\x18\x02 \x01(\tR\x06gameId\";\n" +
 	"\x1fGetDashboardGameVersionResponse\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\x03R\aversion*t\n" +
+	"\aversion\x18\x01 \x01(\x03R\aversion*\xd5\x01\n" +
+	"\tTeamColor\x12\x1a\n" +
+	"\x16TEAM_COLOR_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fTEAM_COLOR_BLUE\x10\x01\x12\x15\n" +
+	"\x11TEAM_COLOR_ORANGE\x10\x02\x12\x12\n" +
+	"\x0eTEAM_COLOR_RED\x10\x03\x12\x14\n" +
+	"\x10TEAM_COLOR_GREEN\x10\x04\x12\x15\n" +
+	"\x11TEAM_COLOR_PURPLE\x10\x05\x12\x15\n" +
+	"\x11TEAM_COLOR_YELLOW\x10\x06\x12\x13\n" +
+	"\x0fTEAM_COLOR_PINK\x10\a\x12\x13\n" +
+	"\x0fTEAM_COLOR_TEAL\x10\b*t\n" +
 	"\vRatingSpeed\x12\x1c\n" +
 	"\x18RATING_SPEED_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13RATING_SPEED_STEADY\x10\x01\x12\x17\n" +
@@ -4954,202 +5087,211 @@ func file_scoreboard_v1_scoreboard_proto_rawDescGZIP() []byte {
 	return file_scoreboard_v1_scoreboard_proto_rawDescData
 }
 
-var file_scoreboard_v1_scoreboard_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_scoreboard_v1_scoreboard_proto_msgTypes = make([]protoimpl.MessageInfo, 77)
+var file_scoreboard_v1_scoreboard_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_scoreboard_v1_scoreboard_proto_msgTypes = make([]protoimpl.MessageInfo, 78)
 var file_scoreboard_v1_scoreboard_proto_goTypes = []any{
-	(RatingSpeed)(0),                        // 0: scoreboard.v1.RatingSpeed
-	(Mode)(0),                               // 1: scoreboard.v1.Mode
-	(LinkKind)(0),                           // 2: scoreboard.v1.LinkKind
-	(*Group)(nil),                           // 3: scoreboard.v1.Group
-	(*Player)(nil),                          // 4: scoreboard.v1.Player
-	(*Game)(nil),                            // 5: scoreboard.v1.Game
-	(*Tournament)(nil),                      // 6: scoreboard.v1.Tournament
-	(*Rating)(nil),                          // 7: scoreboard.v1.Rating
-	(*RoundPlayer)(nil),                     // 8: scoreboard.v1.RoundPlayer
-	(*Round)(nil),                           // 9: scoreboard.v1.Round
-	(*PlayerRating)(nil),                    // 10: scoreboard.v1.PlayerRating
-	(*Handicap)(nil),                        // 11: scoreboard.v1.Handicap
-	(*GameView)(nil),                        // 12: scoreboard.v1.GameView
-	(*Device)(nil),                          // 13: scoreboard.v1.Device
-	(*Owner)(nil),                           // 14: scoreboard.v1.Owner
-	(*Me)(nil),                              // 15: scoreboard.v1.Me
-	(*Branding)(nil),                        // 16: scoreboard.v1.Branding
-	(*GetInstanceRequest)(nil),              // 17: scoreboard.v1.GetInstanceRequest
-	(*GetInstanceResponse)(nil),             // 18: scoreboard.v1.GetInstanceResponse
-	(*CreateGroupRequest)(nil),              // 19: scoreboard.v1.CreateGroupRequest
-	(*CreateGroupResponse)(nil),             // 20: scoreboard.v1.CreateGroupResponse
-	(*JoinRequest)(nil),                     // 21: scoreboard.v1.JoinRequest
-	(*JoinResponse)(nil),                    // 22: scoreboard.v1.JoinResponse
-	(*ClaimOwnerRequest)(nil),               // 23: scoreboard.v1.ClaimOwnerRequest
-	(*ClaimOwnerResponse)(nil),              // 24: scoreboard.v1.ClaimOwnerResponse
-	(*GetGroupRequest)(nil),                 // 25: scoreboard.v1.GetGroupRequest
-	(*GetGroupResponse)(nil),                // 26: scoreboard.v1.GetGroupResponse
-	(*UpdateGroupRequest)(nil),              // 27: scoreboard.v1.UpdateGroupRequest
-	(*UpdateGroupResponse)(nil),             // 28: scoreboard.v1.UpdateGroupResponse
-	(*DeleteGroupRequest)(nil),              // 29: scoreboard.v1.DeleteGroupRequest
-	(*DeleteGroupResponse)(nil),             // 30: scoreboard.v1.DeleteGroupResponse
-	(*RotateLinkRequest)(nil),               // 31: scoreboard.v1.RotateLinkRequest
-	(*RotateLinkResponse)(nil),              // 32: scoreboard.v1.RotateLinkResponse
-	(*ListDevicesRequest)(nil),              // 33: scoreboard.v1.ListDevicesRequest
-	(*ListDevicesResponse)(nil),             // 34: scoreboard.v1.ListDevicesResponse
-	(*RemoveDeviceRequest)(nil),             // 35: scoreboard.v1.RemoveDeviceRequest
-	(*RemoveDeviceResponse)(nil),            // 36: scoreboard.v1.RemoveDeviceResponse
-	(*CreatePlayerRequest)(nil),             // 37: scoreboard.v1.CreatePlayerRequest
-	(*CreatePlayerResponse)(nil),            // 38: scoreboard.v1.CreatePlayerResponse
-	(*UpdatePlayerRequest)(nil),             // 39: scoreboard.v1.UpdatePlayerRequest
-	(*UpdatePlayerResponse)(nil),            // 40: scoreboard.v1.UpdatePlayerResponse
-	(*CreateGameRequest)(nil),               // 41: scoreboard.v1.CreateGameRequest
-	(*CreateGameResponse)(nil),              // 42: scoreboard.v1.CreateGameResponse
-	(*UpdateGameRequest)(nil),               // 43: scoreboard.v1.UpdateGameRequest
-	(*UpdateGameResponse)(nil),              // 44: scoreboard.v1.UpdateGameResponse
-	(*GetGameRequest)(nil),                  // 45: scoreboard.v1.GetGameRequest
-	(*GetGameResponse)(nil),                 // 46: scoreboard.v1.GetGameResponse
-	(*GetGameVersionRequest)(nil),           // 47: scoreboard.v1.GetGameVersionRequest
-	(*GetGameVersionResponse)(nil),          // 48: scoreboard.v1.GetGameVersionResponse
-	(*CreateTournamentRequest)(nil),         // 49: scoreboard.v1.CreateTournamentRequest
-	(*CreateTournamentResponse)(nil),        // 50: scoreboard.v1.CreateTournamentResponse
-	(*UpdateTournamentRequest)(nil),         // 51: scoreboard.v1.UpdateTournamentRequest
-	(*UpdateTournamentResponse)(nil),        // 52: scoreboard.v1.UpdateTournamentResponse
-	(*ListRoundsRequest)(nil),               // 53: scoreboard.v1.ListRoundsRequest
-	(*ListRoundsResponse)(nil),              // 54: scoreboard.v1.ListRoundsResponse
-	(*CreateRoundRequest)(nil),              // 55: scoreboard.v1.CreateRoundRequest
-	(*CreateRoundResponse)(nil),             // 56: scoreboard.v1.CreateRoundResponse
-	(*RoundTeams)(nil),                      // 57: scoreboard.v1.RoundTeams
-	(*RoundScore)(nil),                      // 58: scoreboard.v1.RoundScore
-	(*RoundTournament)(nil),                 // 59: scoreboard.v1.RoundTournament
-	(*UpdateRoundRequest)(nil),              // 60: scoreboard.v1.UpdateRoundRequest
-	(*UpdateRoundResponse)(nil),             // 61: scoreboard.v1.UpdateRoundResponse
-	(*DeleteRoundRequest)(nil),              // 62: scoreboard.v1.DeleteRoundRequest
-	(*DeleteRoundResponse)(nil),             // 63: scoreboard.v1.DeleteRoundResponse
-	(*RestoreRoundRequest)(nil),             // 64: scoreboard.v1.RestoreRoundRequest
-	(*RestoreRoundResponse)(nil),            // 65: scoreboard.v1.RestoreRoundResponse
-	(*HistoryPoint)(nil),                    // 66: scoreboard.v1.HistoryPoint
-	(*PairStat)(nil),                        // 67: scoreboard.v1.PairStat
-	(*GetPlayerStatsRequest)(nil),           // 68: scoreboard.v1.GetPlayerStatsRequest
-	(*GetPlayerStatsResponse)(nil),          // 69: scoreboard.v1.GetPlayerStatsResponse
-	(*PreviewRoundRequest)(nil),             // 70: scoreboard.v1.PreviewRoundRequest
-	(*PreviewRoundResponse)(nil),            // 71: scoreboard.v1.PreviewRoundResponse
-	(*SuggestTeamsRequest)(nil),             // 72: scoreboard.v1.SuggestTeamsRequest
-	(*SuggestTeamsResponse)(nil),            // 73: scoreboard.v1.SuggestTeamsResponse
-	(*GetDashboardRequest)(nil),             // 74: scoreboard.v1.GetDashboardRequest
-	(*GetDashboardResponse)(nil),            // 75: scoreboard.v1.GetDashboardResponse
-	(*GetDashboardGameRequest)(nil),         // 76: scoreboard.v1.GetDashboardGameRequest
-	(*GetDashboardGameResponse)(nil),        // 77: scoreboard.v1.GetDashboardGameResponse
-	(*GetDashboardGameVersionRequest)(nil),  // 78: scoreboard.v1.GetDashboardGameVersionRequest
-	(*GetDashboardGameVersionResponse)(nil), // 79: scoreboard.v1.GetDashboardGameVersionResponse
-	(*timestamppb.Timestamp)(nil),           // 80: google.protobuf.Timestamp
+	(TeamColor)(0),                          // 0: scoreboard.v1.TeamColor
+	(RatingSpeed)(0),                        // 1: scoreboard.v1.RatingSpeed
+	(Mode)(0),                               // 2: scoreboard.v1.Mode
+	(LinkKind)(0),                           // 3: scoreboard.v1.LinkKind
+	(*Group)(nil),                           // 4: scoreboard.v1.Group
+	(*Player)(nil),                          // 5: scoreboard.v1.Player
+	(*Game)(nil),                            // 6: scoreboard.v1.Game
+	(*Team)(nil),                            // 7: scoreboard.v1.Team
+	(*Tournament)(nil),                      // 8: scoreboard.v1.Tournament
+	(*Rating)(nil),                          // 9: scoreboard.v1.Rating
+	(*RoundPlayer)(nil),                     // 10: scoreboard.v1.RoundPlayer
+	(*Round)(nil),                           // 11: scoreboard.v1.Round
+	(*PlayerRating)(nil),                    // 12: scoreboard.v1.PlayerRating
+	(*Handicap)(nil),                        // 13: scoreboard.v1.Handicap
+	(*GameView)(nil),                        // 14: scoreboard.v1.GameView
+	(*Device)(nil),                          // 15: scoreboard.v1.Device
+	(*Owner)(nil),                           // 16: scoreboard.v1.Owner
+	(*Me)(nil),                              // 17: scoreboard.v1.Me
+	(*Branding)(nil),                        // 18: scoreboard.v1.Branding
+	(*GetInstanceRequest)(nil),              // 19: scoreboard.v1.GetInstanceRequest
+	(*GetInstanceResponse)(nil),             // 20: scoreboard.v1.GetInstanceResponse
+	(*CreateGroupRequest)(nil),              // 21: scoreboard.v1.CreateGroupRequest
+	(*CreateGroupResponse)(nil),             // 22: scoreboard.v1.CreateGroupResponse
+	(*JoinRequest)(nil),                     // 23: scoreboard.v1.JoinRequest
+	(*JoinResponse)(nil),                    // 24: scoreboard.v1.JoinResponse
+	(*ClaimOwnerRequest)(nil),               // 25: scoreboard.v1.ClaimOwnerRequest
+	(*ClaimOwnerResponse)(nil),              // 26: scoreboard.v1.ClaimOwnerResponse
+	(*GetGroupRequest)(nil),                 // 27: scoreboard.v1.GetGroupRequest
+	(*GetGroupResponse)(nil),                // 28: scoreboard.v1.GetGroupResponse
+	(*UpdateGroupRequest)(nil),              // 29: scoreboard.v1.UpdateGroupRequest
+	(*UpdateGroupResponse)(nil),             // 30: scoreboard.v1.UpdateGroupResponse
+	(*DeleteGroupRequest)(nil),              // 31: scoreboard.v1.DeleteGroupRequest
+	(*DeleteGroupResponse)(nil),             // 32: scoreboard.v1.DeleteGroupResponse
+	(*RotateLinkRequest)(nil),               // 33: scoreboard.v1.RotateLinkRequest
+	(*RotateLinkResponse)(nil),              // 34: scoreboard.v1.RotateLinkResponse
+	(*ListDevicesRequest)(nil),              // 35: scoreboard.v1.ListDevicesRequest
+	(*ListDevicesResponse)(nil),             // 36: scoreboard.v1.ListDevicesResponse
+	(*RemoveDeviceRequest)(nil),             // 37: scoreboard.v1.RemoveDeviceRequest
+	(*RemoveDeviceResponse)(nil),            // 38: scoreboard.v1.RemoveDeviceResponse
+	(*CreatePlayerRequest)(nil),             // 39: scoreboard.v1.CreatePlayerRequest
+	(*CreatePlayerResponse)(nil),            // 40: scoreboard.v1.CreatePlayerResponse
+	(*UpdatePlayerRequest)(nil),             // 41: scoreboard.v1.UpdatePlayerRequest
+	(*UpdatePlayerResponse)(nil),            // 42: scoreboard.v1.UpdatePlayerResponse
+	(*CreateGameRequest)(nil),               // 43: scoreboard.v1.CreateGameRequest
+	(*CreateGameResponse)(nil),              // 44: scoreboard.v1.CreateGameResponse
+	(*UpdateGameRequest)(nil),               // 45: scoreboard.v1.UpdateGameRequest
+	(*UpdateGameResponse)(nil),              // 46: scoreboard.v1.UpdateGameResponse
+	(*GetGameRequest)(nil),                  // 47: scoreboard.v1.GetGameRequest
+	(*GetGameResponse)(nil),                 // 48: scoreboard.v1.GetGameResponse
+	(*GetGameVersionRequest)(nil),           // 49: scoreboard.v1.GetGameVersionRequest
+	(*GetGameVersionResponse)(nil),          // 50: scoreboard.v1.GetGameVersionResponse
+	(*CreateTournamentRequest)(nil),         // 51: scoreboard.v1.CreateTournamentRequest
+	(*CreateTournamentResponse)(nil),        // 52: scoreboard.v1.CreateTournamentResponse
+	(*UpdateTournamentRequest)(nil),         // 53: scoreboard.v1.UpdateTournamentRequest
+	(*UpdateTournamentResponse)(nil),        // 54: scoreboard.v1.UpdateTournamentResponse
+	(*ListRoundsRequest)(nil),               // 55: scoreboard.v1.ListRoundsRequest
+	(*ListRoundsResponse)(nil),              // 56: scoreboard.v1.ListRoundsResponse
+	(*CreateRoundRequest)(nil),              // 57: scoreboard.v1.CreateRoundRequest
+	(*CreateRoundResponse)(nil),             // 58: scoreboard.v1.CreateRoundResponse
+	(*RoundTeams)(nil),                      // 59: scoreboard.v1.RoundTeams
+	(*RoundScore)(nil),                      // 60: scoreboard.v1.RoundScore
+	(*RoundTournament)(nil),                 // 61: scoreboard.v1.RoundTournament
+	(*UpdateRoundRequest)(nil),              // 62: scoreboard.v1.UpdateRoundRequest
+	(*UpdateRoundResponse)(nil),             // 63: scoreboard.v1.UpdateRoundResponse
+	(*DeleteRoundRequest)(nil),              // 64: scoreboard.v1.DeleteRoundRequest
+	(*DeleteRoundResponse)(nil),             // 65: scoreboard.v1.DeleteRoundResponse
+	(*RestoreRoundRequest)(nil),             // 66: scoreboard.v1.RestoreRoundRequest
+	(*RestoreRoundResponse)(nil),            // 67: scoreboard.v1.RestoreRoundResponse
+	(*HistoryPoint)(nil),                    // 68: scoreboard.v1.HistoryPoint
+	(*PairStat)(nil),                        // 69: scoreboard.v1.PairStat
+	(*GetPlayerStatsRequest)(nil),           // 70: scoreboard.v1.GetPlayerStatsRequest
+	(*GetPlayerStatsResponse)(nil),          // 71: scoreboard.v1.GetPlayerStatsResponse
+	(*PreviewRoundRequest)(nil),             // 72: scoreboard.v1.PreviewRoundRequest
+	(*PreviewRoundResponse)(nil),            // 73: scoreboard.v1.PreviewRoundResponse
+	(*SuggestTeamsRequest)(nil),             // 74: scoreboard.v1.SuggestTeamsRequest
+	(*SuggestTeamsResponse)(nil),            // 75: scoreboard.v1.SuggestTeamsResponse
+	(*GetDashboardRequest)(nil),             // 76: scoreboard.v1.GetDashboardRequest
+	(*GetDashboardResponse)(nil),            // 77: scoreboard.v1.GetDashboardResponse
+	(*GetDashboardGameRequest)(nil),         // 78: scoreboard.v1.GetDashboardGameRequest
+	(*GetDashboardGameResponse)(nil),        // 79: scoreboard.v1.GetDashboardGameResponse
+	(*GetDashboardGameVersionRequest)(nil),  // 80: scoreboard.v1.GetDashboardGameVersionRequest
+	(*GetDashboardGameVersionResponse)(nil), // 81: scoreboard.v1.GetDashboardGameVersionResponse
+	(*timestamppb.Timestamp)(nil),           // 82: google.protobuf.Timestamp
 }
 var file_scoreboard_v1_scoreboard_proto_depIdxs = []int32{
-	80, // 0: scoreboard.v1.Group.created_at:type_name -> google.protobuf.Timestamp
-	80, // 1: scoreboard.v1.Game.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: scoreboard.v1.Game.rating_speed:type_name -> scoreboard.v1.RatingSpeed
-	80, // 3: scoreboard.v1.Tournament.created_at:type_name -> google.protobuf.Timestamp
-	80, // 4: scoreboard.v1.Tournament.ended_at:type_name -> google.protobuf.Timestamp
-	7,  // 5: scoreboard.v1.RoundPlayer.before:type_name -> scoreboard.v1.Rating
-	7,  // 6: scoreboard.v1.RoundPlayer.after:type_name -> scoreboard.v1.Rating
-	80, // 7: scoreboard.v1.Round.played_at:type_name -> google.protobuf.Timestamp
-	8,  // 8: scoreboard.v1.Round.players:type_name -> scoreboard.v1.RoundPlayer
-	5,  // 9: scoreboard.v1.GameView.game:type_name -> scoreboard.v1.Game
-	10, // 10: scoreboard.v1.GameView.ratings:type_name -> scoreboard.v1.PlayerRating
-	11, // 11: scoreboard.v1.GameView.handicaps:type_name -> scoreboard.v1.Handicap
-	6,  // 12: scoreboard.v1.GameView.tournaments:type_name -> scoreboard.v1.Tournament
-	9,  // 13: scoreboard.v1.GameView.rounds:type_name -> scoreboard.v1.Round
-	80, // 14: scoreboard.v1.Device.created_at:type_name -> google.protobuf.Timestamp
-	80, // 15: scoreboard.v1.Device.last_seen_at:type_name -> google.protobuf.Timestamp
-	1,  // 16: scoreboard.v1.GetInstanceResponse.mode:type_name -> scoreboard.v1.Mode
-	16, // 17: scoreboard.v1.GetInstanceResponse.branding:type_name -> scoreboard.v1.Branding
-	3,  // 18: scoreboard.v1.GetGroupResponse.group:type_name -> scoreboard.v1.Group
-	15, // 19: scoreboard.v1.GetGroupResponse.me:type_name -> scoreboard.v1.Me
-	14, // 20: scoreboard.v1.GetGroupResponse.owners:type_name -> scoreboard.v1.Owner
-	4,  // 21: scoreboard.v1.GetGroupResponse.players:type_name -> scoreboard.v1.Player
-	5,  // 22: scoreboard.v1.GetGroupResponse.games:type_name -> scoreboard.v1.Game
-	2,  // 23: scoreboard.v1.RotateLinkRequest.kind:type_name -> scoreboard.v1.LinkKind
-	13, // 24: scoreboard.v1.ListDevicesResponse.devices:type_name -> scoreboard.v1.Device
-	4,  // 25: scoreboard.v1.CreatePlayerResponse.player:type_name -> scoreboard.v1.Player
-	5,  // 26: scoreboard.v1.CreateGameResponse.game:type_name -> scoreboard.v1.Game
-	0,  // 27: scoreboard.v1.UpdateGameRequest.rating_speed:type_name -> scoreboard.v1.RatingSpeed
-	80, // 28: scoreboard.v1.GetGameRequest.since:type_name -> google.protobuf.Timestamp
-	80, // 29: scoreboard.v1.GetGameRequest.week_since:type_name -> google.protobuf.Timestamp
-	12, // 30: scoreboard.v1.GetGameResponse.view:type_name -> scoreboard.v1.GameView
-	6,  // 31: scoreboard.v1.CreateTournamentResponse.tournament:type_name -> scoreboard.v1.Tournament
-	9,  // 32: scoreboard.v1.ListRoundsResponse.rounds:type_name -> scoreboard.v1.Round
-	9,  // 33: scoreboard.v1.CreateRoundResponse.round:type_name -> scoreboard.v1.Round
-	57, // 34: scoreboard.v1.UpdateRoundRequest.teams:type_name -> scoreboard.v1.RoundTeams
-	58, // 35: scoreboard.v1.UpdateRoundRequest.score:type_name -> scoreboard.v1.RoundScore
-	59, // 36: scoreboard.v1.UpdateRoundRequest.tournament:type_name -> scoreboard.v1.RoundTournament
-	9,  // 37: scoreboard.v1.UpdateRoundResponse.round:type_name -> scoreboard.v1.Round
-	80, // 38: scoreboard.v1.HistoryPoint.played_at:type_name -> google.protobuf.Timestamp
-	66, // 39: scoreboard.v1.GetPlayerStatsResponse.history:type_name -> scoreboard.v1.HistoryPoint
-	67, // 40: scoreboard.v1.GetPlayerStatsResponse.with:type_name -> scoreboard.v1.PairStat
-	67, // 41: scoreboard.v1.GetPlayerStatsResponse.against:type_name -> scoreboard.v1.PairStat
-	5,  // 42: scoreboard.v1.GetDashboardResponse.games:type_name -> scoreboard.v1.Game
-	4,  // 43: scoreboard.v1.GetDashboardResponse.players:type_name -> scoreboard.v1.Player
-	80, // 44: scoreboard.v1.GetDashboardGameRequest.since:type_name -> google.protobuf.Timestamp
-	80, // 45: scoreboard.v1.GetDashboardGameRequest.week_since:type_name -> google.protobuf.Timestamp
-	12, // 46: scoreboard.v1.GetDashboardGameResponse.view:type_name -> scoreboard.v1.GameView
-	17, // 47: scoreboard.v1.ScoreboardService.GetInstance:input_type -> scoreboard.v1.GetInstanceRequest
-	19, // 48: scoreboard.v1.ScoreboardService.CreateGroup:input_type -> scoreboard.v1.CreateGroupRequest
-	21, // 49: scoreboard.v1.ScoreboardService.Join:input_type -> scoreboard.v1.JoinRequest
-	23, // 50: scoreboard.v1.ScoreboardService.ClaimOwner:input_type -> scoreboard.v1.ClaimOwnerRequest
-	25, // 51: scoreboard.v1.ScoreboardService.GetGroup:input_type -> scoreboard.v1.GetGroupRequest
-	27, // 52: scoreboard.v1.ScoreboardService.UpdateGroup:input_type -> scoreboard.v1.UpdateGroupRequest
-	29, // 53: scoreboard.v1.ScoreboardService.DeleteGroup:input_type -> scoreboard.v1.DeleteGroupRequest
-	31, // 54: scoreboard.v1.ScoreboardService.RotateLink:input_type -> scoreboard.v1.RotateLinkRequest
-	33, // 55: scoreboard.v1.ScoreboardService.ListDevices:input_type -> scoreboard.v1.ListDevicesRequest
-	35, // 56: scoreboard.v1.ScoreboardService.RemoveDevice:input_type -> scoreboard.v1.RemoveDeviceRequest
-	37, // 57: scoreboard.v1.ScoreboardService.CreatePlayer:input_type -> scoreboard.v1.CreatePlayerRequest
-	39, // 58: scoreboard.v1.ScoreboardService.UpdatePlayer:input_type -> scoreboard.v1.UpdatePlayerRequest
-	41, // 59: scoreboard.v1.ScoreboardService.CreateGame:input_type -> scoreboard.v1.CreateGameRequest
-	43, // 60: scoreboard.v1.ScoreboardService.UpdateGame:input_type -> scoreboard.v1.UpdateGameRequest
-	45, // 61: scoreboard.v1.ScoreboardService.GetGame:input_type -> scoreboard.v1.GetGameRequest
-	47, // 62: scoreboard.v1.ScoreboardService.GetGameVersion:input_type -> scoreboard.v1.GetGameVersionRequest
-	49, // 63: scoreboard.v1.ScoreboardService.CreateTournament:input_type -> scoreboard.v1.CreateTournamentRequest
-	51, // 64: scoreboard.v1.ScoreboardService.UpdateTournament:input_type -> scoreboard.v1.UpdateTournamentRequest
-	53, // 65: scoreboard.v1.ScoreboardService.ListRounds:input_type -> scoreboard.v1.ListRoundsRequest
-	55, // 66: scoreboard.v1.ScoreboardService.CreateRound:input_type -> scoreboard.v1.CreateRoundRequest
-	60, // 67: scoreboard.v1.ScoreboardService.UpdateRound:input_type -> scoreboard.v1.UpdateRoundRequest
-	62, // 68: scoreboard.v1.ScoreboardService.DeleteRound:input_type -> scoreboard.v1.DeleteRoundRequest
-	64, // 69: scoreboard.v1.ScoreboardService.RestoreRound:input_type -> scoreboard.v1.RestoreRoundRequest
-	68, // 70: scoreboard.v1.ScoreboardService.GetPlayerStats:input_type -> scoreboard.v1.GetPlayerStatsRequest
-	70, // 71: scoreboard.v1.ScoreboardService.PreviewRound:input_type -> scoreboard.v1.PreviewRoundRequest
-	72, // 72: scoreboard.v1.ScoreboardService.SuggestTeams:input_type -> scoreboard.v1.SuggestTeamsRequest
-	74, // 73: scoreboard.v1.ScoreboardService.GetDashboard:input_type -> scoreboard.v1.GetDashboardRequest
-	76, // 74: scoreboard.v1.ScoreboardService.GetDashboardGame:input_type -> scoreboard.v1.GetDashboardGameRequest
-	78, // 75: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:input_type -> scoreboard.v1.GetDashboardGameVersionRequest
-	18, // 76: scoreboard.v1.ScoreboardService.GetInstance:output_type -> scoreboard.v1.GetInstanceResponse
-	20, // 77: scoreboard.v1.ScoreboardService.CreateGroup:output_type -> scoreboard.v1.CreateGroupResponse
-	22, // 78: scoreboard.v1.ScoreboardService.Join:output_type -> scoreboard.v1.JoinResponse
-	24, // 79: scoreboard.v1.ScoreboardService.ClaimOwner:output_type -> scoreboard.v1.ClaimOwnerResponse
-	26, // 80: scoreboard.v1.ScoreboardService.GetGroup:output_type -> scoreboard.v1.GetGroupResponse
-	28, // 81: scoreboard.v1.ScoreboardService.UpdateGroup:output_type -> scoreboard.v1.UpdateGroupResponse
-	30, // 82: scoreboard.v1.ScoreboardService.DeleteGroup:output_type -> scoreboard.v1.DeleteGroupResponse
-	32, // 83: scoreboard.v1.ScoreboardService.RotateLink:output_type -> scoreboard.v1.RotateLinkResponse
-	34, // 84: scoreboard.v1.ScoreboardService.ListDevices:output_type -> scoreboard.v1.ListDevicesResponse
-	36, // 85: scoreboard.v1.ScoreboardService.RemoveDevice:output_type -> scoreboard.v1.RemoveDeviceResponse
-	38, // 86: scoreboard.v1.ScoreboardService.CreatePlayer:output_type -> scoreboard.v1.CreatePlayerResponse
-	40, // 87: scoreboard.v1.ScoreboardService.UpdatePlayer:output_type -> scoreboard.v1.UpdatePlayerResponse
-	42, // 88: scoreboard.v1.ScoreboardService.CreateGame:output_type -> scoreboard.v1.CreateGameResponse
-	44, // 89: scoreboard.v1.ScoreboardService.UpdateGame:output_type -> scoreboard.v1.UpdateGameResponse
-	46, // 90: scoreboard.v1.ScoreboardService.GetGame:output_type -> scoreboard.v1.GetGameResponse
-	48, // 91: scoreboard.v1.ScoreboardService.GetGameVersion:output_type -> scoreboard.v1.GetGameVersionResponse
-	50, // 92: scoreboard.v1.ScoreboardService.CreateTournament:output_type -> scoreboard.v1.CreateTournamentResponse
-	52, // 93: scoreboard.v1.ScoreboardService.UpdateTournament:output_type -> scoreboard.v1.UpdateTournamentResponse
-	54, // 94: scoreboard.v1.ScoreboardService.ListRounds:output_type -> scoreboard.v1.ListRoundsResponse
-	56, // 95: scoreboard.v1.ScoreboardService.CreateRound:output_type -> scoreboard.v1.CreateRoundResponse
-	61, // 96: scoreboard.v1.ScoreboardService.UpdateRound:output_type -> scoreboard.v1.UpdateRoundResponse
-	63, // 97: scoreboard.v1.ScoreboardService.DeleteRound:output_type -> scoreboard.v1.DeleteRoundResponse
-	65, // 98: scoreboard.v1.ScoreboardService.RestoreRound:output_type -> scoreboard.v1.RestoreRoundResponse
-	69, // 99: scoreboard.v1.ScoreboardService.GetPlayerStats:output_type -> scoreboard.v1.GetPlayerStatsResponse
-	71, // 100: scoreboard.v1.ScoreboardService.PreviewRound:output_type -> scoreboard.v1.PreviewRoundResponse
-	73, // 101: scoreboard.v1.ScoreboardService.SuggestTeams:output_type -> scoreboard.v1.SuggestTeamsResponse
-	75, // 102: scoreboard.v1.ScoreboardService.GetDashboard:output_type -> scoreboard.v1.GetDashboardResponse
-	77, // 103: scoreboard.v1.ScoreboardService.GetDashboardGame:output_type -> scoreboard.v1.GetDashboardGameResponse
-	79, // 104: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:output_type -> scoreboard.v1.GetDashboardGameVersionResponse
-	76, // [76:105] is the sub-list for method output_type
-	47, // [47:76] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	82, // 0: scoreboard.v1.Group.created_at:type_name -> google.protobuf.Timestamp
+	82, // 1: scoreboard.v1.Game.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 2: scoreboard.v1.Game.rating_speed:type_name -> scoreboard.v1.RatingSpeed
+	7,  // 3: scoreboard.v1.Game.team_a:type_name -> scoreboard.v1.Team
+	7,  // 4: scoreboard.v1.Game.team_b:type_name -> scoreboard.v1.Team
+	0,  // 5: scoreboard.v1.Team.color:type_name -> scoreboard.v1.TeamColor
+	82, // 6: scoreboard.v1.Tournament.created_at:type_name -> google.protobuf.Timestamp
+	82, // 7: scoreboard.v1.Tournament.ended_at:type_name -> google.protobuf.Timestamp
+	9,  // 8: scoreboard.v1.RoundPlayer.before:type_name -> scoreboard.v1.Rating
+	9,  // 9: scoreboard.v1.RoundPlayer.after:type_name -> scoreboard.v1.Rating
+	82, // 10: scoreboard.v1.Round.played_at:type_name -> google.protobuf.Timestamp
+	10, // 11: scoreboard.v1.Round.players:type_name -> scoreboard.v1.RoundPlayer
+	6,  // 12: scoreboard.v1.GameView.game:type_name -> scoreboard.v1.Game
+	12, // 13: scoreboard.v1.GameView.ratings:type_name -> scoreboard.v1.PlayerRating
+	13, // 14: scoreboard.v1.GameView.handicaps:type_name -> scoreboard.v1.Handicap
+	8,  // 15: scoreboard.v1.GameView.tournaments:type_name -> scoreboard.v1.Tournament
+	11, // 16: scoreboard.v1.GameView.rounds:type_name -> scoreboard.v1.Round
+	82, // 17: scoreboard.v1.Device.created_at:type_name -> google.protobuf.Timestamp
+	82, // 18: scoreboard.v1.Device.last_seen_at:type_name -> google.protobuf.Timestamp
+	2,  // 19: scoreboard.v1.GetInstanceResponse.mode:type_name -> scoreboard.v1.Mode
+	18, // 20: scoreboard.v1.GetInstanceResponse.branding:type_name -> scoreboard.v1.Branding
+	4,  // 21: scoreboard.v1.GetGroupResponse.group:type_name -> scoreboard.v1.Group
+	17, // 22: scoreboard.v1.GetGroupResponse.me:type_name -> scoreboard.v1.Me
+	16, // 23: scoreboard.v1.GetGroupResponse.owners:type_name -> scoreboard.v1.Owner
+	5,  // 24: scoreboard.v1.GetGroupResponse.players:type_name -> scoreboard.v1.Player
+	6,  // 25: scoreboard.v1.GetGroupResponse.games:type_name -> scoreboard.v1.Game
+	3,  // 26: scoreboard.v1.RotateLinkRequest.kind:type_name -> scoreboard.v1.LinkKind
+	15, // 27: scoreboard.v1.ListDevicesResponse.devices:type_name -> scoreboard.v1.Device
+	5,  // 28: scoreboard.v1.CreatePlayerResponse.player:type_name -> scoreboard.v1.Player
+	7,  // 29: scoreboard.v1.CreateGameRequest.team_a:type_name -> scoreboard.v1.Team
+	7,  // 30: scoreboard.v1.CreateGameRequest.team_b:type_name -> scoreboard.v1.Team
+	6,  // 31: scoreboard.v1.CreateGameResponse.game:type_name -> scoreboard.v1.Game
+	1,  // 32: scoreboard.v1.UpdateGameRequest.rating_speed:type_name -> scoreboard.v1.RatingSpeed
+	7,  // 33: scoreboard.v1.UpdateGameRequest.team_a:type_name -> scoreboard.v1.Team
+	7,  // 34: scoreboard.v1.UpdateGameRequest.team_b:type_name -> scoreboard.v1.Team
+	82, // 35: scoreboard.v1.GetGameRequest.since:type_name -> google.protobuf.Timestamp
+	82, // 36: scoreboard.v1.GetGameRequest.week_since:type_name -> google.protobuf.Timestamp
+	14, // 37: scoreboard.v1.GetGameResponse.view:type_name -> scoreboard.v1.GameView
+	8,  // 38: scoreboard.v1.CreateTournamentResponse.tournament:type_name -> scoreboard.v1.Tournament
+	11, // 39: scoreboard.v1.ListRoundsResponse.rounds:type_name -> scoreboard.v1.Round
+	11, // 40: scoreboard.v1.CreateRoundResponse.round:type_name -> scoreboard.v1.Round
+	59, // 41: scoreboard.v1.UpdateRoundRequest.teams:type_name -> scoreboard.v1.RoundTeams
+	60, // 42: scoreboard.v1.UpdateRoundRequest.score:type_name -> scoreboard.v1.RoundScore
+	61, // 43: scoreboard.v1.UpdateRoundRequest.tournament:type_name -> scoreboard.v1.RoundTournament
+	11, // 44: scoreboard.v1.UpdateRoundResponse.round:type_name -> scoreboard.v1.Round
+	82, // 45: scoreboard.v1.HistoryPoint.played_at:type_name -> google.protobuf.Timestamp
+	68, // 46: scoreboard.v1.GetPlayerStatsResponse.history:type_name -> scoreboard.v1.HistoryPoint
+	69, // 47: scoreboard.v1.GetPlayerStatsResponse.with:type_name -> scoreboard.v1.PairStat
+	69, // 48: scoreboard.v1.GetPlayerStatsResponse.against:type_name -> scoreboard.v1.PairStat
+	6,  // 49: scoreboard.v1.GetDashboardResponse.games:type_name -> scoreboard.v1.Game
+	5,  // 50: scoreboard.v1.GetDashboardResponse.players:type_name -> scoreboard.v1.Player
+	82, // 51: scoreboard.v1.GetDashboardGameRequest.since:type_name -> google.protobuf.Timestamp
+	82, // 52: scoreboard.v1.GetDashboardGameRequest.week_since:type_name -> google.protobuf.Timestamp
+	14, // 53: scoreboard.v1.GetDashboardGameResponse.view:type_name -> scoreboard.v1.GameView
+	19, // 54: scoreboard.v1.ScoreboardService.GetInstance:input_type -> scoreboard.v1.GetInstanceRequest
+	21, // 55: scoreboard.v1.ScoreboardService.CreateGroup:input_type -> scoreboard.v1.CreateGroupRequest
+	23, // 56: scoreboard.v1.ScoreboardService.Join:input_type -> scoreboard.v1.JoinRequest
+	25, // 57: scoreboard.v1.ScoreboardService.ClaimOwner:input_type -> scoreboard.v1.ClaimOwnerRequest
+	27, // 58: scoreboard.v1.ScoreboardService.GetGroup:input_type -> scoreboard.v1.GetGroupRequest
+	29, // 59: scoreboard.v1.ScoreboardService.UpdateGroup:input_type -> scoreboard.v1.UpdateGroupRequest
+	31, // 60: scoreboard.v1.ScoreboardService.DeleteGroup:input_type -> scoreboard.v1.DeleteGroupRequest
+	33, // 61: scoreboard.v1.ScoreboardService.RotateLink:input_type -> scoreboard.v1.RotateLinkRequest
+	35, // 62: scoreboard.v1.ScoreboardService.ListDevices:input_type -> scoreboard.v1.ListDevicesRequest
+	37, // 63: scoreboard.v1.ScoreboardService.RemoveDevice:input_type -> scoreboard.v1.RemoveDeviceRequest
+	39, // 64: scoreboard.v1.ScoreboardService.CreatePlayer:input_type -> scoreboard.v1.CreatePlayerRequest
+	41, // 65: scoreboard.v1.ScoreboardService.UpdatePlayer:input_type -> scoreboard.v1.UpdatePlayerRequest
+	43, // 66: scoreboard.v1.ScoreboardService.CreateGame:input_type -> scoreboard.v1.CreateGameRequest
+	45, // 67: scoreboard.v1.ScoreboardService.UpdateGame:input_type -> scoreboard.v1.UpdateGameRequest
+	47, // 68: scoreboard.v1.ScoreboardService.GetGame:input_type -> scoreboard.v1.GetGameRequest
+	49, // 69: scoreboard.v1.ScoreboardService.GetGameVersion:input_type -> scoreboard.v1.GetGameVersionRequest
+	51, // 70: scoreboard.v1.ScoreboardService.CreateTournament:input_type -> scoreboard.v1.CreateTournamentRequest
+	53, // 71: scoreboard.v1.ScoreboardService.UpdateTournament:input_type -> scoreboard.v1.UpdateTournamentRequest
+	55, // 72: scoreboard.v1.ScoreboardService.ListRounds:input_type -> scoreboard.v1.ListRoundsRequest
+	57, // 73: scoreboard.v1.ScoreboardService.CreateRound:input_type -> scoreboard.v1.CreateRoundRequest
+	62, // 74: scoreboard.v1.ScoreboardService.UpdateRound:input_type -> scoreboard.v1.UpdateRoundRequest
+	64, // 75: scoreboard.v1.ScoreboardService.DeleteRound:input_type -> scoreboard.v1.DeleteRoundRequest
+	66, // 76: scoreboard.v1.ScoreboardService.RestoreRound:input_type -> scoreboard.v1.RestoreRoundRequest
+	70, // 77: scoreboard.v1.ScoreboardService.GetPlayerStats:input_type -> scoreboard.v1.GetPlayerStatsRequest
+	72, // 78: scoreboard.v1.ScoreboardService.PreviewRound:input_type -> scoreboard.v1.PreviewRoundRequest
+	74, // 79: scoreboard.v1.ScoreboardService.SuggestTeams:input_type -> scoreboard.v1.SuggestTeamsRequest
+	76, // 80: scoreboard.v1.ScoreboardService.GetDashboard:input_type -> scoreboard.v1.GetDashboardRequest
+	78, // 81: scoreboard.v1.ScoreboardService.GetDashboardGame:input_type -> scoreboard.v1.GetDashboardGameRequest
+	80, // 82: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:input_type -> scoreboard.v1.GetDashboardGameVersionRequest
+	20, // 83: scoreboard.v1.ScoreboardService.GetInstance:output_type -> scoreboard.v1.GetInstanceResponse
+	22, // 84: scoreboard.v1.ScoreboardService.CreateGroup:output_type -> scoreboard.v1.CreateGroupResponse
+	24, // 85: scoreboard.v1.ScoreboardService.Join:output_type -> scoreboard.v1.JoinResponse
+	26, // 86: scoreboard.v1.ScoreboardService.ClaimOwner:output_type -> scoreboard.v1.ClaimOwnerResponse
+	28, // 87: scoreboard.v1.ScoreboardService.GetGroup:output_type -> scoreboard.v1.GetGroupResponse
+	30, // 88: scoreboard.v1.ScoreboardService.UpdateGroup:output_type -> scoreboard.v1.UpdateGroupResponse
+	32, // 89: scoreboard.v1.ScoreboardService.DeleteGroup:output_type -> scoreboard.v1.DeleteGroupResponse
+	34, // 90: scoreboard.v1.ScoreboardService.RotateLink:output_type -> scoreboard.v1.RotateLinkResponse
+	36, // 91: scoreboard.v1.ScoreboardService.ListDevices:output_type -> scoreboard.v1.ListDevicesResponse
+	38, // 92: scoreboard.v1.ScoreboardService.RemoveDevice:output_type -> scoreboard.v1.RemoveDeviceResponse
+	40, // 93: scoreboard.v1.ScoreboardService.CreatePlayer:output_type -> scoreboard.v1.CreatePlayerResponse
+	42, // 94: scoreboard.v1.ScoreboardService.UpdatePlayer:output_type -> scoreboard.v1.UpdatePlayerResponse
+	44, // 95: scoreboard.v1.ScoreboardService.CreateGame:output_type -> scoreboard.v1.CreateGameResponse
+	46, // 96: scoreboard.v1.ScoreboardService.UpdateGame:output_type -> scoreboard.v1.UpdateGameResponse
+	48, // 97: scoreboard.v1.ScoreboardService.GetGame:output_type -> scoreboard.v1.GetGameResponse
+	50, // 98: scoreboard.v1.ScoreboardService.GetGameVersion:output_type -> scoreboard.v1.GetGameVersionResponse
+	52, // 99: scoreboard.v1.ScoreboardService.CreateTournament:output_type -> scoreboard.v1.CreateTournamentResponse
+	54, // 100: scoreboard.v1.ScoreboardService.UpdateTournament:output_type -> scoreboard.v1.UpdateTournamentResponse
+	56, // 101: scoreboard.v1.ScoreboardService.ListRounds:output_type -> scoreboard.v1.ListRoundsResponse
+	58, // 102: scoreboard.v1.ScoreboardService.CreateRound:output_type -> scoreboard.v1.CreateRoundResponse
+	63, // 103: scoreboard.v1.ScoreboardService.UpdateRound:output_type -> scoreboard.v1.UpdateRoundResponse
+	65, // 104: scoreboard.v1.ScoreboardService.DeleteRound:output_type -> scoreboard.v1.DeleteRoundResponse
+	67, // 105: scoreboard.v1.ScoreboardService.RestoreRound:output_type -> scoreboard.v1.RestoreRoundResponse
+	71, // 106: scoreboard.v1.ScoreboardService.GetPlayerStats:output_type -> scoreboard.v1.GetPlayerStatsResponse
+	73, // 107: scoreboard.v1.ScoreboardService.PreviewRound:output_type -> scoreboard.v1.PreviewRoundResponse
+	75, // 108: scoreboard.v1.ScoreboardService.SuggestTeams:output_type -> scoreboard.v1.SuggestTeamsResponse
+	77, // 109: scoreboard.v1.ScoreboardService.GetDashboard:output_type -> scoreboard.v1.GetDashboardResponse
+	79, // 110: scoreboard.v1.ScoreboardService.GetDashboardGame:output_type -> scoreboard.v1.GetDashboardGameResponse
+	81, // 111: scoreboard.v1.ScoreboardService.GetDashboardGameVersion:output_type -> scoreboard.v1.GetDashboardGameVersionResponse
+	83, // [83:112] is the sub-list for method output_type
+	54, // [54:83] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_scoreboard_v1_scoreboard_proto_init() }
@@ -5157,26 +5299,24 @@ func file_scoreboard_v1_scoreboard_proto_init() {
 	if File_scoreboard_v1_scoreboard_proto != nil {
 		return
 	}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[2].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[6].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[7].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[24].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[36].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[38].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[40].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[48].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[50].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[52].OneofWrappers = []any{}
-	file_scoreboard_v1_scoreboard_proto_msgTypes[55].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[8].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[25].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[37].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[41].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[49].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[51].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[53].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[56].OneofWrappers = []any{}
 	file_scoreboard_v1_scoreboard_proto_msgTypes[57].OneofWrappers = []any{}
+	file_scoreboard_v1_scoreboard_proto_msgTypes[58].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoreboard_v1_scoreboard_proto_rawDesc), len(file_scoreboard_v1_scoreboard_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   77,
+			NumEnums:      4,
+			NumMessages:   78,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

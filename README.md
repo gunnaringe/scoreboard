@@ -28,8 +28,9 @@ inside, SQLite for storage, no accounts.
   tablet or phone by the table can log every round. The leaderboard shows
   each player's points today and this week.
 - **Wall screen.** A read-only dashboard for a TV that follows new rounds.
-- **Groups, games, tournaments.** Several games per group, optional scores and
-  tournaments, a page per player with history, best teammate and nemesis.
+- **Groups, games, tournaments.** Several games per group, each with its two
+  teams' names and colours, optional scores and tournaments, a page per player
+  with history, best teammate and nemesis.
 - **Yours to run.** One static binary or a small container, a single SQLite
   file, migrations at startup, a backup command. Installable as an app (PWA),
   English and Norwegian, four themes and your own branding.

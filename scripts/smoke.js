@@ -164,7 +164,9 @@ assert.equal(Number((await ok('GetGameVersion', { gameId: game }, member)).versi
 
 // ---- owner, office and dashboard links ------------------------------------------------------------
 // Members can do everything with rounds, players and games, but not links, group settings or devices.
-await ok('UpdateGame', { gameId: game, teamA: 'Red' }, member);
+await ok('UpdateGame', { gameId: game, teamA: { name: 'Lions', color: 'TEAM_COLOR_RED' } }, member);
+assert.deepEqual((await ok('GetGroup', {}, member)).games.find((x) => x.id === game).teamA, { name: 'Lions', color: 'TEAM_COLOR_RED' });
+await fails('UpdateGame', { gameId: game, teamB: { color: 'TEAM_COLOR_RED' } }, member, 'invalid_argument'); // same colour twice
 await fails('UpdateGroup', { name: 'x' }, member, 'permission_denied');
 await fails('DeleteGroup', {}, member, 'permission_denied');
 for (const kind of ['LINK_KIND_OFFICE', 'LINK_KIND_DASHBOARD', 'LINK_KIND_OWNER']) await fails('RotateLink', { kind }, member, 'permission_denied');

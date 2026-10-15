@@ -434,9 +434,23 @@ const SPEEDS = {
     RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
     RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
 };
-// Unnamed teams are Blue and Orange, or Blue and Red in the gamer theme (its team colours).
-const defaultTeamName = (i) => t(i === 0 ? 'teamBlue' : document.documentElement.dataset.theme === 'gamer' ? 'teamRed' : 'teamOrange');
-const teamName = (game, i) => (i === 0 ? game.teamA : game.teamB) || defaultTeamName(i);
+// A team is a name and a colour (TEAM_COLOR_RED → 'red'); without a name it
+// goes by its colour, in the viewer's language.
+const TEAM_COLORS = ['blue', 'orange', 'red', 'green', 'purple', 'yellow', 'pink', 'teal'];
+const colorOf = (team) => (team?.color || '').replace('TEAM_COLOR_', '').toLowerCase() || 'blue';
+const colorName = (color) => t(`color${color[0].toUpperCase()}${color.slice(1)}`);
+const teamOf = (game, i) => (i === 0 ? game.teamA : game.teamB);
+const teamName = (game, i) => teamOf(game, i)?.name || colorName(colorOf(teamOf(game, i)));
+// Colours team i of `el` (and what's inside) with the theme's shade of `color`
+// and its tint. Through the CSSOM: the CSP forbids style attributes.
+function setTeamColor(el, i, color) {
+    el.style.setProperty(`--team-${i}`, `var(--c-${color})`);
+    el.style.setProperty(`--team-${i}-bg`, `color-mix(in srgb, var(--c-${color}) var(--team-bg-mix), transparent)`);
+}
+// Everything team-coloured on the page follows the game shown.
+function applyTeamColors(game) {
+    [0, 1].forEach((i) => setTeamColor(document.documentElement, i, colorOf(teamOf(game, i))));
+}
 
 // A dialog that labels itself, closes on Escape/backdrop and removes itself.
 function sheet(title, ...content) {
@@ -751,6 +765,7 @@ async function loadGame(gid, gameId) {
 
 function withGameData(ctx, data) {
     ctx.game = data.game;
+    applyTeamColors(ctx.game);
     ctx.tournaments = data.tournaments;
     ctx.rounds = data.rounds;
     ctx.ratings = new Map(data.ratings.map((r) => [r.playerId, r]));
@@ -1357,24 +1372,39 @@ async function pageGroupSettings(gid, current) {
         showHint();
     };
 
-    // Both team names in one sheet, each in its colour. Empty (or the default
-    // name) stores nothing, so the default follows the viewer's language and theme.
-    const teamNamesDialog = (g) => {
-        const inputs = [0, 1].map((i) => h('input', { class: 'input', maxlength: 40, placeholder: defaultTeamName(i),
-            value: (i ? g.teamB : g.teamA) || '', 'aria-label': defaultTeamName(i) }));
+    // Both teams in one sheet: a name and a colour each, shown in that colour.
+    // An empty name stores nothing: the team goes by its colour, in the
+    // viewer's language. The two teams can't share a colour.
+    const teamsDialog = (g) => {
+        const colors = [0, 1].map((i) => colorOf(teamOf(g, i)));
+        const inputs = [0, 1].map((i) => h('input', { class: 'input', maxlength: 40, value: teamOf(g, i)?.name || '', 'aria-label': t('teamName', { n: i + 1 }) }));
+        const heads = [0, 1].map(() => h('strong'));
+        const swatches = [0, 1].map(() => h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t('teamColor') }));
+        const boxes = [0, 1].map((i) => h('div', { class: `team-name-field team-box team-box-${i}` }, heads[i], inputs[i], swatches[i]));
+        const title = (i) => { heads[i].textContent = inputs[i].value.trim() || colorName(colors[i]); };
+        const draw = () => [0, 1].forEach((i) => {
+            inputs[i].placeholder = colorName(colors[i]);
+            setTeamColor(boxes[i], i, colors[i]);
+            title(i);
+            swatches[i].replaceChildren(...TEAM_COLORS.map((c) => h('button', {
+                type: 'button', class: `swatch c-${c}`, role: 'radio', title: colorName(c), 'aria-label': colorName(c),
+                'aria-checked': String(c === colors[i]), disabled: c === colors[1 - i],
+                onclick: () => { colors[i] = c; draw(); },
+            })));
+        });
+        inputs.forEach((x, i) => x.addEventListener('input', () => title(i)));
         const save = (e) => {
             e.preventDefault();
-            const [a, b] = inputs.map((x, i) => (x.value.trim() === defaultTeamName(i) ? '' : x.value.trim()));
             dialog.close();
-            act('UpdateGame', { gameId: g.id, teamA: a, teamB: b });
+            const team = (i) => ({ name: inputs[i].value.trim(), color: `TEAM_COLOR_${colors[i].toUpperCase()}` });
+            act('UpdateGame', { gameId: g.id, teamA: team(0), teamB: team(1) });
         };
-        const dialog = sheet(t('teamNamesTitle', { game: g.name }),
+        const dialog = sheet(t('teamsTitle', { game: g.name }),
             h('form', { class: 'stack', onsubmit: save },
-                h('div', { class: 'team-names' }, [0, 1].map((i) => h('label', { class: `team-name-field team-box team-box-${i}` },
-                    h('strong', null, defaultTeamName(i)), inputs[i]))),
-                h('p', { class: 'muted small' }, t('teamNamesHint')),
+                h('div', { class: 'team-names' }, boxes),
+                h('p', { class: 'muted small' }, t('teamsHint')),
                 h('div', { class: 'sheet-actions' }, h('button', { class: 'btn' }, t('save')))));
-        inputs[0].focus();
+        draw();
     };
 
     const gameRows = ctx.games.map((g) => h('li', { class: `list-row ${g.archived ? 'faded' : ''}` },
@@ -1385,7 +1415,7 @@ async function pageGroupSettings(gid, current) {
                 const name = prompt(t('rename'), g.name);
                 if (name) act('UpdateGame', { gameId: g.id, name });
             } }, t('rename')),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => teamNamesDialog(g) }, t('teams')),
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => teamsDialog(g) }, t('teams')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => speedDialog(g) }, t('ratingSpeed')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdateGame', { gameId: g.id, archived: !g.archived }) },
                 g.archived ? t('unarchive') : t('archive')))));

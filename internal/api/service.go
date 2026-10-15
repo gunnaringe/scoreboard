@@ -97,8 +97,26 @@ func playersPB(ps []store.Player) []*pb.Player {
 }
 
 func gamePB(g store.Game) *pb.Game {
-	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: g.TeamA, TeamB: g.TeamB, Archived: g.Archived, CreatedAt: ts(g.CreatedAt),
-		RatingSpeed: speedPB[g.RatingSpeed]}
+	return &pb.Game{Id: g.ID, Name: g.Name, TeamA: teamPB(g.Teams[0]), TeamB: teamPB(g.Teams[1]), Archived: g.Archived,
+		CreatedAt: ts(g.CreatedAt), RatingSpeed: speedPB[g.RatingSpeed]}
+}
+
+// Team colours are TEAM_COLOR_BLUE in the API and "blue" in the store.
+func teamPB(t store.Team) *pb.Team {
+	return &pb.Team{Name: t.Name, Color: pb.TeamColor(pb.TeamColor_value["TEAM_COLOR_"+strings.ToUpper(t.Color)])}
+}
+
+// teamOf is a requested team; an UNSPECIFIED colour is "" (the default or
+// current one), an unknown number is refused by the store.
+func teamOf(t *pb.Team) store.Team {
+	if t == nil {
+		return store.Team{}
+	}
+	color := ""
+	if t.Color != pb.TeamColor_TEAM_COLOR_UNSPECIFIED {
+		color = strings.ToLower(strings.TrimPrefix(t.Color.String(), "TEAM_COLOR_"))
+	}
+	return store.Team{Name: t.Name, Color: color}
 }
 
 var speedPB = map[rating.Speed]pb.RatingSpeed{
@@ -436,23 +454,11 @@ func (v *service) CreateGame(ctx context.Context, r req[pb.CreateGameRequest]) (
 	if err != nil {
 		return nil, err
 	}
-	g, err := v.s.Store.CreateGame(ctx, dev.GroupID, r.Msg.Name, r.Msg.TeamA, r.Msg.TeamB)
+	g, err := v.s.Store.CreateGame(ctx, dev.GroupID, r.Msg.Name, [2]store.Team{teamOf(r.Msg.TeamA), teamOf(r.Msg.TeamB)})
 	if err != nil {
 		return nil, rpcErr(err)
 	}
 	return connect.NewResponse(&pb.CreateGameResponse{Game: gamePB(g)}), nil
-}
-
-// nullableName is the patch value of an optional team name: absent leaves it,
-// "" (or only spaces) resets it to the default.
-func nullableName(v *string) store.Nullable[string] {
-	if v == nil {
-		return store.Nullable[string]{}
-	}
-	if strings.TrimSpace(*v) == "" {
-		return store.Clear[string]()
-	}
-	return store.Some(*v)
 }
 
 func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (res[pb.UpdateGameResponse], error) {
@@ -462,13 +468,21 @@ func (v *service) UpdateGame(ctx context.Context, r req[pb.UpdateGameRequest]) (
 	}
 	m := r.Msg
 	err = v.s.Store.UpdateGame(ctx, dev.GroupID, m.GameId, store.GamePatch{
-		Name: m.Name, TeamA: nullableName(m.TeamA), TeamB: nullableName(m.TeamB), Archived: m.Archived,
+		Name: m.Name, Teams: [2]*store.Team{teamPatch(m.TeamA), teamPatch(m.TeamB)}, Archived: m.Archived,
 		RatingSpeed: speedPatch(m.RatingSpeed),
 	})
 	if err != nil {
 		return nil, rpcErr(err)
 	}
 	return connect.NewResponse(&pb.UpdateGameResponse{}), nil
+}
+
+func teamPatch(t *pb.Team) *store.Team {
+	if t == nil {
+		return nil
+	}
+	team := teamOf(t)
+	return &team
 }
 
 // sinceOrDefault is `since` in Unix ms, or `days` days ago when it is unset.

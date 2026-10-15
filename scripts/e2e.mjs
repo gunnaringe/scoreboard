@@ -200,13 +200,13 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     eq(await ratingOf(ada, 'Ada'), flipped, 'Undo brings the rating back');
     await shot(ada, 'multi-03-game');
 
-    // Gamer theme: picked in the app settings; unnamed teams become Blue and Red.
+    // Gamer theme: picked in the app settings; the teams keep their game's colours.
     await ada.goto(`${multi.url}/settings`);
     await ada.click('.segmented button:has-text("Gamer")');
     eq(await ada.evaluate(() => document.documentElement.dataset.theme), 'gamer', 'the gamer theme can be picked');
     await ada.goto(multi.url + gamePath);
     await ada.waitForSelector('.board');
-    eq(await ada.locator('.tl').allInnerTexts(), ['Blue', 'Red'], 'gamer theme: the teams are Blue and Red');
+    eq(await ada.locator('.tl').allInnerTexts(), ['Blue', 'Orange'], 'gamer theme: the teams are still the game\'s Blue and Orange');
     await shot(ada, 'multi-03b-gamer', false);
     await ada.evaluate(() => { localStorage.setItem('theme', 'dark'); window.applyTheme(); });
     await ada.reload();
@@ -249,20 +249,30 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     check(settings.includes('Owner') && settings.includes('Devices') && settings.includes('Leave or delete'), 'an owner sees owner tools, devices and the danger zone');
     const gid = new URL(ada.url()).pathname.split('/')[2];
 
-    // Team names: one sheet with both names; empty means the default.
+    // Teams: a name and a colour each, in one sheet. Without a name a team goes by its colour.
     await ada.click('button:has-text("Teams")');
     await ada.waitForSelector('dialog[open]');
-    await shot(ada, 'multi-05a-team-names', false);
     const named = rpcDone(ada, 'UpdateGame');
     await ada.locator('dialog input').nth(0).fill('Lions');
-    await ada.locator('dialog input').nth(1).fill('');
+    await ada.click('dialog .team-box-1 .swatch[aria-label="Red"]');
+    check(await ada.locator('dialog .team-box-0 .swatch[aria-label="Red"]').isDisabled(), "the other team's colour can't be picked");
+    eq(await ada.locator('dialog .team-box-1 strong').innerText(), 'Red', 'an unnamed team is called by its colour');
+    await shot(ada, 'multi-05a-teams', false);
     await ada.click('dialog button:has-text("Save")');
     await named;
-    await ada.waitForSelector('text=Lions / Orange');
-    check(true, 'team names are set in one sheet, empty keeps the default');
+    await ada.waitForSelector('text=Lions / Red');
+    check(true, 'a team gets a name and another a colour');
+    await ada.goto(multi.url + gamePath);
+    await ada.waitForSelector('.board');
+    eq(await ada.locator('.tl').allInnerTexts(), ['Lions', 'Red'], 'the game page uses the team names');
+    const css = (prop) => ada.evaluate((p) => getComputedStyle(document.documentElement).getPropertyValue(p).trim(), prop);
+    eq(await css('--team-1'), await css('--c-red'), 'and their colours');
+    await ada.goBack();
+    await ada.waitForSelector('text=Lions / Red');
     const reset = rpcDone(ada, 'UpdateGame');
     await ada.click('button:has-text("Teams")');
     await ada.locator('dialog input').nth(0).fill('');
+    await ada.click('dialog .team-box-1 .swatch[aria-label="Orange"]');
     await ada.click('dialog button:has-text("Save")');
     await reset;
     await ada.waitForSelector('text=Blue / Orange');

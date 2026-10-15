@@ -185,10 +185,23 @@ ordering by random ids) shows up as a screen that changes on every run.
 hacker (green terminal, VT323) and gamer (red against blue). A new theme needs
 its block, the picker in `pageAppSettings` + `theme*` strings in `i18n.js`,
 `branding.go` (`defaultTheme` validation), the README, the screenshot loop and
-an e2e check. Branding's accent only recolours light and dark. Team colours
-are `--team-0`/`--team-1`; unnamed teams are called Blue/Orange, or Blue/Red
-in the gamer theme (`defaultTeamName` in `app.js`), so keep names and colours
-matching.
+an e2e check, and its shade of every team colour. Branding's accent only
+recolours light and dark.
+
+## Teams
+
+A game has two teams (`Game.team_a` / `team_b`), each a **name and a colour**;
+nothing in the app knows "blue" or "orange" beyond them being a new game's
+default colours. Colours come from a fixed palette (`TeamColor` in the proto,
+`store.TeamColors`, `TEAM_COLORS` in `app.js`) so every theme can define a
+readable shade of each (`--c-blue`, `--c-red`… in each theme block) and every
+language a name (`colorBlue`…). A team without a name goes by its colour's
+name, in the viewer's language; the two teams of a game never share a colour.
+CSS only uses `--team-0` / `--team-1` (+ `-bg`): `applyTeamColors` points them
+at the game's colours on `<html>` (via `style.setProperty`: the CSP forbids
+style attributes, so no inline `style=` anywhere). Adding a colour: proto enum,
+`store.TeamColors`, `TEAM_COLORS`, a shade in every theme, a `.c-<colour>`
+swatch rule and its name in both languages.
 
 ## Gotchas
 

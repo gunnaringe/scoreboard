@@ -141,7 +141,7 @@ func TestMultiLinksAndPermissions(t *testing.T) {
 	if must(e, e.c.GetGroup, member, &pb.GetGroupRequest{}).Me.Owner {
 		t.Fatal("member is an owner")
 	}
-	must(e, e.c.UpdateGame, member, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("Red")})
+	must(e, e.c.UpdateGame, member, &pb.UpdateGameRequest{GameId: o.game, TeamA: &pb.Team{Name: "Lions"}})
 	_, err = call(e, e.c.UpdateGroup, member, &pb.UpdateGroupRequest{Name: ptr("x")})
 	wantCode(t, err, connect.CodePermissionDenied)
 	_, err = call(e, e.c.DeleteGroup, member, &pb.DeleteGroupRequest{})
@@ -305,11 +305,28 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 		t.Fatal("tournament not cleared")
 	}
 	must(e, e.c.UpdateTournament, o.owner, &pb.UpdateTournamentRequest{TournamentId: tour.Id, Ended: ptr(true)})
-	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("Red"), TeamB: ptr("Green")})
-	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("")})
+	// Teams: a name and a colour each. New games are blue and orange, unnamed.
 	game := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Games[0]
-	if game.TeamA != nil || game.GetTeamB() != "Green" {
+	if game.TeamA.GetName() != "" || game.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_BLUE || game.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_ORANGE {
+		t.Fatalf("default teams: %+v", game)
+	}
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game,
+		TeamA: &pb.Team{Name: "Lions", Color: pb.TeamColor_TEAM_COLOR_RED}, TeamB: &pb.Team{Name: "Tigers", Color: pb.TeamColor_TEAM_COLOR_GREEN}})
+	// UNSPECIFIED keeps the colour; an empty name means "goes by its colour".
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: &pb.Team{Name: " "}})
+	game = must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Games[0]
+	if game.TeamA.GetName() != "" || game.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_RED ||
+		game.TeamB.GetName() != "Tigers" || game.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_GREEN {
 		t.Fatalf("teams: %+v", game)
+	}
+	// The two teams can't share a colour, and only known colours are taken.
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamB: &pb.Team{Color: pb.TeamColor_TEAM_COLOR_RED}})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamB: &pb.Team{Color: pb.TeamColor(99)}})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	g2 := must(e, e.c.CreateGame, o.owner, &pb.CreateGameRequest{Name: "Pool", TeamB: &pb.Team{Color: pb.TeamColor_TEAM_COLOR_PURPLE}}).Game
+	if g2.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_BLUE || g2.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_PURPLE {
+		t.Fatalf("create with a colour: %+v", g2)
 	}
 	if game.RatingSpeed != pb.RatingSpeed_RATING_SPEED_STEADY {
 		t.Fatalf("speed: %v", game.RatingSpeed)

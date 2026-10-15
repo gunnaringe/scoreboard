@@ -111,13 +111,36 @@ message Player {
 message Game {
   string id = 1;
   string name = 2;
-  // Team names; absent means the localised defaults (Blue / Orange).
-  optional string team_a = 3;
-  optional string team_b = 4;
+  reserved 3, 4;
   bool archived = 5;
   google.protobuf.Timestamp created_at = 6;
   // Always set (never UNSPECIFIED).
   RatingSpeed rating_speed = 7;
+  // The two sides: team A is `team_a` in rounds, team B `team_b`.
+  Team team_a = 8;
+  Team team_b = 9;
+}
+
+// Team is one side of a game: a name and a colour.
+message Team {
+  // Empty: the team goes by its colour ("Blue", in the viewer's language).
+  string name = 1;
+  // Always set in responses; the two teams of a game never share one.
+  TeamColor color = 2;
+}
+
+// The colours a team can have. Each theme has its own shade of every colour,
+// so they stay readable on light and dark backgrounds.
+enum TeamColor {
+  TEAM_COLOR_UNSPECIFIED = 0;
+  TEAM_COLOR_BLUE = 1;
+  TEAM_COLOR_ORANGE = 2;
+  TEAM_COLOR_RED = 3;
+  TEAM_COLOR_GREEN = 4;
+  TEAM_COLOR_PURPLE = 5;
+  TEAM_COLOR_YELLOW = 6;
+  TEAM_COLOR_PINK = 7;
+  TEAM_COLOR_TEAL = 8;
 }
 
 // How quickly a game's ratings follow a player getting better or worse.
@@ -378,8 +401,10 @@ message UpdatePlayerResponse {}
 
 message CreateGameRequest {
   string name = 1;
-  optional string team_a = 2;
-  optional string team_b = 3;
+  reserved 2, 3;
+  // Absent, or an UNSPECIFIED colour: blue for team A, orange for team B.
+  Team team_a = 4;
+  Team team_b = 5;
 }
 
 message CreateGameResponse {
@@ -389,12 +414,14 @@ message CreateGameResponse {
 message UpdateGameRequest {
   string game_id = 1;
   optional string name = 2;
-  // An empty team name resets it to the localised default.
-  optional string team_a = 3;
-  optional string team_b = 4;
+  reserved 3, 4;
   optional bool archived = 5;
   // Re-rates the whole game when it changes. UNSPECIFIED is refused.
   optional RatingSpeed rating_speed = 6;
+  // Present: sets the team's name (empty = goes by its colour) and, unless
+  // UNSPECIFIED, its colour. Absent leaves the team as it is.
+  Team team_a = 7;
+  Team team_b = 8;
 }
 
 message UpdateGameResponse {}

@@ -194,7 +194,7 @@ await shot(await open(`${game}/p/${ada.id}`), 'player');
     await p.locator('.list-row', { hasText: rl.name }).locator('button:has-text("Teams")').click();
     await p.waitForSelector('dialog[open]');
     await p.waitForTimeout(300);
-    await shot(p, 'team-names');
+    await shot(p, 'teams');
 }
 await shot(await open(`${game}/t/${cupId}`), 'tournament');
 await shot(await open(`${new URL(group.links.dashboard).pathname}?game=${gameId}`, { device: DESKTOP }), 'dashboard');
