@@ -906,7 +906,7 @@ async function pageTournament(gid, gameId, tid, current) {
                         h('th', { class: 'num' }, t('winsShort')), h('th', { class: 'num' }, t('lossesShort')), h('th', { class: 'num' }, t('ratingChange')))),
                     h('tbody', null, rows.map((s, i) => h('tr', { class: `${s.id === ctx.me.playerId ? 'me' : ''} ${i < 3 ? `top top${i + 1}` : ''}` },
                         h('td', { class: 'num rank' }, i + 1),
-                        h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.playerId}` }, playerName(ctx, s.playerId))),
+                        h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
                         h('td', { class: 'num rating' }, s.wins), h('td', { class: 'num muted' }, s.losses), h('td', { class: 'num' }, deltaEl(s.delta))))))
                     : h('p', { class: 'muted empty-small' }, t('noRoundsYet')),
                 h('p', { class: 'muted small' }, t('tournamentHint')),
@@ -983,7 +983,7 @@ async function pagePlayer(gid, gameId, pid, current) {
     const h2hTable = (title, list) => list.length > 0 && h('div', null, h('h3', null, title), h('table', { class: 'board compact' },
         h('thead', null, h('tr', null, h('th', null, t('player')), h('th', { class: 'num' }, t('roundsShort')), h('th', { class: 'num' }, t('wl')), h('th', { class: 'num' }, '%'))),
         h('tbody', null, [...list].sort((a, b) => b.games - a.games).map((s) => h('tr', null,
-            h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
+            h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.playerId}` }, playerName(ctx, s.playerId))),
             h('td', { class: 'num' }, s.games), h('td', { class: 'num' }, `${s.wins}–${s.games - s.wins}`),
             h('td', { class: 'num muted' }, `${Math.round(pct(s) * 100)} %`))))));
 

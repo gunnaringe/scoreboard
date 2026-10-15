@@ -186,6 +186,7 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await logRound(ada, ['Ada'], ['Cy'], 0).catch(() => {});
     await settle(ada);
     check((await text(ada)).includes('Friday cup'), 'the tournament page lists its round');
+    eq(await ada.locator('.board td.name').allInnerTexts(), ['Ada', 'Cy'], 'the standings name the players');
     await shot(ada, 'multi-04-tournament');
     await ada.click('button:has-text("End tournament")');
     await ada.waitForSelector('text=ended');
@@ -197,6 +198,8 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await ada.waitForSelector('.chart');
     const stats = (await text(ada)).toLowerCase(); // headings are upper-cased by CSS
     check(stats.includes('streak') && stats.includes('with') && stats.includes('against'), 'the player page shows stats and head-to-head');
+    const h2h = await ada.locator('.board.compact td.name').allInnerTexts();
+    check(h2h.length > 0 && !h2h.includes('?'), `the head-to-head tables name the players (${h2h.join(', ')})`);
     await shot(ada, 'multi-05-player');
     await ada.goBack();
     await ada.click('a:has-text("History")');
