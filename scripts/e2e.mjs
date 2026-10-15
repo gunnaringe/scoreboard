@@ -350,9 +350,14 @@ const single = await startServer('single', ['--mode', 'single', '--group-name', 
     check(!(await text(a)).includes('Join a group'), 'there is no start page');
     await a.fill('dialog input', 'Ada');
     await a.click('dialog button:has-text("Add")');
+    // "No games yet." is already behind the dialog; the page re-renders after it
+    // closes, so wait for that or the typed game name is lost.
+    await a.waitForSelector('dialog[open]', { state: 'detached' });
+    await settle(a);
     await a.waitForSelector('text=No games yet.');
     await a.fill('input[placeholder="Game name"]', 'Table tennis');
     await a.click('button:has-text("Add")');
+    await a.waitForURL(/\/game\//);
     await a.waitForSelector('.fab');
     await logRound(a, ['Ada'], ['Bob'], 0);
     await logRound(a, ['Ada'], ['Bob'], 1);
