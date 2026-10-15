@@ -208,12 +208,17 @@ unset optional fields are left out. Typed Go clients are in `gen/`.
 
 ## Development
 
+Tools are pinned in `mise.toml`: `mise install` gets Go, Node, buf, the protoc
+plugins and [prek](https://github.com/j178/prek) (`prek install` adds the
+commit hooks).
+
 ```sh
 make run-single  # build and run one group on :8080 (make run: multi mode)
 make test        # go test ./... and the frontend tests
 make smoke       # API end-to-end check against a throwaway server
 make e2e         # browser tests of both modes (Chromium via playwright-core)
 make screenshots # regenerate the README images in docs/screenshots/
+make hooks       # prek: YAML and JSON syntax
 make check       # what CI runs
 make gen         # regenerate gen/ after editing proto/ (needs buf)
 ```

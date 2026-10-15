@@ -17,9 +17,9 @@ jobs:
           - {goos: darwin, goarch: amd64}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v5
         with:
-          go-version-file: go.mod
+          install_args: go   # only Go is needed to build
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}

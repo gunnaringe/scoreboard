@@ -11,6 +11,13 @@ production). `CLAUDE.md` only points here; edit this file.
 
 - `main` is the only long-lived branch; work on a branch and open a PR. CI
   (`.github/workflows/ci.yml`) runs `make check`, smoke and e2e on every PR.
+- Tools come from `mise.toml` (`mise install`): Go, Node, buf, the protoc
+  plugins and prek; CI installs the same versions with `jdx/mise-action`.
+  The Makefile calls the tools directly (no `mise exec`), so it also works
+  where mise isn't installed but the tools are. Bump versions in `mise.toml`,
+  not in the workflows.
+- `prek.toml` holds the hooks (YAML and JSON syntax so far); `make check` and
+  CI run `prek run --all-files`, `prek install` runs them on commit.
 - A `v*` tag publishes binaries and the `ghcr.io/gunnaringe/scoreboard` image
   (`release.yml`). Nothing deploys from `main`.
 - **Visible changes need screenshots**: run `make screenshots`, commit the
@@ -167,13 +174,16 @@ matching.
 
 ## Gotchas
 
-- `go.mod` needs Go ≥ 1.26 (a dependency demands it); the Dockerfile and CI follow.
+- `go.mod` needs Go ≥ 1.26 (a dependency demands it); `mise.toml` and the
+  Dockerfile follow.
 - Don't run `pkill -f 'scoreboard serve'` in a shell whose own command line
   contains that text: it kills the shell. Use a script file.
 - SQLite runs in WAL with `_txlock=immediate`, so writers queue; keep write
   transactions short.
 - `buf generate` needs `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`
-  (`go install` them); CI checks `gen/` is up to date.
+  (mise provides them, pinned to the `google.golang.org/protobuf` and
+  `connectrpc.com/connect` versions in `go.mod` — bump them together); CI checks
+  `gen/` is up to date.
 - The Worker-era `wrangler.jsonc`, D1 migrations and `src/worker.js` are gone
   (see tag `worker-final`). The Cloudflare Worker `scoreboard` and D1 database
   that were set up for it are unused by this version.

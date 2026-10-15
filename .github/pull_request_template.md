@@ -10,7 +10,7 @@
 
 ## Checks
 
-- [ ] `make check` passes
+- [ ] `make check` passes (includes the prek hooks)
 - [ ] `make e2e` passes (frontend changes)
 - [ ] `make screenshots` re-run and images committed (visible changes)
 - [ ] README / AGENTS.md updated if behaviour, settings or commands changed

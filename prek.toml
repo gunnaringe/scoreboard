@@ -1,0 +1,11 @@
+# Git hooks and CI checks, run by prek (`mise install` provides it):
+#   prek install              run them on every commit
+#   prek run --all-files      check the whole tree (CI does this)
+# prek's built-in hooks need no network and no Python.
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-yaml" },  # workflows, docker-compose.yml, buf configs
+  { id = "check-json" },
+]
