@@ -14,10 +14,11 @@ production). `CLAUDE.md` only points here; edit this file.
 - A `v*` tag publishes binaries and the `ghcr.io/gunnaringe/scoreboard` image
   (`release.yml`). Nothing deploys from `main`.
 - **Visible changes need screenshots**: run `make screenshots`, commit the
-  changed `docs/screenshots/*.png` in the same PR, and put the affected
-  images in the PR description (the template asks for them). The README
-  embeds these files, so it stays current only this way. Add a shot to
-  `scripts/screenshots.mjs` when a new screen is worth showing.
+  changed `docs/screenshots/*.png` in the same PR, push, then
+  `scripts/pr-shots.sh` prints a before/after table for the PR description
+  (the template asks for it). The README embeds these files, so it stays
+  current only this way. Add a shot to `scripts/screenshots.mjs` when a new
+  screen is worth showing. No visible change: say so, skip the images.
 - Keep the README about using and running the app; architecture and
   gotchas belong here, the rating explanation in `docs/rating.md`.
 
@@ -39,7 +40,7 @@ production). `CLAUDE.md` only points here; edit this file.
 - `test/reference/rating.js` — the old JS rating model, kept only as an
   independent oracle (golden vectors, `scripts/smoke.js`). Not shipped.
 - `scripts/` — `smoke.js`, `e2e.mjs`, `screenshots.mjs` (README images),
-  `gen-golden.mjs`, `build-qr.sh`.
+  `pr-shots.sh` (PR before/after table), `gen-golden.mjs`, `build-qr.sh`.
 - `deploy/` — systemd unit and `docker-compose.yml`; `docs/` — screenshots
   and `rating.md`.
 
@@ -146,8 +147,12 @@ Gotcha when writing selectors: `innerText` is affected by CSS
 `make screenshots` (`scripts/screenshots.mjs`) imports a made-up office with a
 fixed seed through `scoreboard admin import` (so rounds span six weeks and
 today has a session) and captures phone shots of the main pages, the desktop
-dashboard and the leaderboard in every theme into `docs/screenshots/`. Round
-times are relative to now, so the numbers are stable but times of day move.
+dashboard and the leaderboard in every theme into `docs/screenshots/`. The
+clock is frozen (2026-10-14 12:30, Europe/Oslo) in the script and the browser,
+and a PNG is only rewritten when it differs visibly from the committed one
+(Chromium's blur varies by a few pixels per run), so `git status` shows exactly
+the screens a change affects. Anything else non-deterministic on screen (e.g.
+ordering by random ids) shows up as a screen that changes on every run.
 
 ## Themes
 

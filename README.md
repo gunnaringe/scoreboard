@@ -220,7 +220,7 @@ make gen         # regenerate gen/ after editing proto/ (needs buf)
 
 The browser tools need `npm ci` once and a Chromium (`CHROME=/path` to pick
 one). Changes that show in the UI come with fresh screenshots in the same pull
-request. [`AGENTS.md`](AGENTS.md) has the architecture and the things worth
+request; `scripts/pr-shots.sh` prints a before/after table for its description. [`AGENTS.md`](AGENTS.md) has the architecture and the things worth
 knowing before changing it.
 
 ## License

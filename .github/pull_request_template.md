@@ -5,7 +5,7 @@
 ## Screenshots
 
 <!-- Required when the UI changes: run `make screenshots`, commit the updated
-     docs/screenshots/*.png, and show the affected ones here (before / after).
+     docs/screenshots/*.png, push, and paste the output of `scripts/pr-shots.sh`.
      Write "No visible change" otherwise. -->
 
 ## Checks
