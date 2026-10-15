@@ -236,9 +236,10 @@ const multi = await startServer('multi', ['--branding-dir', brandDir]);
     await shot(ada, 'multi-05-player');
     await ada.goBack();
     await ada.click('a:has-text("History")');
-    // The game page has a .rounds list too: wait for the history page itself.
+    // The game page has a .rounds list too, and networkidle doesn't wait after a
+    // client-side navigation: wait for the history page's own title (rendered with its data).
     await ada.waitForURL(/\/history$/);
-    await settle(ada);
+    await ada.waitForSelector('h1.title:has-text("History")');
     await ada.waitForSelector('.rounds');
     check(await ada.locator('.round').count() >= 4, 'history lists the rounds');
 
