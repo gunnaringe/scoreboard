@@ -151,7 +151,7 @@ message RotateLinkResponse {
 
 message Device {
   string id = 1;
-  string player = 2;
+  reserved 2;
   bool owner = 3;
   string label = 4;
   google.protobuf.Timestamp created_at = 5;

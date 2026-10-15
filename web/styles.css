@@ -35,10 +35,15 @@
     --accent-soft: rgba(139, 157, 255, 0.16);
     --danger: #ff7a8a;
 
-    --team-0: #4c8dff;
-    --team-0-bg: rgba(76, 141, 255, 0.16);
-    --team-1: #ff8a3d;
-    --team-1-bg: rgba(255, 138, 61, 0.16);
+    /* Team colours: each theme's shade of every colour a team can have. */
+    --c-blue: #4c8dff; --c-orange: #ff8a3d; --c-red: #ff5c6c; --c-green: #3ecf7a;
+    --c-purple: #b388ff; --c-yellow: #facc15; --c-pink: #ff6fb5; --c-teal: #2dd4bf;
+    --team-bg-mix: 16%;
+    /* A game's colours (app.js sets them on <html> for the game shown). */
+    --team-0: var(--c-blue);
+    --team-0-bg: color-mix(in srgb, var(--c-blue) var(--team-bg-mix), transparent);
+    --team-1: var(--c-orange);
+    --team-1-bg: color-mix(in srgb, var(--c-orange) var(--team-bg-mix), transparent);
     --up: #34d399;
     --down: #ff7a8a;
     --gold: #fbbf24;
@@ -66,10 +71,10 @@
     --on-team: #fff;
     --danger: #d83a52;
 
-    --team-0: #1d63e0;
-    --team-0-bg: rgba(29, 99, 224, 0.1);
-    --team-1: #b45309;
-    --team-1-bg: rgba(217, 98, 15, 0.1);
+    /* Team colours: each theme's shade of every colour a team can have. */
+    --c-blue: #1d63e0; --c-orange: #b45309; --c-red: #c8243a; --c-green: #15803d;
+    --c-purple: #7c3aed; --c-yellow: #a16207; --c-pink: #be185d; --c-teal: #0f766e;
+    --team-bg-mix: 10%;
     --up: #059669;
     --down: #d83a52;
     --gold: #b7791f;
@@ -97,10 +102,10 @@
     --on-team: #000;
     --danger: #ff4d4d;
 
-    --team-0: #00e5ff;
-    --team-0-bg: rgba(0, 229, 255, 0.12);
-    --team-1: #ffb000;
-    --team-1-bg: rgba(255, 176, 0, 0.12);
+    /* Team colours: each theme's shade of every colour a team can have. */
+    --c-blue: #00e5ff; --c-orange: #ffb000; --c-red: #ff4d4d; --c-green: #b6ff3b;
+    --c-purple: #c77dff; --c-yellow: #f5ff3b; --c-pink: #ff4fd8; --c-teal: #19ffc8;
+    --team-bg-mix: 12%;
     --up: #00ff41;
     --down: #ff4d4d;
     --gold: #9dff00;
@@ -145,10 +150,11 @@
 [data-theme="hacker"] .qr { filter: none; }
 /* Square corners: terminal windows, not bubbles. */
 [data-theme="hacker"] :is(.card, .icon-btn, .btn, .segmented, .segmented button, .input, .chip, .pchip, .toast, .switch span,
-    .sheet, .round, .win-btn, .fab, .list-link, .invite-qr, .code, .team-box, .stat, .chip-main, .chip-x) { border-radius: 2px; }
+    .sheet, .round, .win-btn, .fab, .list-link, .invite-qr, .code, .team-box, .stat, .chip-add, .chip-move, .chip-x, .drop-zone) { border-radius: 2px; }
 [data-theme="hacker"] .switch span::after { border-radius: 1px; }
 
-/* Gamer: esports red against blue on near-black, sharp corners, bold italic caps. */
+/* Gamer: esports red against blue on near-black, sharp corners, bold italic caps.
+   The red/blue is the theme's decoration; teams keep their game's colours. */
 [data-theme="gamer"] {
     --bg: #07080f;
     --bg-glow-1: rgba(255, 36, 66, 0.2);
@@ -165,10 +171,10 @@
     --on-team: #fff;
     --danger: #ff8a3d;
 
-    --team-0: #2f7bff;
-    --team-0-bg: rgba(47, 123, 255, 0.18);
-    --team-1: #ff2e4d;
-    --team-1-bg: rgba(255, 46, 77, 0.18);
+    /* Team colours: each theme's shade of every colour a team can have. */
+    --c-blue: #2f7bff; --c-orange: #ff8a2a; --c-red: #ff2e4d; --c-green: #2ee66b;
+    --c-purple: #a85cff; --c-yellow: #ffd23f; --c-pink: #ff4fb0; --c-teal: #1fd8c8;
+    --team-bg-mix: 18%;
     --up: #2ee6a6;
     --down: #ff5c74;
     --gold: #ffd23f;
@@ -188,15 +194,15 @@
     background-attachment: fixed;
 }
 /* A red-to-blue bar under the top bar and on top of every card. */
-[data-theme="gamer"] .topbar { border-bottom: 2px solid; border-image: linear-gradient(90deg, var(--team-1), var(--team-0)) 1; }
+[data-theme="gamer"] .topbar { border-bottom: 2px solid; border-image: linear-gradient(90deg, var(--c-red), var(--c-blue)) 1; }
 [data-theme="gamer"] .card { border-top: 2px solid transparent; background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(90deg, var(--team-1), var(--team-0)) border-box top / 100% 2px no-repeat; }
+    linear-gradient(90deg, var(--c-red), var(--c-blue)) border-box top / 100% 2px no-repeat; }
 [data-theme="gamer"] :is(h1, h2, .btn, th) { text-transform: uppercase; font-style: italic; font-weight: 800; letter-spacing: 0.06em; }
 [data-theme="gamer"] .rating { font-style: italic; font-weight: 800; }
 [data-theme="gamer"] .brand { text-transform: uppercase; font-style: italic; font-weight: 800; letter-spacing: 0.08em; color: var(--text); }
 [data-theme="gamer"] .brand-dot { width: 16px; height: 10px; border-radius: 1px; transform: skewX(-20deg);
-    background: linear-gradient(90deg, var(--team-1) 50%, var(--team-0) 50%); box-shadow: 0 0 12px var(--team-1), 0 0 12px var(--team-0); }
+    background: linear-gradient(90deg, var(--c-red) 50%, var(--c-blue) 50%); box-shadow: 0 0 12px var(--c-red), 0 0 12px var(--c-blue); }
 [data-theme="gamer"] .fab { box-shadow: 0 0 22px rgba(255, 46, 77, 0.55); }
 [data-theme="gamer"] .pchip.team-0, [data-theme="gamer"] .win-0 { box-shadow: 0 0 12px -2px var(--team-0); }
 [data-theme="gamer"] .pchip.team-1, [data-theme="gamer"] .win-1 { box-shadow: 0 0 12px -2px var(--team-1); }
@@ -574,7 +580,7 @@ button.round:hover { border-color: var(--accent); }
 .sheet-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .tools { gap: 6px; }
 
-.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.teams { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .team-box {
     display: grid;
     gap: 8px;
@@ -590,11 +596,49 @@ button.round:hover { border-color: var(--accent); }
 .team-box-0 strong { color: var(--team-0); }
 .team-box-1 strong { color: var(--team-1); }
 .odds { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.team-box .pchip { padding: 0; gap: 0; background: var(--card-strong); }
-.chip-main { border: 0; background: none; color: inherit; font: inherit; padding: 8px 4px 8px 12px; min-height: 40px; cursor: pointer; border-radius: 999px 0 0 999px; }
-.chip-x { border: 0; background: none; color: var(--muted); padding: 0 10px 0 6px; min-height: 40px; cursor: pointer; display: grid; place-items: center; border-radius: 0 999px 999px 0; }
-.chip-x svg { width: 14px; height: 14px; }
+/* Round sheet chips: name + rating, then buttons. The chip itself is the drag
+   handle; the buttons do the same moves for those who don't drag. */
+.round-sheet .pchip { padding: 0 4px 0 12px; gap: 2px; cursor: grab; -webkit-touch-callout: none; touch-action: manipulation; }
+.team-box .pchip { background: var(--card-strong); display: flex; min-width: 0; padding-left: 10px; gap: 0; }
+/* Half a phone is narrow: in a team the rating goes under the name, which
+   shortens with an ellipsis before anything is pushed out. */
+.team-box .chip-label { flex-direction: column; align-items: flex-start; gap: 0; flex: 1; min-width: 0; padding: 4px 2px 4px 0; line-height: 1.15; }
+.team-box .chip-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-box .chip-rating { font-size: 0.72rem; }
+.team-box :is(.chip-move, .chip-x) { width: 30px; height: 36px; }
+.chip-label { display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 4px 8px 0; }
+.chip-rating { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.chip-add, .chip-move, .chip-x {
+    border: 0; background: none; color: var(--muted); padding: 0; width: 32px; height: 32px; flex: none;
+    cursor: pointer; display: grid; place-items: center; border-radius: 999px;
+}
+.chip-add svg, .chip-move svg, .chip-x svg { width: 15px; height: 15px; }
+.chip-add.add-0, .chip-move.to-0 { color: var(--team-0); }
+.chip-add.add-1, .chip-move.to-1 { color: var(--team-1); }
+.chip-add.add-0:hover, .chip-move.to-0:hover { background: var(--team-0-bg); }
+.chip-add.add-1:hover, .chip-move.to-1:hover { background: var(--team-1-bg); }
+.chip-add { border: 1.5px solid currentColor; width: 28px; height: 28px; margin-left: 2px; }
 .chip-x:hover { color: var(--danger); }
+.pchip.dragging { opacity: 0.35; }
+.pchip.lifted { transform: scale(1.06); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5); }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; opacity: 0.92;
+    box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.6); }
+.drop-zone { border-radius: 14px; transition: outline-color .12s; outline: 2px dashed transparent; outline-offset: 2px; }
+.drop-zone.drop-over { outline-color: var(--accent); }
+.drop-zone[data-drop="0"].drop-over { outline-color: var(--team-0); }
+.drop-zone[data-drop="1"].drop-over { outline-color: var(--team-1); }
+.bench-chips { min-height: 44px; }
+.team-names { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.team-name-field { display: grid; gap: 8px; }
+@media (max-width: 420px) { .team-names { grid-template-columns: 1fr; } }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { width: 30px; height: 30px; border-radius: 999px; border: 2px solid var(--card-strong); padding: 0; cursor: pointer;
+    box-shadow: 0 0 0 1px var(--border); }
+.swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--text); }
+.c-blue { background: var(--c-blue); } .c-orange { background: var(--c-orange); } .c-red { background: var(--c-red); }
+.c-green { background: var(--c-green); } .c-purple { background: var(--c-purple); } .c-yellow { background: var(--c-yellow); }
+.c-pink { background: var(--c-pink); } .c-teal { background: var(--c-teal); }
+.swatch:disabled { opacity: 0.25; cursor: not-allowed; }
 .bench { display: grid; gap: 8px; }
 .bench h3 { margin: 0; }
 .more { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }

@@ -211,7 +211,6 @@ async function route() {
             } catch (err) {
                 return render(topbar(), h('main', { class: 'wrap narrow' }, h('div', { class: 'card empty' }, h('p', null, err.message))));
             }
-            if (path === '/' || path === '/g/' + cfg.groupId) return navigate(`/g/${cfg.groupId}?welcome`, true);
         }
         if (path === '/') {
             const last = localStorage.getItem('lastPath');
@@ -304,12 +303,17 @@ document.addEventListener('visibilitychange', () => {
 
 // ---- shared bits --------------------------------------------------------------
 
+const sameName = (a, b) => !!a && !!b && a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+// "Oslo office · Scoreboard", without repeating a name.
+const titleOf = (...parts) => parts.filter((p, i) => p && !parts.slice(0, i).some((q) => sameName(p, q))).join(' · ');
 function topbar({ back, title, actions = [] } = {}) {
     return h('header', { class: 'topbar' },
         back
             ? h('a', { class: 'icon-btn', href: back, 'aria-label': t('back'), title: t('back') }, icon('back'))
-            : h('a', { class: 'brand', href: '/?home' },
-                cfg.branding.logo ? h('img', { class: 'brand-logo', src: '/branding/logo', alt: '' }) : h('span', { class: 'brand-dot' }), brandName()),
+            : h('a', { class: 'brand', href: '/?home', 'aria-label': brandName() },
+                cfg.branding.logo ? h('img', { class: 'brand-logo', src: '/branding/logo', alt: '' }) : h('span', { class: 'brand-dot' }),
+                // The group is often named like the instance: don't say it twice.
+                !sameName(brandName(), title) && brandName()),
         title ? h('h1', { class: 'title' }, title) : h('span', { class: 'title' }),
         h('div', { class: 'actions' }, actions));
 }
@@ -392,6 +396,13 @@ function startOfToday() {
     d.setHours(0, 0, 0, 0);
     return d.getTime();
 }
+// Monday 00:00 of this week, local time.
+function startOfWeek() {
+    const d = new Date(startOfToday());
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.getTime();
+}
+const periods = () => ({ since: asIso(startOfToday()), weekSince: asIso(startOfWeek()) });
 
 function fmtTime(ms) {
     return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
@@ -423,9 +434,23 @@ const SPEEDS = {
     RATING_SPEED_MEDIUM: { label: 'speedMedium', hint: 'speedMediumHint' },
     RATING_SPEED_FAST: { label: 'speedFast', hint: 'speedFastHint' },
 };
-// Unnamed teams are Blue and Orange, or Blue and Red in the gamer theme (its team colours).
-const defaultTeamName = (i) => t(i === 0 ? 'teamBlue' : document.documentElement.dataset.theme === 'gamer' ? 'teamRed' : 'teamOrange');
-const teamName = (game, i) => (i === 0 ? game.teamA : game.teamB) || defaultTeamName(i);
+// A team is a name and a colour (TEAM_COLOR_RED → 'red'); without a name it
+// goes by its colour, in the viewer's language.
+const TEAM_COLORS = ['blue', 'orange', 'red', 'green', 'purple', 'yellow', 'pink', 'teal'];
+const colorOf = (team) => (team?.color || '').replace('TEAM_COLOR_', '').toLowerCase() || 'blue';
+const colorName = (color) => t(`color${color[0].toUpperCase()}${color.slice(1)}`);
+const teamOf = (game, i) => (i === 0 ? game.teamA : game.teamB);
+const teamName = (game, i) => teamOf(game, i)?.name || colorName(colorOf(teamOf(game, i)));
+// Colours team i of `el` (and what's inside) with the theme's shade of `color`
+// and its tint. Through the CSSOM: the CSP forbids style attributes.
+function setTeamColor(el, i, color) {
+    el.style.setProperty(`--team-${i}`, `var(--c-${color})`);
+    el.style.setProperty(`--team-${i}-bg`, `color-mix(in srgb, var(--c-${color}) var(--team-bg-mix), transparent)`);
+}
+// Everything team-coloured on the page follows the game shown.
+function applyTeamColors(game) {
+    [0, 1].forEach((i) => setTeamColor(document.documentElement, i, colorOf(teamOf(game, i))));
+}
 
 // A dialog that labels itself, closes on Escape/backdrop and removes itself.
 function sheet(title, ...content) {
@@ -463,12 +488,11 @@ async function pageHome() {
         codeInput, h('button', { class: 'btn' }, t('join')));
 
     const groupName = h('input', { class: 'input', placeholder: t('groupNamePlaceholder'), required: true, maxlength: 40 });
-    const yourName = h('input', { class: 'input', placeholder: t('yourNamePlaceholder'), maxlength: 40 });
     const gameName = h('input', { class: 'input', value: 'Rocket League', maxlength: 40 });
     const createForm = h('form', { class: 'stack', onsubmit: async (e) => {
         e.preventDefault();
         try {
-            const res = await rpc('CreateGroup', { name: groupName.value, playerName: yourName.value, gameName: gameName.value });
+            const res = await rpc('CreateGroup', { name: groupName.value, gameName: gameName.value });
             rememberGroup({ id: res.groupId, name: res.name, token: res.deviceToken });
             const next = res.gameId ? `/g/${res.groupId}/game/${res.gameId}` : `/g/${res.groupId}`;
             navigate(next);
@@ -476,7 +500,6 @@ async function pageHome() {
         } catch (err) { errorToast(err); }
     } },
     h('label', { class: 'field' }, h('span', null, t('groupName')), groupName),
-    h('label', { class: 'field' }, h('span', null, t('yourName')), yourName),
     h('label', { class: 'field' }, h('span', null, t('firstGame')), gameName),
     h('button', { class: 'btn' }, t('createGroup')));
 
@@ -584,38 +607,6 @@ function ratingExplainer() {
         h('p', { class: 'muted small' }, t('ratingInfo4')));
 }
 
-// ---- who am I -----------------------------------------------------------------
-
-function whoAmI(gid, ctx, onDone) {
-    const active = ctx.players.filter((p) => !p.archived);
-    const nameInput = h('input', { class: 'input', placeholder: t('yourNamePlaceholder'), maxlength: 40, 'aria-label': t('yourNamePlaceholder') });
-    const done = () => { dialog.close(); onDone(); };
-    const choose = async (playerId) => {
-        try {
-            await grpc(gid, 'SetMe', playerId ? { playerId } : {});
-            done();
-        } catch (err) { errorToast(err); }
-    };
-    const dialog = sheet(t('whoAreYou'),
-        active.length > 0 && h('p', { class: 'muted small' }, t('whoAreYouHint')),
-        active.length > 0 && h('div', { class: 'chips' }, active.map((p) => h('button', {
-            type: 'button', class: `pchip ${p.id === ctx.me.playerId ? 'sel' : ''}`, onclick: () => choose(p.id),
-        }, p.name))),
-        h('form', { class: 'row', onsubmit: async (e) => {
-            e.preventDefault();
-            try {
-                // A name that already exists (someone added them) just picks that player.
-                await grpc(gid, 'CreatePlayer', { name: nameInput.value, makeMe: true });
-                done();
-            } catch (err) {
-                errorToast(err);
-            }
-        } }, nameInput, h('button', { class: 'btn' }, active.length ? t('imNew') : t('add'))),
-        h('div', { class: 'sheet-actions' },
-            ctx.me.playerId && h('button', { type: 'button', class: 'btn ghost', onclick: () => choose(null) }, t('notAPlayer')),
-            h('button', { type: 'button', class: 'btn ghost', onclick: done }, t('skip'))));
-}
-
 // ---- group page ---------------------------------------------------------------
 
 function officeLinkCard(gid, ctx) {
@@ -645,11 +636,11 @@ function dashboardLinkCard(ctx) {
 async function pageGroup(gid, current) {
     const ctx = await loadGroup(gid);
     if (!current()) return;
-    document.title = `${ctx.group.name} · ${brandName()}`;
+    document.title = titleOf(ctx.group.name, brandName());
     const games = ctx.games.filter((g) => !g.archived);
     const gameName = h('input', { class: 'input', placeholder: t('gameNamePlaceholder'), maxlength: 40, 'aria-label': t('gameNamePlaceholder') });
-    const me = ctx.playersById.get(ctx.me.playerId);
-    const welcome = new URLSearchParams(location.search).has('welcome');
+    // Just joined with a link: go straight to the game when there is only one.
+    if (new URLSearchParams(location.search).has('welcome') && games.length === 1) return navigate(`/g/${gid}/game/${games[0].id}`, true);
 
     render(
         topbar({ back: single() ? undefined : '/?home', title: ctx.group.name, actions: [
@@ -668,25 +659,21 @@ async function pageGroup(gid, current) {
                         navigate(`/g/${gid}/game/${game.id}`);
                     } catch (err) { errorToast(err); }
                 } }, gameName, h('button', { class: 'btn ghost' }, icon('plus'), t('addGame')))),
-            h('section', { class: 'card pad' },
-                h('div', { class: 'section-head' }, h('h2', null, t('players')),
-                    h('button', { class: 'btn ghost small', type: 'button', onclick: () => whoAmI(gid, ctx, () => route()) },
-                        me ? t('youAre', { name: me.name }) : t('whoAreYou'))),
-                h('div', { class: 'chips' }, ctx.players.filter((p) => !p.archived).map((p) => h('span', { class: `pchip static ${p.id === ctx.me.playerId ? 'sel' : ''}` }, p.name)))),
+            h('section', { class: 'card pad' }, h('h2', null, t('players')),
+                ctx.players.some((p) => !p.archived)
+                    ? h('div', { class: 'chips' }, ctx.players.filter((p) => !p.archived).map((p) => h('span', { class: 'pchip static' }, p.name)))
+                    : h('p', { class: 'muted' }, t('noPlayersYet'))),
             officeLinkCard(gid, ctx),
             dashboardLinkCard(ctx)));
 
-    if (welcome) {
-        history.replaceState(null, '', `/g/${gid}`);
-        whoAmI(gid, ctx, () => (games.length === 1 ? navigate(`/g/${gid}/game/${games[0].id}`, true) : route()));
-    }
+    if (location.search) history.replaceState(null, '', `/g/${gid}`);
 }
 
 // ---- leaderboard and rounds (shared with the dashboard) -----------------------
 
-// ctx: { game, ratings (Map), playersById, me? }. hrefFor(playerId) or null.
+// ctx: { game, ratings (Map), playersById }. hrefFor(playerId) or null.
 function leaderboard(ctx, _todayRounds, hrefFor, { big = false } = {}) {
-    // display, provisional and today come from the server.
+    // display, provisional, today and week come from the server.
     const rows = [...ctx.ratings.values()].filter((r) => ctx.playersById.get(r.playerId) && !ctx.playersById.get(r.playerId).archived);
     const ranked = rows.filter((r) => !r.provisional).sort((a, b) => b.display - a.display || b.wins - a.wins);
     const fresh = rows.filter((r) => r.provisional).sort((a, b) => b.rounds - a.rounds || b.display - a.display);
@@ -697,24 +684,24 @@ function leaderboard(ctx, _todayRounds, hrefFor, { big = false } = {}) {
             hrefFor ? h('a', { href: hrefFor(r.playerId) }, name) : name,
             h('span', { class: 'sub' }, t('wlShort', { w: r.wins, l: r.rounds - r.wins })));
     };
-    const todayCell = (r) => h('td', { class: 'num' }, r.today == null ? '' : deltaEl(r.today));
+    const deltaCells = (r) => [r.today, r.week].map((d) => h('td', { class: 'num delta-cell' }, d == null ? '' : deltaEl(d)));
     const rowProps = (r, cls) => ({
-        class: `${cls} ${r.playerId === ctx.me?.playerId ? 'me' : ''} ${hrefFor ? 'clickable' : ''}`,
+        class: `${cls} ${hrefFor ? 'clickable' : ''}`,
         onclick: hrefFor ? (e) => { if (!e.target.closest('a')) navigate(hrefFor(r.playerId)); } : null,
     });
     return h('div', { class: `board-wrap ${big ? 'big' : ''}` },
         ranked.length > 0 && h('table', { class: 'board' },
             h('thead', null, h('tr', null,
                 h('th', { class: 'num' }, h('span', { class: 'sr-only' }, t('rank')), '#'), h('th', null, t('player')),
-                h('th', { class: 'num' }, t('rating')), h('th', { class: 'num' }, t('todayShort')))),
+                h('th', { class: 'num' }, t('rating')), h('th', { class: 'num' }, t('todayShort')), h('th', { class: 'num' }, t('weekShort')))),
             h('tbody', null, ranked.map((r, i) => h('tr', rowProps(r, i < 3 ? `top top${i + 1}` : ''),
-                h('td', { class: 'num rank' }, i + 1), nameCell(r), h('td', { class: 'num rating' }, r.display), todayCell(r))))),
+                h('td', { class: 'num rank' }, i + 1), nameCell(r), h('td', { class: 'num rating' }, r.display), deltaCells(r))))),
         fresh.length > 0 && h('div', { class: 'fresh' },
             h('h3', null, t('newPlayers'), h('span', { class: 'muted small' }, ` · ${t('newPlayersHint', { n: cfg.provisionalRounds })}`)),
             h('table', { class: 'board compact' }, h('tbody', null, fresh.map((r) => h('tr', rowProps(r, 'provisional'),
                 nameCell(r),
                 h('td', { class: 'num muted' }, t('toGo', { n: cfg.provisionalRounds - r.rounds })),
-                h('td', { class: 'num rating' }, r.display), todayCell(r)))))));
+                h('td', { class: 'num rating' }, r.display), deltaCells(r)))))));
 }
 
 function roundItem(ctx, round, { showDay = false, onEdit } = {}) {
@@ -771,13 +758,14 @@ function ratingInfoButton() {
 async function loadGame(gid, gameId) {
     const [ctx, data] = await Promise.all([
         loadGroup(gid),
-        grpc(gid, 'GetGame', { gameId, since: asIso(startOfToday()) }),
+        grpc(gid, 'GetGame', { gameId, ...periods() }),
     ]);
     return withGameData(ctx, data.view);
 }
 
 function withGameData(ctx, data) {
     ctx.game = data.game;
+    applyTeamColors(ctx.game);
     ctx.tournaments = data.tournaments;
     ctx.rounds = data.rounds;
     ctx.ratings = new Map(data.ratings.map((r) => [r.playerId, r]));
@@ -915,7 +903,7 @@ async function pageTournament(gid, gameId, tid, current) {
                 rows.length ? h('table', { class: 'board' },
                     h('thead', null, h('tr', null, h('th', { class: 'num' }, '#'), h('th', null, t('player')),
                         h('th', { class: 'num' }, t('winsShort')), h('th', { class: 'num' }, t('lossesShort')), h('th', { class: 'num' }, t('ratingChange')))),
-                    h('tbody', null, rows.map((s, i) => h('tr', { class: `${s.id === ctx.me.playerId ? 'me' : ''} ${i < 3 ? `top top${i + 1}` : ''}` },
+                    h('tbody', null, rows.map((s, i) => h('tr', { class: i < 3 ? `top top${i + 1}` : '' },
                         h('td', { class: 'num rank' }, i + 1),
                         h('td', { class: 'name' }, h('a', { href: `/g/${gid}/game/${gameId}/p/${s.id}` }, playerName(ctx, s.id))),
                         h('td', { class: 'num rating' }, s.wins), h('td', { class: 'num muted' }, s.losses), h('td', { class: 'num' }, deltaEl(s.delta))))))
@@ -1046,17 +1034,15 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
         for (const p of round.players) assign.set(p.playerId, p.team);
     } else if (lastRound) {
         for (const p of lastRound.players) if (usable(p.playerId)) assign.set(p.playerId, p.team);
-    } else if (ctx.me.playerId && usable(ctx.me.playerId)) {
-        assign.set(ctx.me.playerId, 0);
     }
 
-    // Stable order: you first, then alphabetical.
-    const order = (a, b) => (b.id === ctx.me.playerId) - (a.id === ctx.me.playerId) || a.name.localeCompare(b.name, locale());
+    // Stable order: alphabetical.
+    const order = (a, b) => a.name.localeCompare(b.name, locale());
     let players = ctx.players.filter((p) => !p.archived || assign.has(p.id)).sort(order);
     const teamIds = (i) => players.filter((p) => assign.get(p.id) === i).map((p) => p.id);
 
-    const teamBoxes = [0, 1].map(() => h('div'));
-    const bench = h('div', { class: 'chips bench-chips' });
+    const teamBoxes = [0, 1].map((i) => h('div', { class: 'drop-zone', 'data-drop': String(i) }));
+    const bench = h('div', { class: 'chips bench-chips drop-zone', 'data-drop': 'bench' });
     const scoreInput = (i) => h('input', {
         class: 'input score-input', type: 'number', inputmode: 'numeric', min: 0, max: 999, placeholder: '–',
         'aria-label': t('scoreFor', { team: teamName(game, i) }),
@@ -1078,18 +1064,72 @@ function roundSheet(gid, ctx, { round = null, tournamentId = null, onSaved }) {
     };
     scores.forEach((s) => s.addEventListener('input', fromScore));
 
+    // A player: name and rating, draggable between the teams and the bench, with
+    // buttons for the same moves (bench: + each team; team: other team, bench).
+    const place = (id, team) => { if (team === null) assign.delete(id); else assign.set(id, team); draw(); };
     function chip(p, team) {
-        if (team === undefined) {
-            return h('button', { type: 'button', class: 'pchip', onclick: () => {
-                assign.set(p.id, teamIds(0).length <= teamIds(1).length ? 0 : 1);
-                draw();
-            } }, p.name);
-        }
-        return h('span', { class: `pchip team-${team}` },
-            h('button', { type: 'button', class: 'chip-main', 'aria-label': t('moveTo', { name: p.name, team: teamName(game, 1 - team) }),
-                onclick: () => { assign.set(p.id, 1 - team); draw(); } }, p.name),
-            h('button', { type: 'button', class: 'chip-x', 'aria-label': t('benchPlayer', { name: p.name }),
-                onclick: () => { assign.delete(p.id); draw(); } }, icon('x')));
+        const r = ctx.ratings?.get(p.id);
+        const label = h('span', { class: 'chip-label' }, h('span', { class: 'chip-name' }, p.name),
+            h('span', { class: `chip-rating ${!r || r.provisional ? 'muted' : ''}` }, r ? r.display : t('newShort')));
+        const el = team === undefined
+            ? h('span', { class: 'pchip bench-chip', 'data-id': p.id }, label,
+                [0, 1].map((i) => h('button', { type: 'button', class: `chip-add add-${i}`, 'aria-label': t('addTo', { name: p.name, team: teamName(game, i) }),
+                    title: teamName(game, i), onclick: () => place(p.id, i) }, icon('plus'))))
+            : h('span', { class: `pchip team-${team}`, 'data-id': p.id }, label,
+                h('button', { type: 'button', class: `chip-move to-${1 - team}`, 'aria-label': t('moveTo', { name: p.name, team: teamName(game, 1 - team) }),
+                    title: teamName(game, 1 - team), onclick: () => place(p.id, 1 - team) }, icon('swap')),
+                h('button', { type: 'button', class: 'chip-x', 'aria-label': t('benchPlayer', { name: p.name }),
+                    title: t('bench'), onclick: () => place(p.id, null) }, icon('x')));
+        dragSource(el, p.id);
+        return el;
+    }
+
+    // Drag and drop with pointer events (mouse, pen and touch). On touch the
+    // drag starts after a short hold so a swipe still scrolls the sheet.
+    function dragSource(el, id) {
+        el.addEventListener('pointerdown', (down) => {
+            if (down.button !== 0 || down.target.closest('button')) return;
+            let ghost = null;
+            let over = null;
+            let ready = down.pointerType === 'mouse';
+            const hold = ready ? null : setTimeout(() => { ready = true; el.classList.add('lifted'); }, 180);
+            const zoneAt = (x, y) => document.elementFromPoint(x, y)?.closest('[data-drop]');
+            const move = (e) => {
+                if (!ghost) {
+                    const far = Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) > 6;
+                    if (!ready) { if (far) end(); return; } // moved before the hold: a scroll
+                    if (!far) return;
+                    ghost = el.cloneNode(true);
+                    ghost.classList.add('drag-ghost');
+                    document.body.append(ghost);
+                    el.classList.add('dragging');
+                }
+                e.preventDefault();
+                ghost.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+                const zone = zoneAt(e.clientX, e.clientY);
+                if (zone !== over) { over?.classList.remove('drop-over'); over = zone; over?.classList.add('drop-over'); }
+            };
+            const noScroll = (e) => { if (ready) e.preventDefault(); };
+            const end = (e) => {
+                clearTimeout(hold);
+                removeEventListener('pointermove', move);
+                removeEventListener('pointerup', end);
+                removeEventListener('pointercancel', end);
+                removeEventListener('touchmove', noScroll);
+                over?.classList.remove('drop-over');
+                el.classList.remove('dragging', 'lifted');
+                ghost?.remove();
+                if (ghost && e?.type === 'pointerup' && over) {
+                    const to = over.dataset.drop === 'bench' ? null : Number(over.dataset.drop);
+                    if ((assign.get(id) ?? null) !== to) place(id, to);
+                }
+            };
+            addEventListener('pointermove', move);
+            addEventListener('pointerup', end);
+            addEventListener('pointercancel', end);
+            addEventListener('touchmove', noScroll, { passive: false });
+        });
+        el.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
     // Win odds come from the server (it owns the rating model), asked a moment
@@ -1301,10 +1341,10 @@ async function pageGroupSettings(gid, current) {
         } catch (err) { errorToast(err); }
     };
     const nameInput = h('input', { class: 'input', value: ctx.group.name, maxlength: 40, 'aria-label': t('groupName') });
-    const ownerNames = ctx.owners.map((o) => (o.playerId ? playerName(ctx, o.playerId) : o.label || t('unnamedDevice')));
+    const ownerNames = ctx.owners.map((o) => o.label || t('unnamedDevice'));
 
     const playerRows = ctx.players.map((p) => h('li', { class: `list-row ${p.archived ? 'faded' : ''}` },
-        h('span', null, p.name, p.id === ctx.me.playerId && h('span', { class: 'chip' }, t('you'))),
+        h('span', null, p.name),
         h('span', { class: 'row' },
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
                 const name = prompt(t('rename'), p.name);
@@ -1332,6 +1372,41 @@ async function pageGroupSettings(gid, current) {
         showHint();
     };
 
+    // Both teams in one sheet: a name and a colour each, shown in that colour.
+    // An empty name stores nothing: the team goes by its colour, in the
+    // viewer's language. The two teams can't share a colour.
+    const teamsDialog = (g) => {
+        const colors = [0, 1].map((i) => colorOf(teamOf(g, i)));
+        const inputs = [0, 1].map((i) => h('input', { class: 'input', maxlength: 40, value: teamOf(g, i)?.name || '', 'aria-label': t('teamName', { n: i + 1 }) }));
+        const heads = [0, 1].map(() => h('strong'));
+        const swatches = [0, 1].map(() => h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t('teamColor') }));
+        const boxes = [0, 1].map((i) => h('div', { class: `team-name-field team-box team-box-${i}` }, heads[i], inputs[i], swatches[i]));
+        const title = (i) => { heads[i].textContent = inputs[i].value.trim() || colorName(colors[i]); };
+        const draw = () => [0, 1].forEach((i) => {
+            inputs[i].placeholder = colorName(colors[i]);
+            setTeamColor(boxes[i], i, colors[i]);
+            title(i);
+            swatches[i].replaceChildren(...TEAM_COLORS.map((c) => h('button', {
+                type: 'button', class: `swatch c-${c}`, role: 'radio', title: colorName(c), 'aria-label': colorName(c),
+                'aria-checked': String(c === colors[i]), disabled: c === colors[1 - i],
+                onclick: () => { colors[i] = c; draw(); },
+            })));
+        });
+        inputs.forEach((x, i) => x.addEventListener('input', () => title(i)));
+        const save = (e) => {
+            e.preventDefault();
+            dialog.close();
+            const team = (i) => ({ name: inputs[i].value.trim(), color: `TEAM_COLOR_${colors[i].toUpperCase()}` });
+            act('UpdateGame', { gameId: g.id, teamA: team(0), teamB: team(1) });
+        };
+        const dialog = sheet(t('teamsTitle', { game: g.name }),
+            h('form', { class: 'stack', onsubmit: save },
+                h('div', { class: 'team-names' }, boxes),
+                h('p', { class: 'muted small' }, t('teamsHint')),
+                h('div', { class: 'sheet-actions' }, h('button', { class: 'btn' }, t('save')))));
+        draw();
+    };
+
     const gameRows = ctx.games.map((g) => h('li', { class: `list-row ${g.archived ? 'faded' : ''}` },
         h('span', null, g.name, h('span', { class: 'muted small' }, ` · ${teamName(g, 0)} / ${teamName(g, 1)}`,
             g.ratingSpeed !== 'RATING_SPEED_STEADY' ? ` · ${t(SPEEDS[g.ratingSpeed]?.label ?? 'speedSteady')}` : '')),
@@ -1340,14 +1415,7 @@ async function pageGroupSettings(gid, current) {
                 const name = prompt(t('rename'), g.name);
                 if (name) act('UpdateGame', { gameId: g.id, name });
             } }, t('rename')),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-                const a = prompt(t('teamNames', { n: 1 }), teamName(g, 0));
-                if (a === null) return;
-                const b = prompt(t('teamNames', { n: 2 }), teamName(g, 1));
-                if (b === null) return;
-                // Keeping the default names stores nothing, so they follow the language.
-                act('UpdateGame', { gameId: g.id, teamA: a === defaultTeamName(0) ? '' : a, teamB: b === defaultTeamName(1) ? '' : b });
-            } }, t('teams')),
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => teamsDialog(g) }, t('teams')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => speedDialog(g) }, t('ratingSpeed')),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => act('UpdateGame', { gameId: g.id, archived: !g.archived }) },
                 g.archived ? t('unarchive') : t('archive')))));
@@ -1355,9 +1423,9 @@ async function pageGroupSettings(gid, current) {
     const fmtDate = (ms) => (ms ? new Date(ms).toLocaleDateString(locale()) : '–');
     const deviceRows = devices.map((d) => h('li', { class: 'list-row' },
         h('span', { class: 'device' },
-            h('span', null, d.playerId ? playerName(ctx, d.playerId) : t('unnamedDevice'),
+            h('span', null, d.label || t('unnamedDevice'),
                 d.isMe && h('span', { class: 'chip' }, t('thisDevice')), d.owner && h('span', { class: 'chip' }, t('owner'))),
-            h('span', { class: 'muted small' }, [d.label, t('lastSeen', { date: fmtDate(d.lastSeenAt) })].filter(Boolean).join(' · '))),
+            h('span', { class: 'muted small' }, t('lastSeen', { date: fmtDate(d.lastSeenAt) }))),
         !d.isMe && iconButton('x', t('removeDevice'), async () => {
             if (!confirm(t('removeDeviceConfirm'))) return;
             try { await grpc(gid, 'RemoveDevice', { deviceId: d.id }); refresh(); } catch (err) { errorToast(err); }
@@ -1432,9 +1500,9 @@ async function pageDashboard(token, current, known = null) {
     const base = known || await rpc('GetDashboard', { token });
     const params = new URLSearchParams(location.search);
     const game = base.games.find((g) => g.id === params.get('game')) || base.games[0];
-    const data = game ? (await rpc('GetDashboardGame', { token, gameId: game.id, since: asIso(startOfToday()) })).view : null;
+    const data = game ? (await rpc('GetDashboardGame', { token, gameId: game.id, ...periods() })).view : null;
     if (!current() || seq !== loadSeq) return;
-    document.title = `${base.groupName} · ${brandName()}`;
+    document.title = titleOf(base.groupName, brandName());
     const ctx = { group: { name: base.groupName }, players: base.players, playersById: new Map(base.players.map((p) => [p.id, p])), me: null };
     // Group, games and players only change rarely: refetched every 10th refresh.
     const refresh = () => pageDashboard(token, current, ++dashboardRefreshes % 10 ? base : null);

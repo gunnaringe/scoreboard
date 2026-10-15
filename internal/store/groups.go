@@ -17,13 +17,12 @@ type Group struct {
 
 // Device is a browser that joined a group.
 type Device struct {
-	ID        string  `json:"id"`
-	GroupID   string  `json:"-"`
-	PlayerID  *string `json:"playerId"`
-	Owner     bool    `json:"owner"`
-	Label     string  `json:"label"`
-	CreatedAt int64   `json:"createdAt"`
-	LastSeen  *int64  `json:"lastSeen"`
+	ID        string `json:"id"`
+	GroupID   string `json:"-"`
+	Owner     bool   `json:"owner"`
+	Label     string `json:"label"`
+	CreatedAt int64  `json:"createdAt"`
+	LastSeen  *int64 `json:"lastSeen"`
 }
 
 func scanGroup(row interface{ Scan(...any) error }) (Group, error) {
@@ -106,19 +105,16 @@ func (s *Store) CreateGroup(ctx context.Context, name, playerName, gameName stri
 			out.Group.ID, name, out.Group.InviteCode, out.Group.DashboardToken, Hash(out.OwnerToken), now); err != nil {
 			return err
 		}
-		var playerID *string
 		if playerName != "" {
-			id := newID()
-			playerID = &id
 			if _, err := tx.ExecContext(ctx, `INSERT INTO players (id, group_id, name, name_key, created_at) VALUES (?, ?, ?, ?, ?)`,
-				id, out.Group.ID, playerName, nameKey(playerName), now); err != nil {
+				newID(), out.Group.ID, playerName, nameKey(playerName), now); err != nil {
 				return err
 			}
 		}
 		if withDevice {
 			out.DeviceToken = NewToken()
-			if _, err := tx.ExecContext(ctx, `INSERT INTO devices (id, token_hash, group_id, player_id, is_owner, label, created_at, last_seen) VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
-				newID(), Hash(out.DeviceToken), out.Group.ID, playerID, DeviceLabel(ua), now, now); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO devices (id, token_hash, group_id, is_owner, label, created_at, last_seen) VALUES (?, ?, ?, 1, ?, ?, ?)`,
+				newID(), Hash(out.DeviceToken), out.Group.ID, DeviceLabel(ua), now, now); err != nil {
 				return err
 			}
 		}
@@ -261,19 +257,15 @@ func (s *Store) RotateLink(ctx context.Context, groupID, kind string) (string, e
 func (s *Store) Authenticate(ctx context.Context, token string) (Device, error) {
 	var d Device
 	var label sql.NullString
-	var player sql.NullString
 	var lastSeen sql.NullInt64
 	var owner int
-	err := s.db.QueryRowContext(ctx, `SELECT id, group_id, player_id, is_owner, label, created_at, last_seen FROM devices WHERE token_hash = ?`, Hash(token)).
-		Scan(&d.ID, &d.GroupID, &player, &owner, &label, &d.CreatedAt, &lastSeen)
+	err := s.db.QueryRowContext(ctx, `SELECT id, group_id, is_owner, label, created_at, last_seen FROM devices WHERE token_hash = ?`, Hash(token)).
+		Scan(&d.ID, &d.GroupID, &owner, &label, &d.CreatedAt, &lastSeen)
 	if err != nil {
 		return Device{}, notFoundIf(err)
 	}
 	d.Owner = owner == 1
 	d.Label = label.String
-	if player.Valid {
-		d.PlayerID = &player.String
-	}
 	now := s.nowMs()
 	if !lastSeen.Valid || now-lastSeen.Int64 > 86400000 {
 		_, _ = s.db.ExecContext(ctx, `UPDATE devices SET last_seen = ? WHERE id = ?`, now, d.ID)
@@ -285,7 +277,7 @@ func (s *Store) Authenticate(ctx context.Context, token string) (Device, error) 
 
 // ListDevices returns a group's devices, oldest first.
 func (s *Store) ListDevices(ctx context.Context, groupID string) ([]Device, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, player_id, is_owner, label, created_at, last_seen FROM devices WHERE group_id = ? ORDER BY created_at, id`, groupID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, is_owner, label, created_at, last_seen FROM devices WHERE group_id = ? ORDER BY created_at, id`, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -293,17 +285,14 @@ func (s *Store) ListDevices(ctx context.Context, groupID string) ([]Device, erro
 	out := []Device{}
 	for rows.Next() {
 		d := Device{GroupID: groupID}
-		var player, label sql.NullString
+		var label sql.NullString
 		var last sql.NullInt64
 		var owner int
-		if err := rows.Scan(&d.ID, &player, &owner, &label, &d.CreatedAt, &last); err != nil {
+		if err := rows.Scan(&d.ID, &owner, &label, &d.CreatedAt, &last); err != nil {
 			return nil, err
 		}
 		d.Owner = owner == 1
 		d.Label = label.String
-		if player.Valid {
-			d.PlayerID = &player.String
-		}
 		if last.Valid {
 			d.LastSeen = &last.Int64
 		}
@@ -349,21 +338,6 @@ func (s *Store) SetOwner(ctx context.Context, groupID, deviceID string, owner bo
 		return ErrNotFound
 	}
 	return nil
-}
-
-// SetDevicePlayer records which player a device is ("who are you"); nil clears it.
-func (s *Store) SetDevicePlayer(ctx context.Context, groupID, deviceID string, playerID *string) error {
-	if playerID != nil {
-		n, err := count(ctx, s.db, `SELECT COUNT(*) FROM players WHERE id = ? AND group_id = ?`, *playerID, groupID)
-		if err != nil {
-			return err
-		}
-		if n == 0 {
-			return BadRequest("unknown player")
-		}
-	}
-	_, err := s.db.ExecContext(ctx, `UPDATE devices SET player_id = ? WHERE id = ? AND group_id = ?`, playerID, deviceID, groupID)
-	return err
 }
 
 // RenameGroup changes a group's name.

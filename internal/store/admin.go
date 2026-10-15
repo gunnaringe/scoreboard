@@ -35,7 +35,6 @@ func (s *Store) MergePlayers(ctx context.Context, groupID, from, into string) er
 		}
 		for _, q := range []string{
 			`UPDATE round_players SET player_id = ?2 WHERE player_id = ?1`,
-			`UPDATE devices SET player_id = ?2 WHERE player_id = ?1`,
 			`DELETE FROM players WHERE id = ?1`,
 		} {
 			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
@@ -131,6 +130,8 @@ type ExportGame struct {
 	Name        string             `json:"name"`
 	TeamA       *string            `json:"teamA,omitempty"`
 	TeamB       *string            `json:"teamB,omitempty"`
+	TeamAColor  string             `json:"teamAColor,omitempty"` // absent: blue
+	TeamBColor  string             `json:"teamBColor,omitempty"` // absent: orange
 	Archived    bool               `json:"archived,omitempty"`
 	RatingSpeed string             `json:"ratingSpeed,omitempty"` // absent: steady
 	Tournaments []ExportTournament `json:"tournaments,omitempty"`
@@ -174,7 +175,14 @@ func (s *Store) Export(ctx context.Context, groupID string) (ExportedGroup, erro
 		return out, err
 	}
 	for _, game := range games {
-		eg := ExportGame{Name: game.Name, TeamA: game.TeamA, TeamB: game.TeamB, Archived: game.Archived, Rounds: []ExportRound{}}
+		eg := ExportGame{Name: game.Name, Archived: game.Archived, Rounds: []ExportRound{},
+			TeamAColor: game.Teams[0].Color, TeamBColor: game.Teams[1].Color}
+		if game.Teams[0].Name != "" {
+			eg.TeamA = &game.Teams[0].Name
+		}
+		if game.Teams[1].Name != "" {
+			eg.TeamB = &game.Teams[1].Name
+		}
 		if game.RatingSpeed != rating.Steady {
 			eg.RatingSpeed = string(game.RatingSpeed)
 		}
@@ -254,9 +262,22 @@ func (s *Store) Import(ctx context.Context, in ExportedGroup, name string) (Crea
 			if !ok {
 				return BadRequest(fmt.Sprintf("game %q: unknown rating speed %q", g.Name, g.RatingSpeed))
 			}
+			var teams [2]Team
+			for i, t := range [2]struct {
+				name  *string
+				color string
+			}{{g.TeamA, g.TeamAColor}, {g.TeamB, g.TeamBColor}} {
+				teams[i].Color = t.color
+				if t.name != nil {
+					teams[i].Name = *t.name
+				}
+			}
+			if teams, err = cleanTeams(teams, [2]Team{{Color: DefaultTeamColors[0]}, {Color: DefaultTeamColors[1]}}); err != nil {
+				return BadRequest(fmt.Sprintf("game %q: %v", g.Name, err))
+			}
 			gid := newID()
-			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, archived, created_at, rating_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				gid, created.Group.ID, gname, g.TeamA, g.TeamB, b2i(g.Archived), now, string(speed)); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO games (id, group_id, name, team_a, team_b, team_a_color, team_b_color, archived, created_at, rating_speed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				gid, created.Group.ID, gname, nullIfEmpty(teams[0].Name), nullIfEmpty(teams[1].Name), teams[0].Color, teams[1].Color, b2i(g.Archived), now, string(speed)); err != nil {
 				return err
 			}
 			tours := map[string]string{}

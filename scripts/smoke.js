@@ -39,7 +39,7 @@ const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
 const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
 
 // ---- groups, joining ------------------------------------------------------------
-const created = await ok('CreateGroup', { name: 'Office', playerName: 'Ada', gameName: 'Rocket League' });
+const created = await ok('CreateGroup', { name: 'Office', gameName: 'Rocket League' });
 assert.ok(created.ownerToken && created.gameId && created.deviceToken);
 const owner = created.deviceToken;
 const game = created.gameId;
@@ -57,7 +57,7 @@ await fails('GetGroup', {}, undefined, 'unauthenticated');
 await fails('Join', { code: 'AAAA-AAAA' }, undefined, 'not_found');
 
 // ---- players -----------------------------------------------------------------------
-const names = ['Bob', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus'];
+const names = ['Ada', 'Bob', 'Cy', 'Dee', 'Eve', 'Fay', 'Gus'];
 for (const name of names) assert.equal((await ok('CreatePlayer', { name }, member)).existed, false);
 const dup = await ok('CreatePlayer', { name: ' bob​ ' }, member);
 assert.equal(dup.existed, true, 'invisible characters and case do not make a new name');
@@ -164,7 +164,9 @@ assert.equal(Number((await ok('GetGameVersion', { gameId: game }, member)).versi
 
 // ---- owner, office and dashboard links ------------------------------------------------------------
 // Members can do everything with rounds, players and games, but not links, group settings or devices.
-await ok('UpdateGame', { gameId: game, teamA: 'Red' }, member);
+await ok('UpdateGame', { gameId: game, teamA: { name: 'Lions', color: 'TEAM_COLOR_RED' } }, member);
+assert.deepEqual((await ok('GetGroup', {}, member)).games.find((x) => x.id === game).teamA, { name: 'Lions', color: 'TEAM_COLOR_RED' });
+await fails('UpdateGame', { gameId: game, teamB: { color: 'TEAM_COLOR_RED' } }, member, 'invalid_argument'); // same colour twice
 await fails('UpdateGroup', { name: 'x' }, member, 'permission_denied');
 await fails('DeleteGroup', {}, member, 'permission_denied');
 for (const kind of ['LINK_KIND_OFFICE', 'LINK_KIND_DASHBOARD', 'LINK_KIND_OWNER']) await fails('RotateLink', { kind }, member, 'permission_denied');

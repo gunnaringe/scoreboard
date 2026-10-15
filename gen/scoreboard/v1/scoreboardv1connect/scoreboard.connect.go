@@ -69,8 +69,6 @@ const (
 	// ScoreboardServiceRotateLinkProcedure is the fully-qualified name of the ScoreboardService's
 	// RotateLink RPC.
 	ScoreboardServiceRotateLinkProcedure = "/scoreboard.v1.ScoreboardService/RotateLink"
-	// ScoreboardServiceSetMeProcedure is the fully-qualified name of the ScoreboardService's SetMe RPC.
-	ScoreboardServiceSetMeProcedure = "/scoreboard.v1.ScoreboardService/SetMe"
 	// ScoreboardServiceListDevicesProcedure is the fully-qualified name of the ScoreboardService's
 	// ListDevices RPC.
 	ScoreboardServiceListDevicesProcedure = "/scoreboard.v1.ScoreboardService/ListDevices"
@@ -156,8 +154,6 @@ type ScoreboardServiceClient interface {
 	// RotateLink replaces the office, dashboard or owner link; the old one stops
 	// working. Owners only.
 	RotateLink(context.Context, *connect.Request[v1.RotateLinkRequest]) (*connect.Response[v1.RotateLinkResponse], error)
-	// SetMe says which player this device is ("who are you").
-	SetMe(context.Context, *connect.Request[v1.SetMeRequest]) (*connect.Response[v1.SetMeResponse], error)
 	// ListDevices lists the group's devices. Owners only.
 	ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error)
 	// RemoveDevice removes a device: owners any, everyone their own (leaving).
@@ -250,12 +246,6 @@ func NewScoreboardServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+ScoreboardServiceRotateLinkProcedure,
 			connect.WithSchema(scoreboardServiceMethods.ByName("RotateLink")),
-			connect.WithClientOptions(opts...),
-		),
-		setMe: connect.NewClient[v1.SetMeRequest, v1.SetMeResponse](
-			httpClient,
-			baseURL+ScoreboardServiceSetMeProcedure,
-			connect.WithSchema(scoreboardServiceMethods.ByName("SetMe")),
 			connect.WithClientOptions(opts...),
 		),
 		listDevices: connect.NewClient[v1.ListDevicesRequest, v1.ListDevicesResponse](
@@ -397,7 +387,6 @@ type scoreboardServiceClient struct {
 	updateGroup             *connect.Client[v1.UpdateGroupRequest, v1.UpdateGroupResponse]
 	deleteGroup             *connect.Client[v1.DeleteGroupRequest, v1.DeleteGroupResponse]
 	rotateLink              *connect.Client[v1.RotateLinkRequest, v1.RotateLinkResponse]
-	setMe                   *connect.Client[v1.SetMeRequest, v1.SetMeResponse]
 	listDevices             *connect.Client[v1.ListDevicesRequest, v1.ListDevicesResponse]
 	removeDevice            *connect.Client[v1.RemoveDeviceRequest, v1.RemoveDeviceResponse]
 	createPlayer            *connect.Client[v1.CreatePlayerRequest, v1.CreatePlayerResponse]
@@ -459,11 +448,6 @@ func (c *scoreboardServiceClient) DeleteGroup(ctx context.Context, req *connect.
 // RotateLink calls scoreboard.v1.ScoreboardService.RotateLink.
 func (c *scoreboardServiceClient) RotateLink(ctx context.Context, req *connect.Request[v1.RotateLinkRequest]) (*connect.Response[v1.RotateLinkResponse], error) {
 	return c.rotateLink.CallUnary(ctx, req)
-}
-
-// SetMe calls scoreboard.v1.ScoreboardService.SetMe.
-func (c *scoreboardServiceClient) SetMe(ctx context.Context, req *connect.Request[v1.SetMeRequest]) (*connect.Response[v1.SetMeResponse], error) {
-	return c.setMe.CallUnary(ctx, req)
 }
 
 // ListDevices calls scoreboard.v1.ScoreboardService.ListDevices.
@@ -591,8 +575,6 @@ type ScoreboardServiceHandler interface {
 	// RotateLink replaces the office, dashboard or owner link; the old one stops
 	// working. Owners only.
 	RotateLink(context.Context, *connect.Request[v1.RotateLinkRequest]) (*connect.Response[v1.RotateLinkResponse], error)
-	// SetMe says which player this device is ("who are you").
-	SetMe(context.Context, *connect.Request[v1.SetMeRequest]) (*connect.Response[v1.SetMeResponse], error)
 	// ListDevices lists the group's devices. Owners only.
 	ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error)
 	// RemoveDevice removes a device: owners any, everyone their own (leaving).
@@ -681,12 +663,6 @@ func NewScoreboardServiceHandler(svc ScoreboardServiceHandler, opts ...connect.H
 		ScoreboardServiceRotateLinkProcedure,
 		svc.RotateLink,
 		connect.WithSchema(scoreboardServiceMethods.ByName("RotateLink")),
-		connect.WithHandlerOptions(opts...),
-	)
-	scoreboardServiceSetMeHandler := connect.NewUnaryHandler(
-		ScoreboardServiceSetMeProcedure,
-		svc.SetMe,
-		connect.WithSchema(scoreboardServiceMethods.ByName("SetMe")),
 		connect.WithHandlerOptions(opts...),
 	)
 	scoreboardServiceListDevicesHandler := connect.NewUnaryHandler(
@@ -833,8 +809,6 @@ func NewScoreboardServiceHandler(svc ScoreboardServiceHandler, opts ...connect.H
 			scoreboardServiceDeleteGroupHandler.ServeHTTP(w, r)
 		case ScoreboardServiceRotateLinkProcedure:
 			scoreboardServiceRotateLinkHandler.ServeHTTP(w, r)
-		case ScoreboardServiceSetMeProcedure:
-			scoreboardServiceSetMeHandler.ServeHTTP(w, r)
 		case ScoreboardServiceListDevicesProcedure:
 			scoreboardServiceListDevicesHandler.ServeHTTP(w, r)
 		case ScoreboardServiceRemoveDeviceProcedure:
@@ -916,10 +890,6 @@ func (UnimplementedScoreboardServiceHandler) DeleteGroup(context.Context, *conne
 
 func (UnimplementedScoreboardServiceHandler) RotateLink(context.Context, *connect.Request[v1.RotateLinkRequest]) (*connect.Response[v1.RotateLinkResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoreboard.v1.ScoreboardService.RotateLink is not implemented"))
-}
-
-func (UnimplementedScoreboardServiceHandler) SetMe(context.Context, *connect.Request[v1.SetMeRequest]) (*connect.Response[v1.SetMeResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoreboard.v1.ScoreboardService.SetMe is not implemented"))
 }
 
 func (UnimplementedScoreboardServiceHandler) ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error) {

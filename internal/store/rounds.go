@@ -732,6 +732,7 @@ type PlayerRating struct {
 	Display     int     `json:"display"`
 	Provisional bool    `json:"provisional"`
 	Today       *int    `json:"today"` // display change since `since`; nil if they didn't play
+	Week        *int    `json:"week"`  // the same since `weekSince`
 }
 
 // HandicapOut is a learned handicap, for the browser's win odds.
@@ -753,8 +754,9 @@ type GameView struct {
 
 // GetGameView returns the leaderboard, handicaps, tournaments and recent
 // rounds. Rounds since `since` (ms, the start of the viewer's day) are always
-// included, plus the last 20, at most 200.
-func (s *Store) GetGameView(ctx context.Context, groupID, gameID string, since int64) (GameView, error) {
+// included, plus the last 20, at most 200. Each rating's Today and Week are the
+// display change since `since` and `weekSince`.
+func (s *Store) GetGameView(ctx context.Context, groupID, gameID string, since, weekSince int64) (GameView, error) {
 	game, err := s.GetGame(ctx, groupID, gameID)
 	if err != nil {
 		return GameView{}, err
@@ -777,29 +779,21 @@ func (s *Store) GetGameView(ctx context.Context, groupID, gameID string, since i
 	}
 	rows.Close()
 
-	// "Today": how far each player's skill moved since their first round of the day.
-	startMu := map[string]float64{}
-	rows, err = s.db.QueryContext(ctx, `SELECT rp.player_id, rp.mu_before FROM round_players rp JOIN rounds r ON r.id = rp.round_id
-		WHERE r.game_id = ? AND r.deleted_at IS NULL AND r.played_at >= ? AND rp.mu_before IS NOT NULL ORDER BY r.played_at, r.id`, gameID, since)
-	if err != nil {
-		return v, err
-	}
-	for rows.Next() {
-		var id string
-		var mu float64
-		if err := rows.Scan(&id, &mu); err != nil {
-			rows.Close()
+	for _, d := range []struct {
+		since int64
+		set   func(*PlayerRating, int)
+	}{
+		{since, func(r *PlayerRating, d int) { r.Today = &d }},
+		{weekSince, func(r *PlayerRating, d int) { r.Week = &d }},
+	} {
+		startMu, err := s.muSince(ctx, gameID, d.since)
+		if err != nil {
 			return v, err
 		}
-		if _, ok := startMu[id]; !ok {
-			startMu[id] = mu
-		}
-	}
-	rows.Close()
-	for i := range v.Ratings {
-		if mu, ok := startMu[v.Ratings[i].PlayerID]; ok {
-			d := rating.Delta(rating.Rating{Mu: mu}, rating.Rating{Mu: v.Ratings[i].Mu})
-			v.Ratings[i].Today = &d
+		for i := range v.Ratings {
+			if mu, ok := startMu[v.Ratings[i].PlayerID]; ok {
+				d.set(&v.Ratings[i], rating.Delta(rating.Rating{Mu: mu}, rating.Rating{Mu: v.Ratings[i].Mu}))
+			}
 		}
 	}
 
@@ -824,6 +818,30 @@ func (s *Store) GetGameView(ctx context.Context, groupID, gameID string, since i
 	}
 	v.Rounds, err = s.scanRounds(ctx, rows)
 	return v, err
+}
+
+// muSince is each player's skill before their first round since `since`, so
+// the change since then is the current skill minus this. Players without a
+// round since then are missing.
+func (s *Store) muSince(ctx context.Context, gameID string, since int64) (map[string]float64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT rp.player_id, rp.mu_before FROM round_players rp JOIN rounds r ON r.id = rp.round_id
+		WHERE r.game_id = ? AND r.deleted_at IS NULL AND r.played_at >= ? AND rp.mu_before IS NOT NULL ORDER BY r.played_at, r.id`, gameID, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	for rows.Next() {
+		var id string
+		var mu float64
+		if err := rows.Scan(&id, &mu); err != nil {
+			return nil, err
+		}
+		if _, ok := out[id]; !ok {
+			out[id] = mu
+		}
+	}
+	return out, rows.Err()
 }
 
 // PairStat is a head-to-head tally.

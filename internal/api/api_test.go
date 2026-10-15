@@ -97,8 +97,9 @@ type office struct {
 
 func (e *env) office() office {
 	e.t.Helper()
-	r := must(e, e.c.CreateGroup, "", &pb.CreateGroupRequest{Name: "Office", PlayerName: "Ada", GameName: "Rocket League"})
+	r := must(e, e.c.CreateGroup, "", &pb.CreateGroupRequest{Name: "Office", GameName: "Rocket League"})
 	o := office{gid: r.GroupId, game: r.GameId, owner: r.DeviceToken, ownerLink: r.OwnerToken}
+	e.player(o.owner, "Ada")
 	g := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{})
 	o.code, o.dash = g.Group.OfficeCode, g.Group.DashboardToken
 	return o
@@ -140,7 +141,7 @@ func TestMultiLinksAndPermissions(t *testing.T) {
 	if must(e, e.c.GetGroup, member, &pb.GetGroupRequest{}).Me.Owner {
 		t.Fatal("member is an owner")
 	}
-	must(e, e.c.UpdateGame, member, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("Red")})
+	must(e, e.c.UpdateGame, member, &pb.UpdateGameRequest{GameId: o.game, TeamA: &pb.Team{Name: "Lions"}})
 	_, err = call(e, e.c.UpdateGroup, member, &pb.UpdateGroupRequest{Name: ptr("x")})
 	wantCode(t, err, connect.CodePermissionDenied)
 	_, err = call(e, e.c.DeleteGroup, member, &pb.DeleteGroupRequest{})
@@ -304,11 +305,28 @@ func TestRoundsThroughTheAPI(t *testing.T) {
 		t.Fatal("tournament not cleared")
 	}
 	must(e, e.c.UpdateTournament, o.owner, &pb.UpdateTournamentRequest{TournamentId: tour.Id, Ended: ptr(true)})
-	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("Red"), TeamB: ptr("Green")})
-	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: ptr("")})
+	// Teams: a name and a colour each. New games are blue and orange, unnamed.
 	game := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Games[0]
-	if game.TeamA != nil || game.GetTeamB() != "Green" {
+	if game.TeamA.GetName() != "" || game.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_BLUE || game.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_ORANGE {
+		t.Fatalf("default teams: %+v", game)
+	}
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game,
+		TeamA: &pb.Team{Name: "Lions", Color: pb.TeamColor_TEAM_COLOR_RED}, TeamB: &pb.Team{Name: "Tigers", Color: pb.TeamColor_TEAM_COLOR_GREEN}})
+	// UNSPECIFIED keeps the colour; an empty name means "goes by its colour".
+	must(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamA: &pb.Team{Name: " "}})
+	game = must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Games[0]
+	if game.TeamA.GetName() != "" || game.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_RED ||
+		game.TeamB.GetName() != "Tigers" || game.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_GREEN {
 		t.Fatalf("teams: %+v", game)
+	}
+	// The two teams can't share a colour, and only known colours are taken.
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamB: &pb.Team{Color: pb.TeamColor_TEAM_COLOR_RED}})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	_, err = call(e, e.c.UpdateGame, o.owner, &pb.UpdateGameRequest{GameId: o.game, TeamB: &pb.Team{Color: pb.TeamColor(99)}})
+	wantCode(t, err, connect.CodeInvalidArgument)
+	g2 := must(e, e.c.CreateGame, o.owner, &pb.CreateGameRequest{Name: "Pool", TeamB: &pb.Team{Color: pb.TeamColor_TEAM_COLOR_PURPLE}}).Game
+	if g2.TeamA.GetColor() != pb.TeamColor_TEAM_COLOR_BLUE || g2.TeamB.GetColor() != pb.TeamColor_TEAM_COLOR_PURPLE {
+		t.Fatalf("create with a colour: %+v", g2)
 	}
 	if game.RatingSpeed != pb.RatingSpeed_RATING_SPEED_STEADY {
 		t.Fatalf("speed: %v", game.RatingSpeed)
@@ -368,7 +386,7 @@ func TestPreviewAndSuggest(t *testing.T) {
 	for _, n := range []string{"Bob", "Cy", "Dee", "Eve"} {
 		ids = append(ids, e.player(o.owner, n))
 	}
-	ada := must(e, e.c.GetGroup, o.owner, &pb.GetGroupRequest{}).Me.GetPlayerId()
+	ada := e.player(o.owner, "Ada") // already exists: returns her id
 	// Ada beats everyone, repeatedly: she becomes the favourite.
 	for i := 0; i < 12; i++ {
 		if _, err := e.round(o, o.owner, []string{ada}, []string{ids[i%4]}, 0); err != nil {
@@ -449,9 +467,8 @@ func TestRateLimits(t *testing.T) {
 	}
 
 	e2 := newEnv(t, func(c *config.Config) { c.WriteLimit = 2 }, nil)
-	o := e2.office()
+	o := e2.office() // adds Ada: one write
 	e2.player(o.owner, "A")
-	e2.player(o.owner, "B")
 	_, err = call(e2, e2.c.CreatePlayer, o.owner, &pb.CreatePlayerRequest{Name: "C"})
 	wantCode(t, err, connect.CodeResourceExhausted)
 	if !strings.Contains(err.Error(), msgRateLimited) {
@@ -497,12 +514,9 @@ func TestSingleMode(t *testing.T) {
 	}
 	// Members manage players and games; nobody is an owner (the CLI administers).
 	game := must(e, e.c.CreateGame, tok, &pb.CreateGameRequest{Name: "Table tennis"}).Game.Id
-	a := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Ada", MakeMe: true}).Player.Id
+	a := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Ada"}).Player.Id
 	b := must(e, e.c.CreatePlayer, tok, &pb.CreatePlayerRequest{Name: "Bob"}).Player.Id
 	must(e, e.c.CreateRound, tok, &pb.CreateRoundRequest{GameId: game, TeamA: []string{a}, TeamB: []string{b}})
-	if must(e, e.c.GetGroup, tok, &pb.GetGroupRequest{}).Me.GetPlayerId() != a {
-		t.Fatal("make_me lost")
-	}
 	_, err = call(e, e.c.UpdateGroup, tok, &pb.UpdateGroupRequest{Name: ptr("x")})
 	wantCode(t, err, connect.CodePermissionDenied)
 	_, err = call(e, e.c.DeleteGroup, tok, &pb.DeleteGroupRequest{})
@@ -551,7 +565,7 @@ func TestJSONWireFormat(t *testing.T) {
 		}
 		return res.StatusCode, m
 	}
-	status, g := post("CreateGroup", "", `{"name":"Wire","playerName":"Ada","gameName":"RL"}`)
+	status, g := post("CreateGroup", "", `{"name":"Wire","gameName":"RL"}`)
 	if status != 200 {
 		t.Fatalf("%d %v", status, g)
 	}
@@ -564,11 +578,8 @@ func TestJSONWireFormat(t *testing.T) {
 	if p["player"].(map[string]any)["archived"] != false {
 		t.Fatalf("archived:false must be sent explicitly: %v", p)
 	}
-	me := func() string {
-		_, grp := post("GetGroup", token, `{}`)
-		return grp["me"].(map[string]any)["playerId"].(string)
-	}
-	ada := me()
+	_, a := post("CreatePlayer", token, `{"name":"Ada"}`)
+	ada := a["player"].(map[string]any)["id"].(string)
 	status, r := post("CreateRound", token, fmt.Sprintf(`{"gameId":%q,"teamA":[%q],"teamB":[%q],"winner":0}`, game, ada, bob))
 	if status != 200 {
 		t.Fatalf("%d %v", status, r)

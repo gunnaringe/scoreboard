@@ -43,8 +43,6 @@ service ScoreboardService {
   // RotateLink replaces the office, dashboard or owner link; the old one stops
   // working. Owners only.
   rpc RotateLink(RotateLinkRequest) returns (RotateLinkResponse);
-  // SetMe says which player this device is ("who are you").
-  rpc SetMe(SetMeRequest) returns (SetMeResponse);
   // ListDevices lists the group's devices. Owners only.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
   // RemoveDevice removes a device: owners any, everyone their own (leaving).
@@ -113,13 +111,36 @@ message Player {
 message Game {
   string id = 1;
   string name = 2;
-  // Team names; absent means the localised defaults (Blue / Orange).
-  optional string team_a = 3;
-  optional string team_b = 4;
+  reserved 3, 4;
   bool archived = 5;
   google.protobuf.Timestamp created_at = 6;
   // Always set (never UNSPECIFIED).
   RatingSpeed rating_speed = 7;
+  // The two sides: team A is `team_a` in rounds, team B `team_b`.
+  Team team_a = 8;
+  Team team_b = 9;
+}
+
+// Team is one side of a game: a name and a colour.
+message Team {
+  // Empty: the team goes by its colour ("Blue", in the viewer's language).
+  string name = 1;
+  // Always set in responses; the two teams of a game never share one.
+  TeamColor color = 2;
+}
+
+// The colours a team can have. Each theme has its own shade of every colour,
+// so they stay readable on light and dark backgrounds.
+enum TeamColor {
+  TEAM_COLOR_UNSPECIFIED = 0;
+  TEAM_COLOR_BLUE = 1;
+  TEAM_COLOR_ORANGE = 2;
+  TEAM_COLOR_RED = 3;
+  TEAM_COLOR_GREEN = 4;
+  TEAM_COLOR_PURPLE = 5;
+  TEAM_COLOR_YELLOW = 6;
+  TEAM_COLOR_PINK = 7;
+  TEAM_COLOR_TEAL = 8;
 }
 
 // How quickly a game's ratings follow a player getting better or worse.
@@ -189,6 +210,8 @@ message PlayerRating {
   bool provisional = 7;
   // Display points gained or lost since `since`; absent if they did not play.
   optional int32 today = 8;
+  // The same since `week_since`.
+  optional int32 week = 9;
 }
 
 // Handicap is the learned advantage of the bigger team in an uneven format.
@@ -209,7 +232,7 @@ message GameView {
 
 message Device {
   string id = 1;
-  optional string player_id = 2;
+  reserved 2;
   bool owner = 3;
   string label = 4;
   google.protobuf.Timestamp created_at = 5;
@@ -218,14 +241,16 @@ message Device {
   bool is_me = 7;
 }
 
+// Devices aren't people: a screen is often shared, so the app never asks who
+// is holding it. Owners and devices are told apart by their label.
 message Owner {
-  optional string player_id = 1;
+  reserved 1;
   string label = 2;
 }
 
 message Me {
   string device_id = 1;
-  optional string player_id = 2;
+  reserved 2;
   bool owner = 3;
 }
 
@@ -264,7 +289,8 @@ message GetInstanceResponse {
 
 message CreateGroupRequest {
   string name = 1;
-  string player_name = 2;
+  reserved 2;
+  // Optional: also create the group's first game.
   string game_name = 3;
 }
 
@@ -340,13 +366,6 @@ message RotateLinkResponse {
   string owner_token = 3;
 }
 
-message SetMeRequest {
-  // Absent clears it ("I'm not playing").
-  optional string player_id = 1;
-}
-
-message SetMeResponse {}
-
 message ListDevicesRequest {}
 
 message ListDevicesResponse {
@@ -363,8 +382,7 @@ message RemoveDeviceResponse {}
 
 message CreatePlayerRequest {
   string name = 1;
-  // Also make this device that player.
-  bool make_me = 2;
+  reserved 2;
 }
 
 message CreatePlayerResponse {
@@ -383,8 +401,10 @@ message UpdatePlayerResponse {}
 
 message CreateGameRequest {
   string name = 1;
-  optional string team_a = 2;
-  optional string team_b = 3;
+  reserved 2, 3;
+  // Absent, or an UNSPECIFIED colour: blue for team A, orange for team B.
+  Team team_a = 4;
+  Team team_b = 5;
 }
 
 message CreateGameResponse {
@@ -394,12 +414,14 @@ message CreateGameResponse {
 message UpdateGameRequest {
   string game_id = 1;
   optional string name = 2;
-  // An empty team name resets it to the localised default.
-  optional string team_a = 3;
-  optional string team_b = 4;
+  reserved 3, 4;
   optional bool archived = 5;
   // Re-rates the whole game when it changes. UNSPECIFIED is refused.
   optional RatingSpeed rating_speed = 6;
+  // Present: sets the team's name (empty = goes by its colour) and, unless
+  // UNSPECIFIED, its colour. Absent leaves the team as it is.
+  Team team_a = 7;
+  Team team_b = 8;
 }
 
 message UpdateGameResponse {}
@@ -409,6 +431,8 @@ message GetGameRequest {
   // The start of the viewer's day; rounds since then are always included and
   // PlayerRating.today counts from it. Defaults to 24 hours ago.
   google.protobuf.Timestamp since = 2;
+  // The start of the viewer's week, for PlayerRating.week. Defaults to 7 days ago.
+  google.protobuf.Timestamp week_since = 3;
 }
 
 message GetGameResponse {
@@ -587,8 +611,9 @@ message GetDashboardResponse {
 message GetDashboardGameRequest {
   string token = 1;
   string game_id = 2;
-  // As GetGameRequest.since.
+  // As GetGameRequest.since and week_since.
   google.protobuf.Timestamp since = 3;
+  google.protobuf.Timestamp week_since = 4;
 }
 
 message GetDashboardGameResponse {

@@ -79,7 +79,8 @@ JSON quirks the frontend relies on (`TestJSONWireFormat` pins them):
 ## Rating
 
 All maths is Go. The browser shows server-computed numbers: `display`,
-`delta`, `today`, `provisional` (< 10 rounds = "new", unranked), win odds
+`delta`, `today` and `week` (change since the `since` / `week_since` the client
+sends: its midnight and Monday), `provisional` (< 10 rounds = "new", unranked), win odds
 (`PreviewRound`) and team suggestions (`SuggestTeams`, ≤ 14 players).
 Model: Weng-Lin BT-full, sigma0 6, display `1000 + 25·(mu − sigma − 19)`, team
 strength Σ(mu − 25) plus a **learned handicap per uneven format** ("2v1"…)
@@ -125,6 +126,18 @@ browser silently gets a device (`Join` ignores the code), the dashboard is
 `/d` (token `main`), no owner actions at all — administration is the CLI. The
 frontend adapts from `/config.json` (same message as `GetInstance`).
 `--mode multi`: office / dashboard / owner links (see README).
+
+Devices are not people: screens are shared, so there is no "who are you" (no
+device↔player link in the API or schema since migration 0003). Owners and
+devices are shown by their label (from the User-Agent at join).
+
+## Round sheet
+
+`roundSheet` in `app.js`: chips carry name + rating; the bench has + buttons per
+team, a team chip has "move to the other team" and "bench" buttons, and every
+chip drags (pointer events; on touch after a 180 ms hold so swiping still
+scrolls) onto `[data-drop]` zones (`0`, `1`, `bench`). e2e covers both the
+buttons (`place()`) and dragging (`drag()`).
 
 ## Admin
 
@@ -172,10 +185,23 @@ ordering by random ids) shows up as a screen that changes on every run.
 hacker (green terminal, VT323) and gamer (red against blue). A new theme needs
 its block, the picker in `pageAppSettings` + `theme*` strings in `i18n.js`,
 `branding.go` (`defaultTheme` validation), the README, the screenshot loop and
-an e2e check. Branding's accent only recolours light and dark. Team colours
-are `--team-0`/`--team-1`; unnamed teams are called Blue/Orange, or Blue/Red
-in the gamer theme (`defaultTeamName` in `app.js`), so keep names and colours
-matching.
+an e2e check, and its shade of every team colour. Branding's accent only
+recolours light and dark.
+
+## Teams
+
+A game has two teams (`Game.team_a` / `team_b`), each a **name and a colour**;
+nothing in the app knows "blue" or "orange" beyond them being a new game's
+default colours. Colours come from a fixed palette (`TeamColor` in the proto,
+`store.TeamColors`, `TEAM_COLORS` in `app.js`) so every theme can define a
+readable shade of each (`--c-blue`, `--c-red`… in each theme block) and every
+language a name (`colorBlue`…). A team without a name goes by its colour's
+name, in the viewer's language; the two teams of a game never share a colour.
+CSS only uses `--team-0` / `--team-1` (+ `-bg`): `applyTeamColors` points them
+at the game's colours on `<html>` (via `style.setProperty`: the CSP forbids
+style attributes, so no inline `style=` anywhere). Adding a colour: proto enum,
+`store.TeamColors`, `TEAM_COLORS`, a shade in every theme, a `.c-<colour>`
+swatch rule and its name in both languages.
 
 ## Gotchas
 

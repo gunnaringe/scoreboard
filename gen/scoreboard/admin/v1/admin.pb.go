@@ -1080,7 +1080,6 @@ func (x *RotateLinkResponse) GetGroup() *Group {
 type Device struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Player        string                 `protobuf:"bytes,2,opt,name=player,proto3" json:"player,omitempty"`
 	Owner         bool                   `protobuf:"varint,3,opt,name=owner,proto3" json:"owner,omitempty"`
 	Label         string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -1122,13 +1121,6 @@ func (*Device) Descriptor() ([]byte, []int) {
 func (x *Device) GetId() string {
 	if x != nil {
 		return x.Id
-	}
-	return ""
-}
-
-func (x *Device) GetPlayer() string {
-	if x != nil {
-		return x.Player
 	}
 	return ""
 }
@@ -2389,16 +2381,15 @@ const file_scoreboard_admin_v1_admin_proto_rawDesc = "" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x121\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1d.scoreboard.admin.v1.LinkKindR\x04kind\"F\n" +
 	"\x12RotateLinkResponse\x120\n" +
-	"\x05group\x18\x01 \x01(\v2\x1a.scoreboard.admin.v1.GroupR\x05group\"\xd5\x01\n" +
+	"\x05group\x18\x01 \x01(\v2\x1a.scoreboard.admin.v1.GroupR\x05group\"\xc3\x01\n" +
 	"\x06Device\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06player\x18\x02 \x01(\tR\x06player\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\bR\x05owner\x12\x14\n" +
 	"\x05label\x18\x04 \x01(\tR\x05label\x129\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\flast_seen_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"lastSeenAt\"*\n" +
+	"lastSeenAtJ\x04\b\x02\x10\x03\"*\n" +
 	"\x12ListDevicesRequest\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\"L\n" +
 	"\x13ListDevicesResponse\x125\n" +

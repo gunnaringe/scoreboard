@@ -256,22 +256,11 @@ func (v *service) ListDevices(ctx context.Context, r *connect.Request[pb.ListDev
 	if err != nil {
 		return nil, rpcErr(err)
 	}
-	players, err := v.s.Store.ListPlayers(ctx, g.ID)
-	if err != nil {
-		return nil, rpcErr(err)
-	}
-	names := map[string]string{}
-	for _, p := range players {
-		names[p.ID] = p.Name
-	}
 	out := &pb.ListDevicesResponse{}
 	for _, d := range devices {
 		pd := &pb.Device{Id: d.ID, Owner: d.Owner, Label: d.Label, CreatedAt: ts(d.CreatedAt)}
 		if d.LastSeen != nil {
 			pd.LastSeenAt = ts(*d.LastSeen)
-		}
-		if d.PlayerID != nil {
-			pd.Player = names[*d.PlayerID]
 		}
 		out.Devices = append(out.Devices, pd)
 	}
