@@ -1,5 +1,5 @@
 # Weekly dependency updates: one grouped PR per ecosystem for minor/patch,
-# majors as separate PRs.
+# majors as separate PRs (GitHub Actions: everything in one PR).
 version: 2
 updates:
   - package-ecosystem: gomod
@@ -52,5 +52,5 @@ updates:
     commit-message:
       prefix: ci
     groups:
-      github-actions-minor-patch:
-        update-types: [minor, patch]
+      github-actions:
+        patterns: ["*"]
