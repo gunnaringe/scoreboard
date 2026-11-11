@@ -7,7 +7,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Go, Node, buf, the protoc plugins and prek, at the versions in mise.toml.
       - uses: jdx/mise-action@v5
       - name: prek hooks (YAML, JSON)
