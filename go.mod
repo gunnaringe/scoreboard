@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	connectrpc.com/connect v1.21.1
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	google.golang.org/protobuf v1.36.12
 	modernc.org/sqlite v1.62.0
 )
